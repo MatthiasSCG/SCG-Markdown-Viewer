@@ -7,6 +7,11 @@ Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unveroeffentlicht] - 2026-05-10
 
+### Behoben
+
+- **Drag-&-Drop-Overlay war beim Start permanent sichtbar** (gestrichelter blauer Rahmen ueber der ganzen App). Ursache: `.drop-overlay { display: flex; }` ueberschrieb das HTML5-`hidden`-Attribut. Behoben mit zusaetzlicher Regel `.drop-overlay[hidden] { display: none; }`.
+- **Drag-&-Drop-Handling robuster**: Counter-Pattern fuer dragenter/dragleave (vermeidet Flackern, wenn der Cursor zwischen Kindelementen wechselt) und Filter auf `dataTransfer.types.includes('Files')`, damit Text-Selektion oder andere Drag-Quellen das Overlay nicht ausloesen.
+
 ### Neu
 
 - **Windows-Build via electron-builder** mit zwei Targets:

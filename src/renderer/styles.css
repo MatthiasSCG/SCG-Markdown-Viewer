@@ -361,6 +361,9 @@ select {
   justify-content: center;
   pointer-events: none;
 }
+.drop-overlay[hidden] {
+  display: none;
+}
 .drop-overlay-inner {
   background: var(--bg);
   color: var(--fg);

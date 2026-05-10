@@ -102,17 +102,28 @@ function bindUi() {
     await api.setSetting('restoreSession', state.restoreSession);
   });
 
-  // Drag & Drop
+  // Drag & Drop — Counter-Pattern, da dragenter/dragleave auch beim Wechsel
+  // zwischen Kindelementen feuert.
+  let dragCounter = 0;
   window.addEventListener('dragenter', (e) => {
+    if (!e.dataTransfer || !Array.from(e.dataTransfer.types).includes('Files')) return;
     e.preventDefault();
-    dropOverlay.hidden = false;
+    dragCounter += 1;
+    if (dragCounter === 1) dropOverlay.hidden = false;
   });
-  dropOverlay.addEventListener('dragleave', () => {
-    dropOverlay.hidden = true;
+  window.addEventListener('dragleave', (e) => {
+    if (!e.dataTransfer) return;
+    dragCounter = Math.max(0, dragCounter - 1);
+    if (dragCounter === 0) dropOverlay.hidden = true;
   });
-  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('dragover', (e) => {
+    if (e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files')) {
+      e.preventDefault();
+    }
+  });
   window.addEventListener('drop', async (e) => {
     e.preventDefault();
+    dragCounter = 0;
     dropOverlay.hidden = true;
     const files = [];
     for (const f of e.dataTransfer.files) {
