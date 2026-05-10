@@ -7,6 +7,8 @@
   "settings.restoreSession": "Restore session",
   "settings.language": "Language",
   "tab.close": "Close",
+  "tab.moveRight": "Move to right",
+  "tab.moveLeft": "Move to left",
   "empty.title": "Markdown Viewer",
   "empty.hint": "Open a file or drop one here.",
   "drop.hint": "Drop Markdown file here",

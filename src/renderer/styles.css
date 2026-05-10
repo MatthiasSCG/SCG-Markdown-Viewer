@@ -166,6 +166,25 @@ select {
   cursor: pointer;
 }
 
+/* === Panes-Container (Spalten-Layout) ===================================== */
+.panes-container {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+.pane-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  position: relative;
+}
+.pane-group[hidden] { display: none; }
+.pane-group.active-pane .tabbar {
+  box-shadow: inset 0 2px 0 0 var(--accent);
+}
+
 /* === Tabbar =============================================================== */
 .tabbar {
   display: flex;
@@ -177,7 +196,6 @@ select {
   flex-shrink: 0;
   min-height: 32px;
 }
-.tabbar:empty { display: none; }
 .tab {
   display: flex;
   align-items: center;
@@ -197,11 +215,15 @@ select {
   border-bottom: 2px solid var(--accent);
   margin-bottom: -1px;
 }
+.tab.drag-over-left { box-shadow: inset 3px 0 0 0 var(--accent); }
+.tab.drag-over-right { box-shadow: inset -3px 0 0 0 var(--accent); }
+.tabbar.drag-target { background: rgba(10, 102, 194, 0.10); }
 .tab-title {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 200px;
+  pointer-events: none;
 }
 .tab-close {
   width: 18px;
@@ -221,7 +243,7 @@ select {
 }
 .tab-missing .tab-title { text-decoration: line-through; opacity: 0.6; }
 
-/* === Inhalt =============================================================== */
+/* === Inhalt einer Pane ==================================================== */
 .content {
   flex: 1;
   display: flex;
@@ -229,9 +251,9 @@ select {
   min-height: 0;
 }
 .content.view-source .pane-rendered,
-.content.view-source .splitter { display: none; }
+.content.view-source .inner-splitter { display: none; }
 .content.view-rendered .pane-source,
-.content.view-rendered .splitter { display: none; }
+.content.view-rendered .inner-splitter { display: none; }
 .content.view-split .pane { flex: 1; }
 
 .pane {
@@ -255,13 +277,55 @@ select {
   color: var(--fg);
 }
 
+/* === Splitter (innen + zwischen Panes) =================================== */
 .splitter {
-  width: 4px;
   background: var(--border);
-  cursor: col-resize;
   flex-shrink: 0;
 }
-.splitter:hover { background: var(--accent); }
+.inner-splitter {
+  width: 4px;
+  cursor: col-resize;
+}
+.inner-splitter:hover { background: var(--accent); }
+.outer-splitter {
+  width: 6px;
+  background: var(--border-strong);
+  cursor: col-resize;
+}
+.outer-splitter:hover { background: var(--accent); }
+.outer-splitter[hidden] { display: none; }
+
+/* === Kontextmenue ========================================================= */
+.context-menu {
+  position: fixed;
+  z-index: 2000;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  box-shadow: var(--shadow);
+  min-width: 200px;
+  padding: 4px 0;
+  user-select: none;
+}
+.context-menu[hidden] { display: none; }
+.context-menu-item {
+  padding: 6px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.context-menu-item:hover { background: var(--hover); }
+.context-menu-item.disabled {
+  color: var(--fg-muted);
+  cursor: default;
+}
+.context-menu-item.disabled:hover { background: transparent; }
+.context-menu-separator {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
 
 /* === Markdown-Body (Render-Bereich) ====================================== */
 .markdown-body {

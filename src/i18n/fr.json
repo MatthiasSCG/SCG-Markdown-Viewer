@@ -7,6 +7,8 @@
   "settings.restoreSession": "Restaurer la session",
   "settings.language": "Langue",
   "tab.close": "Fermer",
+  "tab.moveRight": "Deplacer a droite",
+  "tab.moveLeft": "Deplacer a gauche",
   "empty.title": "Visualiseur Markdown",
   "empty.hint": "Ouvrez un fichier ou deposez-le ici.",
   "drop.hint": "Deposez le fichier Markdown ici",

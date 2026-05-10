@@ -42,15 +42,31 @@
       </div>
     </header>
 
-    <div id="tabbar" class="tabbar"></div>
-
-    <main id="content" class="content view-split">
-      <section class="pane pane-source">
-        <pre id="pane-source-pre"><code id="pane-source-code"></code></pre>
+    <main id="panes-container" class="panes-container">
+      <section class="pane-group active-pane" data-pane="0">
+        <div class="tabbar"></div>
+        <div class="content view-split">
+          <section class="pane pane-source">
+            <pre><code class="pane-source-code"></code></pre>
+          </section>
+          <div class="splitter inner-splitter" aria-hidden="true"></div>
+          <section class="pane pane-rendered">
+            <article class="markdown-body"></article>
+          </section>
+        </div>
       </section>
-      <div class="splitter" aria-hidden="true"></div>
-      <section class="pane pane-rendered">
-        <article id="pane-rendered-html" class="markdown-body"></article>
+      <div class="splitter outer-splitter" aria-hidden="true" hidden></div>
+      <section class="pane-group" data-pane="1" hidden>
+        <div class="tabbar"></div>
+        <div class="content view-split">
+          <section class="pane pane-source">
+            <pre><code class="pane-source-code"></code></pre>
+          </section>
+          <div class="splitter inner-splitter" aria-hidden="true"></div>
+          <section class="pane pane-rendered">
+            <article class="markdown-body"></article>
+          </section>
+        </div>
       </section>
     </main>
 
@@ -65,6 +81,8 @@
     <div id="drop-overlay" class="drop-overlay" hidden>
       <div class="drop-overlay-inner" data-i18n="drop.hint">Markdown-Datei hier ablegen</div>
     </div>
+
+    <div id="context-menu" class="context-menu" hidden></div>
 
     <script type="module" src="renderer.js"></script>
   </body>

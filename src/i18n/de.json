@@ -7,6 +7,8 @@
   "settings.restoreSession": "Sitzung wiederherstellen",
   "settings.language": "Sprache",
   "tab.close": "Schliessen",
+  "tab.moveRight": "Nach rechts verschieben",
+  "tab.moveLeft": "Nach links verschieben",
   "empty.title": "Markdown Viewer",
   "empty.hint": "Datei oeffnen oder per Drag & Drop hier ablegen.",
   "drop.hint": "Markdown-Datei hier ablegen",

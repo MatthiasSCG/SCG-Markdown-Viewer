@@ -9,6 +9,18 @@ Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ### Neu
 
+- **Zwei-Spalten-Layout**: Tabs koennen in eine zweite Spalte rechts daneben verschoben werden, jede Spalte mit eigener Tab-Leiste und unabhaengigem Inhalt
+  - Tab-Drag-&-Drop: Tabs lassen sich innerhalb einer Tabbar umsortieren oder per Drag in die andere Tabbar verschieben (mit Insert-Indikator: linke/rechte Haelfte des Ziel-Tabs)
+  - Rechtsklick-Kontextmenue auf Tabs: "Nach rechts verschieben" / "Nach links verschieben" / "Schliessen"
+  - Tastenkuerzel `Strg + Alt + →` und `Strg + Alt + ←` zum Verschieben
+  - Mittlere Maustaste auf einen Tab schliesst ihn
+  - Drag von externen Dateien in eine bestimmte Spalte oeffnet sie dort (per Mauspositions-Erkennung)
+  - **Cross-Pane-Lookup** beim Klick auf einen Markdown-Link: ist die Zieldatei in einer **anderen** Spalte bereits offen, springt der Viewer dorthin und aktiviert den existierenden Tab (statt ein Duplikat anzulegen)
+  - Jede Spalte hat ihren eigenen View-Modus (Quellcode/Geteilt/Gerendert); Toolbar wirkt auf die aktive Spalte
+  - Verschiebbarer Outer-Splitter zwischen den Spalten
+  - Spalte kollabiert automatisch zurueck, sobald ihr letzter Tab geschlossen wird
+  - Sitzungs-Wiederherstellung speichert beide Spalten inklusive ihrer Tabs, des aktiven Tabs und des View-Modus (alter `openTabs`-Schluessel wird als Fallback weiter gelesen)
+  - i18n: neue Keys `tab.moveRight` und `tab.moveLeft` in allen 5 Sprachen
 - **Wiki-Links unterstuetzt** (`[[Ziel]]` und `[[Ziel|Anzeigetext]]`): markdown-it-Plugin im Preload, das die Wiki-Syntax in normale Links umwandelt. `.md`-Endung wird automatisch angehaengt, wenn das Ziel keine Endung hat. Klick-Verhalten identisch zu Standard-Markdown-Links.
 
 ### Behoben

@@ -21,9 +21,19 @@ Aenderungen am Code werden in der [CHANGELOG.md](./CHANGELOG.md) festgehalten.
 
 - Beliebig viele Markdown-Dateien koennen gleichzeitig geoeffnet sein
 - Jede Datei laeuft in einem eigenen Tab; Tabs lassen sich schliessen
+- Tabs koennen **per Drag & Drop** umsortiert oder zwischen den Spalten verschoben werden
+- **Rechtsklick** auf einen Tab oeffnet ein Kontextmenue mit "Nach links/rechts verschieben" und "Schliessen"
 - Klick auf einen `[Text](datei.md)`-Link oeffnet die Zieldatei in einem neuen Tab
-- Ist die Zieldatei bereits in einem Tab geoeffnet, wird zu diesem Tab gesprungen
+- Ist die Zieldatei in **irgendeiner** Spalte bereits offen, wird dorthin gesprungen (kein Duplikat)
 - Pro Tab werden Scroll-Positionen (Quellcode und Render) separat gemerkt
+
+### Zwei-Spalten-Layout
+
+- Tabs koennen in eine **zweite Spalte** rechts daneben verschoben werden — beide Spalten haben eigene Tab-Leisten und unabhaengige Inhalte
+- Die Aktivierung erfolgt automatisch, sobald ein Tab nach rechts verschoben wird (per Drag, Kontextmenue oder `Strg + Alt + →`)
+- Jede Spalte hat ihren **eigenen View-Modus** (Quellcode/Geteilt/Gerendert); die Toolbar wirkt auf die zuletzt angeklickte Spalte
+- Wenn die letzte Datei einer Spalte geschlossen wird, klappt das Layout automatisch auf eine Spalte zusammen
+- Die Splitter-Position zwischen den Spalten ist mit der Maus verschiebbar
 
 ### Datei oeffnen
 
@@ -185,12 +195,15 @@ Build-Ergebnisse landen unter `dist/`:
 
 ### Tastenkuerzel
 
-| Tastenkombination     | Aktion                          |
-|-----------------------|---------------------------------|
-| `Strg + O`            | Datei oeffnen                   |
-| `Strg + W`            | Aktiven Tab schliessen          |
-| `Strg + Tab`          | Naechster Tab                   |
-| `Strg + Shift + Tab`  | Vorheriger Tab                  |
+| Tastenkombination     | Aktion                                      |
+|-----------------------|---------------------------------------------|
+| `Strg + O`            | Datei oeffnen                               |
+| `Strg + W`            | Aktiven Tab schliessen                      |
+| `Strg + Tab`          | Naechster Tab in aktiver Spalte             |
+| `Strg + Shift + Tab`  | Vorheriger Tab in aktiver Spalte            |
+| `Strg + Alt + →`      | Aktiven Tab in die rechte Spalte verschieben |
+| `Strg + Alt + ←`      | Aktiven Tab in die linke Spalte verschieben  |
+| Mittlere Maustaste    | Tab schliessen                              |
 
 ## Icon
 
