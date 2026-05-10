@@ -437,6 +437,57 @@ select {
   box-shadow: var(--shadow);
 }
 
+/* === About-Modal ========================================================= */
+.about-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.about-modal[hidden] { display: none; }
+.about-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+.about-modal-content {
+  position: relative;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 28px 36px 24px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  min-width: 380px;
+  max-width: 520px;
+  text-align: center;
+}
+.about-modal-content h2 {
+  margin: 0 0 4px;
+  font-size: 1.4em;
+  font-weight: 600;
+}
+.about-modal-content .about-version {
+  margin: 0 0 18px;
+  color: var(--fg-muted);
+  font-size: 0.95em;
+}
+.about-modal-content .about-author {
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+.about-modal-content .about-credits {
+  margin: 0;
+  font-size: 0.85em;
+  color: var(--fg-muted);
+}
+.about-modal-content button {
+  margin-top: 20px;
+  min-width: 100px;
+}
+
 /* === Scrollbars (dezent) ================================================ */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }

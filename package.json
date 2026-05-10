@@ -67,7 +67,8 @@
       "shortcutName": "Markdown Viewer",
       "deleteAppDataOnUninstall": false,
       "uninstallDisplayName": "Markdown Viewer",
-      "artifactName": "${productName}-${version}-Setup.${ext}"
+      "artifactName": "${productName}-${version}-Setup.${ext}",
+      "include": "build/installer.nsh"
     },
     "portable": {
       "artifactName": "${productName}-${version}-Portable.${ext}"

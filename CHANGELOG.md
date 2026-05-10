@@ -9,6 +9,12 @@ Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ### Neu
 
+- **Ueber-Dialog**: Toolbar-Button "Ueber" (ganz rechts) oder `F1` oeffnet ein zentrales Modal mit App-Name, Versionsnummer (dynamisch via `app.getVersion()`), Autor-Hinweis und Icon-Credit. Schliessbar via Esc, Klick auf den Hintergrund oder OK-Button. In allen 5 Sprachen lokalisiert
+- **Optionale Datei-Assoziation im Installer**: Eine zusaetzliche Setup-Seite bietet eine Checkbox (Default: aktiviert), die bei Aktivierung `.md`, `.markdown`, `.mdown`, `.mkd` mit dem Viewer verknuepft. Eintraege werden unter `HKCU\Software\Classes\` angelegt (per User, kein Admin noetig) und beim Deinstallieren automatisch entfernt — aber nur, wenn sie noch auf unsere ProgID zeigen, damit eine inzwischen anders gesetzte Assoziation eines anderen Programms nicht versehentlich mit ausgehebelt wird
+- **NSIS Custom-Skript** (`build/installer.nsh`) per `nsis.include` eingebunden: enthaelt `customHeader`, `preInit`, `customInstall`, `customUnInstall` und die Custom-Page mit `nsDialogs`-Checkbox
+
+### Neu
+
 - **Zwei-Spalten-Layout**: Tabs koennen in eine zweite Spalte rechts daneben verschoben werden, jede Spalte mit eigener Tab-Leiste und unabhaengigem Inhalt
   - Tab-Drag-&-Drop: Tabs lassen sich innerhalb einer Tabbar umsortieren oder per Drag in die andere Tabbar verschieben (mit Insert-Indikator: linke/rechte Haelfte des Ziel-Tabs)
   - Rechtsklick-Kontextmenue auf Tabs: "Nach rechts verschieben" / "Nach links verschieben" / "Schliessen"

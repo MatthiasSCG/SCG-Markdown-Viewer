@@ -12,5 +12,10 @@
   "empty.title": "Visualiseur Markdown",
   "empty.hint": "Ouvrez un fichier ou deposez-le ici.",
   "drop.hint": "Deposez le fichier Markdown ici",
-  "recent.empty": "Aucun fichier recent"
+  "recent.empty": "Aucun fichier recent",
+  "about.button": "A propos",
+  "about.versionLabel": "Version",
+  "about.author": "Cree par Matthias Stumm en collaboration avec Claude Code (Anthropic)",
+  "about.icon": "Icone : Markdown Mark (CC0) — dcurtis/markdown-mark",
+  "about.ok": "OK"
 }

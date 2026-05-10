@@ -34,6 +34,8 @@ const recentMenu = $('#recent-menu');
 const langSelect = $('#lang-select');
 const restoreCheckbox = $('#chk-restore-session');
 const contextMenu = $('#context-menu');
+const aboutModal = $('#about-modal');
+const aboutVersionEl = $('#about-version');
 
 function getPaneEls(paneIdx) {
   const root = paneRoots[paneIdx];
@@ -139,6 +141,9 @@ function bindUi() {
   $('#btn-open').addEventListener('click', openDialog);
   $('#btn-open-empty').addEventListener('click', openDialog);
   $('#btn-recent').addEventListener('click', toggleRecentMenu);
+  $('#btn-about').addEventListener('click', showAbout);
+  $('#btn-about-close').addEventListener('click', hideAbout);
+  aboutModal.querySelector('.about-modal-backdrop').addEventListener('click', hideAbout);
 
   document.querySelectorAll('.view-btn').forEach((btn) => {
     btn.addEventListener('click', () => setViewMode(btn.dataset.view, true));
@@ -207,6 +212,10 @@ function bindUi() {
     if (e.key === 'Escape') {
       hideContextMenu();
       recentMenu.hidden = true;
+      hideAbout();
+    } else if (e.key === 'F1') {
+      e.preventDefault();
+      showAbout();
     }
   });
 
@@ -836,6 +845,25 @@ function showTabContextMenu(event, paneIdx, tabIdx) {
 function hideContextMenu() {
   contextMenu.hidden = true;
   contextMenu.innerHTML = '';
+}
+
+// --- About-Modal ------------------------------------------------------------
+async function showAbout() {
+  if (!aboutVersionEl.textContent || aboutVersionEl.textContent.trim() === '—') {
+    try {
+      const v = await api.getVersion();
+      aboutVersionEl.textContent = v;
+    } catch {
+      aboutVersionEl.textContent = '?';
+    }
+  }
+  aboutModal.hidden = false;
+  // Fokus auf OK-Button fuer Esc/Enter-Bedienung.
+  setTimeout(() => $('#btn-about-close').focus(), 0);
+}
+
+function hideAbout() {
+  aboutModal.hidden = true;
 }
 
 // --- Hilfs-Funktionen -------------------------------------------------------

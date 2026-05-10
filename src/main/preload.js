@@ -111,6 +111,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // System
   getLocale: () => ipcRenderer.invoke('app:locale'),
+  getVersion: () => ipcRenderer.invoke('app:version'),
   getTheme: () => ipcRenderer.invoke('theme:current'),
 
   // Markdown-Rendering

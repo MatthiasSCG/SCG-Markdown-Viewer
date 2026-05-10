@@ -12,5 +12,10 @@
   "empty.title": "Markdown Viewer",
   "empty.hint": "Datei oeffnen oder per Drag & Drop hier ablegen.",
   "drop.hint": "Markdown-Datei hier ablegen",
-  "recent.empty": "Noch keine zuletzt geoeffneten Dateien"
+  "recent.empty": "Noch keine zuletzt geoeffneten Dateien",
+  "about.button": "Ueber",
+  "about.versionLabel": "Version",
+  "about.author": "Erstellt von Matthias Stumm in Zusammenarbeit mit Claude Code (Anthropic)",
+  "about.icon": "App-Icon: Markdown Mark (CC0) — dcurtis/markdown-mark",
+  "about.ok": "OK"
 }

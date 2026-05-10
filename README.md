@@ -90,6 +90,12 @@ das System-Theme zur Laufzeit umgestellt wird.
 Die Einstellung **"Sitzung wiederherstellen"** (Toolbar) entscheidet, ob beim
 naechsten Start die zuletzt geoeffneten Tabs erneut geoeffnet werden.
 
+### Ueber-Dialog
+
+Toolbar-Button **"Ueber"** (ganz rechts) oder Tastenkuerzel **F1** oeffnet
+einen kleinen Dialog mit App-Name, Versionsnummer (dynamisch aus
+`package.json`) und Credits. Schliessen via Esc, Klick ausserhalb oder OK.
+
 ### Markdown-Umfang
 
 GitHub Flavored Markdown (GFM):
@@ -128,6 +134,8 @@ Der Viewer bearbeitet keine Dateien. Es gibt keine Speichern-Funktion.
 ├── README.md            (diese Datei)
 ├── CHANGELOG.md         (Aenderungs-Historie)
 ├── package.json
+├── build/
+│   └── installer.nsh    (NSIS Custom-Hooks: Datei-Assoziations-Page)
 ├── scripts/
 │   └── build-icon.js    (SVG -> ICO/PNG-Konverter)
 └── src/
@@ -188,10 +196,10 @@ npm run build:icon
 
 Build-Ergebnisse landen unter `dist/`:
 
-- `Markdown Viewer-0.1.0-Setup.exe` — klassischer Setup-Assistent (NSIS), Installation per Benutzer (`%LOCALAPPDATA%\Programs\Markdown Viewer`), Start-Menue- und Desktop-Verknuepfung, sauberer Uninstaller
-- `Markdown Viewer-0.1.0-Portable.exe` — laeuft ohne Installation, kein Eintrag im System
+- `Markdown Viewer-0.1.0-Setup.exe` — klassischer Setup-Assistent (NSIS), Installation per Benutzer (`%LOCALAPPDATA%\Programs\Markdown Viewer`), Start-Menue- und Desktop-Verknuepfung, sauberer Uninstaller. Eine Setup-Seite bietet die **optionale Datei-Assoziation** fuer `.md`, `.markdown`, `.mdown`, `.mkd` (Default: aktiviert, abwaehlbar)
+- `Markdown Viewer-0.1.0-Portable.exe` — laeuft ohne Installation, kein Eintrag im System; Datei-Assoziation ist hier technisch nicht moeglich
 
-> **Datei-Assoziation:** Bewusst nicht aktiviert. Wer den Viewer als Standardprogramm fuer `.md` setzen moechte, macht das manuell ueber Windows-Einstellungen → Apps → Standard-Apps.
+> **Datei-Assoziation deaktivieren oder spaeter aendern:** Windows-Einstellungen → Apps → Standard-Apps → Markdown Viewer (oder Endung `.md` suchen). Beim Deinstallieren werden eigene Registry-Eintraege automatisch entfernt.
 
 ### Tastenkuerzel
 
@@ -204,6 +212,8 @@ Build-Ergebnisse landen unter `dist/`:
 | `Strg + Alt + →`      | Aktiven Tab in die rechte Spalte verschieben |
 | `Strg + Alt + ←`      | Aktiven Tab in die linke Spalte verschieben  |
 | Mittlere Maustaste    | Tab schliessen                              |
+| `F1`                  | Ueber-Dialog oeffnen                        |
+| `Esc`                 | Offene Menues / About-Dialog schliessen     |
 
 ## Icon
 

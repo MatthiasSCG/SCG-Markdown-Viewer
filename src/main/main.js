@@ -203,6 +203,7 @@ function registerIpc() {
   });
 
   ipcMain.handle('app:locale', () => app.getLocale()); // z.B. "de-DE"
+  ipcMain.handle('app:version', () => app.getVersion());
 
   ipcMain.handle('theme:current', () => (nativeTheme.shouldUseDarkColors ? 'dark' : 'light'));
 }

@@ -12,5 +12,10 @@
   "empty.title": "Markdown Viewer",
   "empty.hint": "Open a file or drop one here.",
   "drop.hint": "Drop Markdown file here",
-  "recent.empty": "No recent files yet"
+  "recent.empty": "No recent files yet",
+  "about.button": "About",
+  "about.versionLabel": "Version",
+  "about.author": "Created by Matthias Stumm in collaboration with Claude Code (Anthropic)",
+  "about.icon": "App icon: Markdown Mark (CC0) — dcurtis/markdown-mark",
+  "about.ok": "OK"
 }

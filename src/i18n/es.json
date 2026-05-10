@@ -12,5 +12,10 @@
   "empty.title": "Visor de Markdown",
   "empty.hint": "Abra un archivo o arrastrelo aqui.",
   "drop.hint": "Suelte el archivo Markdown aqui",
-  "recent.empty": "No hay archivos recientes"
+  "recent.empty": "No hay archivos recientes",
+  "about.button": "Acerca de",
+  "about.versionLabel": "Version",
+  "about.author": "Creado por Matthias Stumm en colaboracion con Claude Code (Anthropic)",
+  "about.icon": "Icono: Markdown Mark (CC0) — dcurtis/markdown-mark",
+  "about.ok": "OK"
 }
