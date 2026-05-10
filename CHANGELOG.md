@@ -5,6 +5,21 @@ Alle nennenswerten Aenderungen an diesem Projekt werden hier dokumentiert.
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unveroeffentlicht] - 2026-05-10
+
+### Neu
+
+- **Windows-Build via electron-builder** mit zwei Targets:
+  - **NSIS-Installer** (`Markdown Viewer-0.1.0-Setup.exe`): Setup-Assistent mit waehlbarem Installationsverzeichnis, Start-Menue- und Desktop-Verknuepfung, sauberer Uninstaller (Pro-Benutzer-Installation)
+  - **Portable** (`Markdown Viewer-0.1.0-Portable.exe`): einzelne EXE ohne Installation
+  - **Datei-Assoziation bewusst nicht aktiviert** (gemaess Anforderung)
+- **App-Icon** basierend auf [Markdown Mark](https://github.com/dcurtis/markdown-mark) (CC0)
+  - `scripts/build-icon.js`: rendert das SVG zentriert in einen quadratischen Rahmen und erzeugt `icon.ico` (Multi-Size: 16/24/32/48/64/128/256 px) sowie `icon.png` (256 px)
+  - Build-Tools: `sharp` (SVG-zu-PNG-Rendering) und `to-ico` (PNG-Buendelung zu ICO)
+- BrowserWindow nutzt das Icon im Entwicklungsmodus
+- npm-Scripts: `build`, `build:installer`, `build:portable`, `build:icon`
+- `asarUnpack` fuer `src/i18n/**` — i18n-JSON-Dateien bleiben im Build entpackt, damit `fetch()` aus dem Renderer zuverlaessig auf sie zugreifen kann
+
 ## [0.1.0] - 2026-05-10
 
 ### Neu

@@ -111,6 +111,8 @@ Der Viewer bearbeitet keine Dateien. Es gibt keine Speichern-Funktion.
 ├── README.md            (diese Datei)
 ├── CHANGELOG.md         (Aenderungs-Historie)
 ├── package.json
+├── scripts/
+│   └── build-icon.js    (SVG -> ICO/PNG-Konverter)
 └── src/
     ├── main/
     │   ├── main.js      (Electron Main-Prozess)
@@ -120,12 +122,16 @@ Der Viewer bearbeitet keine Dateien. Es gibt keine Speichern-Funktion.
     │   ├── styles.css
     │   ├── renderer.js  (UI-Logik, Tabs, Drag&Drop)
     │   └── i18n.js
-    └── i18n/
-        ├── de.json
-        ├── en.json
-        ├── fr.json
-        ├── es.json
-        └── it.json
+    ├── i18n/
+    │   ├── de.json
+    │   ├── en.json
+    │   ├── fr.json
+    │   ├── es.json
+    │   └── it.json
+    └── assets/
+        ├── markdown-mark.svg  (Quell-Logo, CC0)
+        ├── icon.ico           (generiert)
+        └── icon.png           (generiert)
 ```
 
 ## Entwicklung
@@ -141,11 +147,34 @@ Der Viewer bearbeitet keine Dateien. Es gibt keine Speichern-Funktion.
 npm install
 ```
 
-### Start
+### Start (Entwicklungsmodus)
 
 ```bash
 npm start
 ```
+
+### Build (Windows)
+
+```bash
+# Beide Targets bauen (Installer + Portable)
+npm run build
+
+# Nur NSIS-Installer
+npm run build:installer
+
+# Nur Portable
+npm run build:portable
+
+# Icon aus SVG neu erzeugen (selten noetig)
+npm run build:icon
+```
+
+Build-Ergebnisse landen unter `dist/`:
+
+- `Markdown Viewer-0.1.0-Setup.exe` — klassischer Setup-Assistent (NSIS), Installation per Benutzer (`%LOCALAPPDATA%\Programs\Markdown Viewer`), Start-Menue- und Desktop-Verknuepfung, sauberer Uninstaller
+- `Markdown Viewer-0.1.0-Portable.exe` — laeuft ohne Installation, kein Eintrag im System
+
+> **Datei-Assoziation:** Bewusst nicht aktiviert. Wer den Viewer als Standardprogramm fuer `.md` setzen moechte, macht das manuell ueber Windows-Einstellungen → Apps → Standard-Apps.
 
 ### Tastenkuerzel
 
@@ -156,8 +185,16 @@ npm start
 | `Strg + Tab`          | Naechster Tab                   |
 | `Strg + Shift + Tab`  | Vorheriger Tab                  |
 
+## Icon
+
+Das App-Icon basiert auf dem **Markdown Mark** von Dustin Curtis
+([dcurtis/markdown-mark](https://github.com/dcurtis/markdown-mark)),
+freigegeben unter **CC0** (Public Domain). Das Quell-SVG liegt unter
+`src/assets/markdown-mark.svg`; aus ihm werden via `npm run build:icon`
+die Multi-Resolution-`icon.ico` (16/24/32/48/64/128/256 px) und
+`icon.png` (256 px) erzeugt.
+
 ## Status
 
-Erste Version (`0.1.0`) — funktional vollstaendig fuer den vereinbarten
-Mindestumfang. Build/Installer fuer Windows wird spaeter mit
-`electron-builder` ergaenzt; dann auch die Datei-Assoziation `.md → Viewer`.
+Version `0.1.0` — funktional vollstaendig fuer den vereinbarten
+Mindestumfang, inklusive Windows-Build (Installer + Portable).

@@ -5,7 +5,11 @@
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "electron . --enable-logging"
+    "dev": "electron . --enable-logging",
+    "build:icon": "node scripts/build-icon.js",
+    "build": "electron-builder --win",
+    "build:installer": "electron-builder --win nsis",
+    "build:portable": "electron-builder --win portable"
   },
   "author": "Matthias Stumm <matthias@stumm-net.de>",
   "license": "UNLICENSED",
@@ -14,12 +18,59 @@
     "node": ">=20"
   },
   "devDependencies": {
-    "electron": "^33.2.0"
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "sharp": "^0.33.5",
+    "to-ico": "^1.1.5"
   },
   "dependencies": {
     "chokidar": "^4.0.1",
     "electron-store": "^10.0.0",
     "markdown-it": "^14.1.0",
     "markdown-it-task-lists": "^2.1.1"
+  },
+  "build": {
+    "appId": "net.stumm.markdown-viewer",
+    "productName": "Markdown Viewer",
+    "copyright": "Copyright (c) 2026 Matthias Stumm",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "package.json",
+      "!src/assets/markdown-mark.svg",
+      "!**/*.map"
+    ],
+    "asarUnpack": [
+      "src/i18n/**/*"
+    ],
+    "win": {
+      "icon": "src/assets/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Markdown Viewer",
+      "deleteAppDataOnUninstall": false,
+      "uninstallDisplayName": "Markdown Viewer",
+      "artifactName": "${productName}-${version}-Setup.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-Portable.${ext}"
+    }
   }
 }
