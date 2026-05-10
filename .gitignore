@@ -1,13 +1,14 @@
 # Dependencies
 node_modules/
 
-# Build-Ergebnisse
+# Build-Ergebnisse (Output-Verzeichnisse)
 dist/
 out/
-build/
 *.exe
 *.msi
 *.appx
+# Hinweis: build/ ist NICHT ausgeschlossen — dort liegen Build-Ressourcen
+# wie installer.nsh fuer electron-builder, die ins Repo gehoeren.
 
 # Logs
 *.log
