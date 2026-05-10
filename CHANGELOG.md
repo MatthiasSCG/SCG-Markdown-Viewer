@@ -7,6 +7,10 @@ Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unveröffentlicht] - 2026-05-10
 
+### Dokumentation
+
+- **Lizenz-Abschnitt im README** ergänzt: persönliches Projekt unter "Alle Rechte vorbehalten" (kein Open Source); Hinweis darauf, dass das Markdown-Mark-Icon (CC0) nicht unter diese Einschränkung fällt
+
 ### Geändert
 
 - **Konsequente deutsche Rechtschreibung** in allen UI-Strings, Doku-Dateien (README, CHANGELOG), Kommentaren und User-sichtbaren Installer-Texten: `ae/oe/ue/ss` durch `ä/ö/ü/ß` ersetzt

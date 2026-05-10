@@ -228,3 +228,17 @@ die Multi-Resolution-`icon.ico` (16/24/32/48/64/128/256 px) und
 
 Version `0.1.0` — funktional vollständig für den vereinbarten
 Mindestumfang, inklusive Windows-Build (Installer + Portable).
+
+## Lizenz
+
+© 2026 Matthias Stumm. Alle Rechte vorbehalten.
+
+Dies ist ein persönliches Projekt. Der Quellcode ist hier öffentlich
+einsehbar, **steht aber nicht unter einer Open-Source-Lizenz**. Eine
+Weiterverwendung, Modifikation oder Verbreitung des Codes ist ohne
+ausdrückliche Genehmigung des Autors nicht gestattet.
+
+Das verwendete App-Icon basiert auf dem
+[Markdown Mark](https://github.com/dcurtis/markdown-mark) von Dustin Curtis,
+welches separat unter **CC0 1.0 (Public Domain)** veröffentlicht ist und
+nicht unter diese Lizenzeinschränkung fällt.
