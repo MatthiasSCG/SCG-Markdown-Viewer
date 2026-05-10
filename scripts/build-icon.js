@@ -1,6 +1,7 @@
 // Erzeugt icon.ico (Multi-Size) und icon.png (256px) aus markdown-mark.svg.
-// Das Original-SVG hat 208x128 — wir rendern es zentriert in einem
-// quadratischen Rahmen mit transparentem Hintergrund.
+// Das Original-SVG hat 208x128 — wir wickeln es in eine helle, abgerundete
+// Plate mit dezentem Border, damit das Icon auf hellen wie auf dunklen
+// System-Themes klar erkennbar ist.
 'use strict';
 
 const sharp = require('sharp');
@@ -16,39 +17,57 @@ const PNG_PATH = path.join(ASSETS, 'icon.png');
 const SOURCE_W = 208;
 const SOURCE_H = 128;
 const ASPECT = SOURCE_W / SOURCE_H;
-const MARGIN = 0.08; // 8 % Rand für optisches Atmen
 
-async function renderSized(svg, size) {
-  const inner = size * (1 - 2 * MARGIN);
-  let w, h;
-  if (ASPECT >= 1) {
-    w = Math.round(inner);
-    h = Math.round(inner / ASPECT);
-  } else {
-    h = Math.round(inner);
-    w = Math.round(inner * ASPECT);
-  }
-  const padX = Math.floor((size - w) / 2);
-  const padY = Math.floor((size - h) / 2);
-  return sharp(svg)
-    .resize(w, h)
-    .extend({
-      top: padY,
-      bottom: size - h - padY,
-      left: padX,
-      right: size - w - padX,
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
-    })
+// Rand- und Plate-Parameter (in Anteilen der Icon-Größe)
+const PLATE_PADDING = 0.12; // 12 % Abstand zwischen Plate-Rand und Logo
+const PLATE_RADIUS = 0.18; // Eckradius der Plate
+const PLATE_FILL = '#ffffff';
+const PLATE_STROKE = '#cccccc';
+const PLATE_STROKE_WIDTH = 0.012; // relativ zur Icon-Größe (= 3 px bei 256)
+const LOGO_FILL = '#000000';
+
+// Pfad-Daten aus dem Original-SVG extrahieren.
+function extractPathD(svgString) {
+  const match = svgString.match(/<path[^>]*d="([^"]+)"[^>]*\/?>/);
+  if (!match) throw new Error('Kein <path d="..."> im SVG gefunden');
+  return match[1];
+}
+
+// Baut ein Wrapper-SVG mit heller Plate + zentriertem Logo.
+function buildWrappedSvg(pathD, size) {
+  const pad = size * PLATE_PADDING;
+  const innerW = size - 2 * pad;
+  const innerH = innerW / ASPECT;
+  const logoX = pad;
+  const logoY = (size - innerH) / 2;
+  const scale = innerW / SOURCE_W;
+  const radius = size * PLATE_RADIUS;
+  const strokeW = Math.max(1, size * PLATE_STROKE_WIDTH);
+  // Plate etwas verkleinern, damit der Stroke nicht abgeschnitten wird.
+  const inset = strokeW / 2;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}">
+  <rect x="${inset}" y="${inset}" width="${size - 2 * inset}" height="${size - 2 * inset}" rx="${radius}" ry="${radius}" fill="${PLATE_FILL}" stroke="${PLATE_STROKE}" stroke-width="${strokeW}"/>
+  <g transform="translate(${logoX} ${logoY}) scale(${scale})">
+    <path d="${pathD}" fill="${LOGO_FILL}"/>
+  </g>
+</svg>`;
+}
+
+async function renderSized(pathD, size) {
+  const wrapped = buildWrappedSvg(pathD, size);
+  return sharp(Buffer.from(wrapped))
+    .resize(size, size)
     .png()
     .toBuffer();
 }
 
 async function main() {
-  const svg = await fs.readFile(SVG_PATH);
+  const svg = (await fs.readFile(SVG_PATH)).toString('utf8');
+  const pathD = extractPathD(svg);
   const sizes = [16, 24, 32, 48, 64, 128, 256];
   const pngs = [];
   for (const s of sizes) {
-    pngs.push(await renderSized(svg, s));
+    pngs.push(await renderSized(pathD, s));
   }
   const ico = await toIco(pngs);
   await fs.writeFile(ICO_PATH, ico);
