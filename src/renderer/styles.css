@@ -146,6 +146,33 @@ body {
   color: var(--accent-fg);
 }
 
+.source-toggles {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 8px;
+}
+.btn-toggle {
+  background: var(--bg-alt);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.btn-toggle:hover:not(:disabled) { background: var(--hover); }
+.btn-toggle.active:not(:disabled) {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+.btn-toggle:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
 .setting {
   display: inline-flex;
   align-items: center;
@@ -272,9 +299,47 @@ select {
   font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.5;
+  color: var(--fg);
+  white-space: pre;
+}
+.pane-source pre.wrap {
   white-space: pre-wrap;
   word-break: break-word;
-  color: var(--fg);
+}
+.pane-source pre.no-wrap {
+  white-space: pre;
+}
+/* Zeilennummern-Modus: jede Zeile als <div class="ln-row"> mit
+   getrenntem Number-Span und Code-Span. */
+.pane-source pre.with-numbers .pane-source-code {
+  display: block;
+}
+.pane-source pre .ln-row {
+  display: flex;
+  align-items: flex-start;
+}
+.pane-source pre.wrap .ln-row .ln-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.pane-source pre.no-wrap .ln-row .ln-text {
+  white-space: pre;
+}
+.pane-source pre .ln-num {
+  color: var(--fg-muted);
+  text-align: right;
+  user-select: none;
+  flex: 0 0 auto;
+  min-width: 3ch;
+  padding-right: 1em;
+  display: none;
+}
+.pane-source pre.with-numbers .ln-num {
+  display: inline-block;
+}
+.pane-source pre .ln-text {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 /* === Splitter (innen + zwischen Panes) =================================== */

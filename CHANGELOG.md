@@ -7,6 +7,22 @@ Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unveröffentlicht] - 2026-05-10
 
+### Neu
+
+- **Ansichts-Modus pro Tab**: Quellcode/Geteilt/Gerendert wird ab sofort pro geöffneter Datei gespeichert (vorher: pro Spalte). Beim Wechsel zwischen Tabs bleibt der gewählte Modus jeder Datei erhalten. Default für neu geöffnete Tabs ist "Gerendert".
+- **Wortumbruch im Quellcode** (Toolbar-Toggle "Umbruch"): pro Tab umschaltbar. Bei aktiviertem Umbruch werden lange Zeilen automatisch umgebrochen, bei deaktiviertem erscheint ein horizontaler Scrollbalken. Default: aus.
+- **Zeilennummern im Quellcode** (Toolbar-Toggle "Nummern"): pro Tab umschaltbar. Default: an.
+- Toggle-Buttons werden im Modus "Gerendert" automatisch ausgegraut, da sie dort keinen sichtbaren Effekt haben.
+- i18n: vier neue Keys (`source.wrap`, `source.wrapTitle`, `source.numbers`, `source.numbersTitle`) in allen 5 Sprachen.
+
+### Behoben
+
+- **Scroll-Position wurde beim Tab-Wechsel überschrieben**: Wenn du in Tab A gescrollt hattest und zu Tab B wechseltest, sprang Tab B's gespeicherte Position auf 0 zurück. Ursache: das DOM-Update beim Tab-Wechsel löste ein scroll-Event aus, dessen Handler den aktuellen scrollTop (gerade auf 0 zurückgesetzt vom Browser) in den **neuen** aktiven Tab schrieb. Behoben durch eine Suppress-Flag, die das Speichern während des Wechsels und der anschließenden Scroll-Wiederherstellung blockiert (zwei `requestAnimationFrame`-Ticks).
+
+### Geändert
+
+- **Persistenz**: pro Tab werden jetzt zusätzlich `viewMode`, `wrapLines` und `showLineNumbers` gespeichert. Migration aus dem alten Format (Pane-`viewMode`) ist eingebaut: der alte Spalten-Modus wird beim ersten Start auf alle Tabs der Spalte übertragen.
+
 ### Geändert
 
 - **App-Icon mit heller Plate** statt transparentem Hintergrund: Auf dunklen System-Themes (Taskleiste, Titelleiste) verschwand das ursprüngliche schwarze Logo mit transparentem M↓-Loch fast vollständig. Das neue Icon hat eine weiße abgerundete Plate mit dezentem grauem Border (`#cccccc`), darauf das original Markdown-Mark in schwarz mit weißem M↓ — auf hellen wie auf dunklen Themes klar erkennbar

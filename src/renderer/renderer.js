@@ -10,8 +10,15 @@ const api = window.api;
 const MAX_PANES = 2;
 const MIME_TAB = 'application/x-mdv-tab';
 
+// Defaults für neue Tabs (per-Tab-Einstellungen).
+const DEFAULT_VIEW_MODE = 'rendered';
+const DEFAULT_WRAP_LINES = false;
+const DEFAULT_SHOW_LINE_NUMBERS = true;
+
 // --- State ------------------------------------------------------------------
-// Eine Pane: { tabs: [{path, content, scrollSrc, scrollRen, missing}], activeIndex, viewMode }
+// Eine Pane: { tabs: [...], activeIndex }
+// Ein Tab: { path, content, scrollSrc, scrollRen, missing,
+//            viewMode, wrapLines, showLineNumbers }
 const state = {
   panes: [createEmptyPane()],
   activePaneIndex: 0,
@@ -19,9 +26,26 @@ const state = {
   restoreSession: true,
 };
 
-function createEmptyPane(viewMode = 'split') {
-  return { tabs: [], activeIndex: -1, viewMode };
+function createEmptyPane() {
+  return { tabs: [], activeIndex: -1 };
 }
+
+function createTab(path, content, settings = {}) {
+  return {
+    path,
+    content,
+    scrollSrc: 0,
+    scrollRen: 0,
+    missing: false,
+    viewMode: settings.viewMode || DEFAULT_VIEW_MODE,
+    wrapLines: settings.wrapLines ?? DEFAULT_WRAP_LINES,
+    showLineNumbers: settings.showLineNumbers ?? DEFAULT_SHOW_LINE_NUMBERS,
+  };
+}
+
+// Verhindert, dass scroll-Events während eines Tab-Wechsels die gespeicherten
+// Scroll-Positionen überschreiben (DOM-Updates triggern scroll-Events).
+let suppressScrollSave = false;
 
 // --- DOM-Referenzen ---------------------------------------------------------
 const $ = (sel) => document.querySelector(sel);
@@ -44,11 +68,18 @@ function getPaneEls(paneIdx) {
     tabbar: root.querySelector('.tabbar'),
     content: root.querySelector('.content'),
     sourceEl: root.querySelector('.pane-source'),
+    sourcePre: root.querySelector('.pane-source pre'),
     sourceCode: root.querySelector('.pane-source-code'),
     renderedEl: root.querySelector('.pane-rendered'),
     renderedHtml: root.querySelector('.markdown-body'),
     innerSplitter: root.querySelector('.splitter.inner-splitter'),
   };
+}
+
+function activeTab() {
+  const pane = state.panes[state.activePaneIndex];
+  if (!pane || pane.activeIndex < 0) return null;
+  return pane.tabs[pane.activeIndex];
 }
 
 // --- Initialisierung --------------------------------------------------------
@@ -104,24 +135,32 @@ async function init() {
 }
 
 async function restorePanes(saved) {
-  // saved = [{paths: [...], activeIndex, viewMode}, ...]
+  // saved = [{paths, activeIndex, viewMode (legacy)?, tabSettings?}, ...]
   state.panes = [];
   for (let i = 0; i < Math.min(saved.length, MAX_PANES); i++) {
-    state.panes.push(createEmptyPane(saved[i].viewMode || 'split'));
+    state.panes.push(createEmptyPane());
   }
   if (state.panes.length === 0) state.panes.push(createEmptyPane());
 
   for (let i = 0; i < state.panes.length; i++) {
-    const paths = Array.isArray(saved[i].paths) ? saved[i].paths : [];
-    for (const p of paths) {
+    const entry = saved[i];
+    const paths = Array.isArray(entry.paths) ? entry.paths : [];
+    const tabSettings = Array.isArray(entry.tabSettings) ? entry.tabSettings : [];
+    // Migration: alter Pane-viewMode → für alle Tabs der Pane übernehmen.
+    const legacyViewMode = entry.viewMode;
+
+    for (let j = 0; j < paths.length; j++) {
+      const p = paths[j];
       try {
         const data = await api.readFile(p);
-        state.panes[i].tabs.push({ path: data.path, content: data.content, scrollSrc: 0, scrollRen: 0, missing: false });
+        const settings = tabSettings[j] || {};
+        if (legacyViewMode && !settings.viewMode) settings.viewMode = legacyViewMode;
+        state.panes[i].tabs.push(createTab(data.path, data.content, settings));
       } catch (err) {
         // Datei nicht mehr da — Tab nicht aufnehmen.
       }
     }
-    const wantedActive = Number.isInteger(saved[i].activeIndex) ? saved[i].activeIndex : 0;
+    const wantedActive = Number.isInteger(entry.activeIndex) ? entry.activeIndex : 0;
     state.panes[i].activeIndex = state.panes[i].tabs.length === 0
       ? -1
       : Math.max(0, Math.min(wantedActive, state.panes[i].tabs.length - 1));
@@ -146,8 +185,11 @@ function bindUi() {
   aboutModal.querySelector('.about-modal-backdrop').addEventListener('click', hideAbout);
 
   document.querySelectorAll('.view-btn').forEach((btn) => {
-    btn.addEventListener('click', () => setViewMode(btn.dataset.view, true));
+    btn.addEventListener('click', () => setViewMode(btn.dataset.view));
   });
+
+  $('#btn-wrap').addEventListener('click', toggleWrapLines);
+  $('#btn-numbers').addEventListener('click', toggleShowLineNumbers);
 
   langSelect.addEventListener('change', async (e) => {
     const newLang = e.target.value;
@@ -194,7 +236,6 @@ function bindUi() {
       const p = api.getPathForFile(f);
       if (p) files.push(p);
     }
-    // In welche Pane droppen? Anhand der Mausposition entscheiden.
     const targetPane = paneIndexAtPoint(e.clientX);
     if (files.length > 0) await openInPane(targetPane, files);
   });
@@ -245,29 +286,23 @@ function bindUi() {
     }
   });
 
-  // Outer-Splitter (zwischen Panes)
   initOuterSplitter();
 }
 
 function bindPaneEvents() {
   paneRoots.forEach((root, idx) => {
-    // Klick irgendwo in der Pane → diese Pane aktivieren.
     root.addEventListener('mousedown', () => activatePane(idx));
 
-    // Klick auf Render-Markdown-Links.
     const renderedHtml = root.querySelector('.markdown-body');
     renderedHtml.addEventListener('click', (e) => handleRenderedClick(e, idx));
 
-    // Scroll-Persistenz.
     const sourceEl = root.querySelector('.pane-source');
     const renderedEl = root.querySelector('.pane-rendered');
     sourceEl.addEventListener('scroll', () => saveScroll(idx));
     renderedEl.addEventListener('scroll', () => saveScroll(idx));
 
-    // Inner-Splitter (Quellcode/Render).
     initInnerSplitter(idx);
 
-    // Tabbar-Drop-Targets für Tab-Drag.
     const tabbar = root.querySelector('.tabbar');
     tabbar.addEventListener('dragover', (e) => {
       if (Array.from(e.dataTransfer.types).includes(MIME_TAB)) {
@@ -285,8 +320,6 @@ function bindPaneEvents() {
       tabbar.classList.remove('drag-target');
       const data = parseTabDrag(e);
       if (!data) return;
-      // Insertion-Index: wenn über einem konkreten Tab gedropped wurde,
-      // wird das im tab-spezifischen drop-handler erledigt.
       moveTabBetweenPanes(data.fromPane, data.tabIndex, idx, state.panes[idx].tabs.length);
     });
   });
@@ -304,7 +337,9 @@ function initInnerSplitter(paneIdx) {
   let dragging = false;
   els.innerSplitter.addEventListener('mousedown', (e) => {
     const pane = state.panes[paneIdx];
-    if (!pane || pane.viewMode !== 'split') return;
+    if (!pane || pane.activeIndex < 0) return;
+    const tab = pane.tabs[pane.activeIndex];
+    if (!tab || tab.viewMode !== 'split') return;
     dragging = true;
     document.body.style.cursor = 'col-resize';
     e.preventDefault();
@@ -362,9 +397,7 @@ async function openInPane(targetPaneIdx, paths) {
     }
     try {
       const data = await api.readFile(p);
-      state.panes[targetPaneIdx].tabs.push({
-        path: data.path, content: data.content, scrollSrc: 0, scrollRen: 0, missing: false,
-      });
+      state.panes[targetPaneIdx].tabs.push(createTab(data.path, data.content));
       activatePane(targetPaneIdx);
       activateTab(targetPaneIdx, state.panes[targetPaneIdx].tabs.length - 1);
     } catch (err) {
@@ -388,24 +421,37 @@ function activatePane(paneIdx) {
   if (paneIdx < 0 || paneIdx >= state.panes.length) return;
   if (state.activePaneIndex === paneIdx) {
     updateActivePaneClasses();
-    syncToolbarToPane(paneIdx);
+    syncToolbarToActiveTab();
     return;
   }
   state.activePaneIndex = paneIdx;
   updateActivePaneClasses();
-  syncToolbarToPane(paneIdx);
+  syncToolbarToActiveTab();
 }
 
 function updateActivePaneClasses() {
   paneRoots.forEach((r, i) => r.classList.toggle('active-pane', i === state.activePaneIndex));
 }
 
-function syncToolbarToPane(paneIdx) {
-  const pane = state.panes[paneIdx];
-  if (!pane) return;
+// Setzt View-Buttons + Toggle-Buttons passend zum aktiven Tab.
+// Toggles werden ausgegraut, wenn keine Quellcode-Pane sichtbar ist.
+function syncToolbarToActiveTab() {
+  const tab = activeTab();
+  const viewMode = tab ? tab.viewMode : DEFAULT_VIEW_MODE;
+  const wrap = tab ? tab.wrapLines : DEFAULT_WRAP_LINES;
+  const numbers = tab ? tab.showLineNumbers : DEFAULT_SHOW_LINE_NUMBERS;
+
   document.querySelectorAll('.view-btn').forEach((b) => {
-    b.classList.toggle('active', b.dataset.view === pane.viewMode);
+    b.classList.toggle('active', b.dataset.view === viewMode);
   });
+
+  const sourceVisible = viewMode === 'source' || viewMode === 'split';
+  const wrapBtn = $('#btn-wrap');
+  const numbersBtn = $('#btn-numbers');
+  wrapBtn.classList.toggle('active', wrap);
+  numbersBtn.classList.toggle('active', numbers);
+  wrapBtn.disabled = !sourceVisible || !tab;
+  numbersBtn.disabled = !sourceVisible || !tab;
 }
 
 // --- Tab-Verwaltung ---------------------------------------------------------
@@ -416,6 +462,7 @@ function activateTab(paneIdx, tabIdx) {
   renderTabbar(paneIdx);
   renderPaneContent(paneIdx);
   activatePane(paneIdx);
+  applyAllLayouts();
   persistState();
 }
 
@@ -425,7 +472,6 @@ async function closeTab(paneIdx, tabIdx) {
   const tab = pane.tabs[tabIdx];
   if (!tab) return;
 
-  // Nur unwatchen, wenn diese Datei in keinem anderen Tab mehr offen ist.
   const stillElsewhere = state.panes.some((p, pi) => p.tabs.some((tb, ti) => tb.path === tab.path && !(pi === paneIdx && ti === tabIdx)));
   if (!stillElsewhere) await api.unwatchFile(tab.path);
 
@@ -455,20 +501,16 @@ function collapseEmptyPanes() {
 
 function moveTabBetweenPanes(fromPane, fromIdx, toPane, toIdx) {
   if (fromPane === toPane) {
-    // Reihenfolge innerhalb derselben Tabbar.
     return reorderTabWithinPane(fromPane, fromIdx, toIdx);
   }
   const pane = state.panes[fromPane];
   const tab = pane.tabs[fromIdx];
   if (!tab) return;
 
-  // Falls Ziel-Pane noch nicht existiert, anlegen.
   ensurePaneExists(toPane);
 
-  // Prüfen, ob Datei im Ziel-Pane bereits offen ist (Variante B):
   const targetExisting = state.panes[toPane].tabs.findIndex((tt) => tt.path === tab.path);
   if (targetExisting >= 0) {
-    // Datei dort schon offen → einfach den Quell-Tab schließen, Ziel aktivieren.
     pane.tabs.splice(fromIdx, 1);
     if (pane.activeIndex >= pane.tabs.length) pane.activeIndex = pane.tabs.length - 1;
     activatePane(toPane);
@@ -487,7 +529,6 @@ function moveTabBetweenPanes(fromPane, fromIdx, toPane, toIdx) {
   state.panes[toPane].activeIndex = insertAt;
 
   collapseEmptyPanes();
-  // toPane könnte sich verschoben haben, wenn fromPane kollabiert ist.
   const newToPane = state.panes.indexOf(state.panes[toPane] || pane);
   activatePane(newToPane >= 0 ? newToPane : 0);
   applyAllLayouts();
@@ -509,7 +550,7 @@ function reorderTabWithinPane(paneIdx, fromIdx, toIdx) {
 
 function ensurePaneExists(paneIdx) {
   while (state.panes.length <= paneIdx && state.panes.length < MAX_PANES) {
-    state.panes.push(createEmptyPane(state.panes[0].viewMode));
+    state.panes.push(createEmptyPane());
   }
 }
 
@@ -520,10 +561,10 @@ function moveActiveTabBetweenPanes(direction) {
   const tabIdx = pane.activeIndex;
   if (direction === 'right') {
     const targetPane = paneIdx === 0 ? 1 : null;
-    if (targetPane === null) return; // schon ganz rechts
+    if (targetPane === null) return;
     moveTabBetweenPanes(paneIdx, tabIdx, targetPane, state.panes[1] ? state.panes[1].tabs.length : 0);
   } else if (direction === 'left') {
-    if (paneIdx === 0) return; // schon ganz links
+    if (paneIdx === 0) return;
     moveTabBetweenPanes(paneIdx, tabIdx, 0, state.panes[0].tabs.length);
   }
 }
@@ -559,7 +600,6 @@ function renderTabbar(paneIdx) {
 
     el.addEventListener('mousedown', (e) => {
       if (e.button === 1) {
-        // Mittlere Maustaste = schließen
         e.preventDefault();
         closeTab(paneIdx, idx);
         return;
@@ -576,7 +616,6 @@ function renderTabbar(paneIdx) {
       showTabContextMenu(e, paneIdx, idx);
     });
 
-    // Tab-Drag
     el.addEventListener('dragstart', (e) => {
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData(MIME_TAB, JSON.stringify({ fromPane: paneIdx, tabIndex: idx }));
@@ -586,7 +625,7 @@ function renderTabbar(paneIdx) {
     el.addEventListener('dragover', (e) => {
       if (!Array.from(e.dataTransfer.types).includes(MIME_TAB)) return;
       e.preventDefault();
-      e.stopPropagation(); // sonst feuert auch der tabbar-Handler
+      e.stopPropagation();
       e.dataTransfer.dropEffect = 'move';
       const rect = el.getBoundingClientRect();
       const isLeftHalf = (e.clientX - rect.left) < rect.width / 2;
@@ -613,21 +652,65 @@ function renderTabbar(paneIdx) {
   });
 }
 
+// Befüllt das <code>-Element mit dem Quellcode — entweder als plain text
+// oder als Liste von <div class="ln-row"> mit Number-Span und Code-Span.
+function renderSourceCode(codeEl, content, withLineNumbers) {
+  if (!withLineNumbers) {
+    codeEl.textContent = content;
+    return;
+  }
+  codeEl.innerHTML = '';
+  const lines = content.split('\n');
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < lines.length; i++) {
+    const row = document.createElement('div');
+    row.className = 'ln-row';
+    const num = document.createElement('span');
+    num.className = 'ln-num';
+    num.textContent = String(i + 1);
+    const text = document.createElement('span');
+    text.className = 'ln-text';
+    text.textContent = lines[i];
+    row.appendChild(num);
+    row.appendChild(text);
+    frag.appendChild(row);
+  }
+  codeEl.appendChild(frag);
+}
+
 function renderPaneContent(paneIdx) {
   const els = getPaneEls(paneIdx);
   const pane = state.panes[paneIdx];
+
+  // Suppress save während wir DOM-Updates machen, die scroll-Events auslösen.
+  suppressScrollSave = true;
+
   if (!pane || pane.activeIndex < 0) {
     els.sourceCode.textContent = '';
     els.renderedHtml.innerHTML = '';
+    els.sourcePre.classList.remove('with-numbers', 'wrap', 'no-wrap');
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => { suppressScrollSave = false; });
+    });
     return;
   }
+
   const tab = pane.tabs[pane.activeIndex];
-  els.sourceCode.textContent = tab.content;
+  renderSourceCode(els.sourceCode, tab.content, tab.showLineNumbers);
+  els.sourcePre.classList.toggle('with-numbers', tab.showLineNumbers);
+  els.sourcePre.classList.toggle('wrap', tab.wrapLines);
+  els.sourcePre.classList.toggle('no-wrap', !tab.wrapLines);
   els.renderedHtml.innerHTML = api.renderMarkdown(tab.content, tab.path);
-  // Scroll-Position.
+
+  // View-Mode-Klassen auf dem .content-Element setzen.
+  els.content.classList.remove('view-source', 'view-split', 'view-rendered');
+  els.content.classList.add(`view-${tab.viewMode}`);
+
+  // Scroll-Position wiederherstellen — und erst danach den Save wieder freigeben.
   requestAnimationFrame(() => {
     els.sourceEl.scrollTop = tab.scrollSrc || 0;
     els.renderedEl.scrollTop = tab.scrollRen || 0;
+    requestAnimationFrame(() => { suppressScrollSave = false; });
   });
 }
 
@@ -639,33 +722,22 @@ function renderAllPanes() {
 }
 
 function applyAllLayouts() {
-  // Sichtbarkeit der zweiten Pane + Outer-Splitter
   const split = state.panes.length === 2;
   paneRoots[1].hidden = !split;
   outerSplitter.hidden = !split;
   if (!split) {
-    // Flex zurücksetzen, damit pane 0 wieder volle Breite bekommt
     paneRoots[0].style.flex = '1 1 0';
     paneRoots[1].style.flex = '';
   }
 
-  // View-Mode-Klassen je Pane setzen
-  for (let i = 0; i < paneRoots.length; i++) {
-    const els = getPaneEls(i);
-    els.content.classList.remove('view-source', 'view-split', 'view-rendered');
-    const pane = state.panes[i];
-    if (pane) {
-      els.content.classList.add(`view-${pane.viewMode}`);
-    }
-  }
-
   updateActivePaneClasses();
-  syncToolbarToPane(state.activePaneIndex);
+  syncToolbarToActiveTab();
   renderAllPanes();
   updateEmptyState();
 }
 
 function saveScroll(paneIdx) {
+  if (suppressScrollSave) return;
   const els = getPaneEls(paneIdx);
   const pane = state.panes[paneIdx];
   if (!pane || pane.activeIndex < 0) return;
@@ -762,19 +834,46 @@ async function toggleRecentMenu(e) {
   recentMenu.hidden = false;
 }
 
-// --- View-Modus -------------------------------------------------------------
-function setViewMode(mode, persist = true) {
+// --- View-Modus + Toggles (alle pro Tab) ------------------------------------
+function setViewMode(mode) {
   if (!['source', 'split', 'rendered'].includes(mode)) return;
-  const pane = state.panes[state.activePaneIndex];
-  if (!pane) return;
-  pane.viewMode = mode;
+  const tab = activeTab();
+  if (!tab) return;
+  tab.viewMode = mode;
   const els = getPaneEls(state.activePaneIndex);
   els.content.classList.remove('view-source', 'view-split', 'view-rendered');
   els.content.classList.add(`view-${mode}`);
-  document.querySelectorAll('.view-btn').forEach((b) => {
-    b.classList.toggle('active', b.dataset.view === mode);
+  syncToolbarToActiveTab();
+  persistState();
+}
+
+function toggleWrapLines() {
+  const tab = activeTab();
+  if (!tab) return;
+  tab.wrapLines = !tab.wrapLines;
+  const els = getPaneEls(state.activePaneIndex);
+  els.sourcePre.classList.toggle('wrap', tab.wrapLines);
+  els.sourcePre.classList.toggle('no-wrap', !tab.wrapLines);
+  syncToolbarToActiveTab();
+  persistState();
+}
+
+function toggleShowLineNumbers() {
+  const tab = activeTab();
+  if (!tab) return;
+  tab.showLineNumbers = !tab.showLineNumbers;
+  const els = getPaneEls(state.activePaneIndex);
+  // Inhalt muss neu gerendert werden (DOM-Struktur ändert sich).
+  suppressScrollSave = true;
+  renderSourceCode(els.sourceCode, tab.content, tab.showLineNumbers);
+  els.sourcePre.classList.toggle('with-numbers', tab.showLineNumbers);
+  // Scroll-Position wiederherstellen.
+  requestAnimationFrame(() => {
+    els.sourceEl.scrollTop = tab.scrollSrc || 0;
+    requestAnimationFrame(() => { suppressScrollSave = false; });
   });
-  if (persist) persistState();
+  syncToolbarToActiveTab();
+  persistState();
 }
 
 // --- Empty-State ------------------------------------------------------------
@@ -794,7 +893,11 @@ function persistState() {
   const snapshot = state.panes.map((p) => ({
     paths: p.tabs.map((t) => t.path),
     activeIndex: p.activeIndex,
-    viewMode: p.viewMode,
+    tabSettings: p.tabs.map((t) => ({
+      viewMode: t.viewMode,
+      wrapLines: t.wrapLines,
+      showLineNumbers: t.showLineNumbers,
+    })),
   }));
   api.setSetting('panes', snapshot);
 }
@@ -829,7 +932,6 @@ function showTabContextMenu(event, paneIdx, tabIdx) {
     contextMenu.appendChild(div);
   }
 
-  // Position: erst an Klickposition setzen, dann ins Viewport hineinziehen.
   contextMenu.style.left = '0px';
   contextMenu.style.top = '0px';
   contextMenu.hidden = false;
@@ -858,7 +960,6 @@ async function showAbout() {
     }
   }
   aboutModal.hidden = false;
-  // Fokus auf OK-Button für Esc/Enter-Bedienung.
   setTimeout(() => $('#btn-about-close').focus(), 0);
 }
 
