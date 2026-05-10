@@ -196,8 +196,8 @@ npm run build:icon
 
 Build-Ergebnisse landen unter `dist/`:
 
-- `Markdown Viewer-0.1.0-Setup.exe` — klassischer Setup-Assistent (NSIS), Installation pro Benutzer (`%LOCALAPPDATA%\Programs\Markdown Viewer`), Start-Menü- und Desktop-Verknüpfung, sauberer Uninstaller. Eine Setup-Seite bietet die **optionale Datei-Assoziation** für `.md`, `.markdown`, `.mdown`, `.mkd` (Default: aktiviert, abwählbar)
-- `Markdown Viewer-0.1.0-Portable.exe` — läuft ohne Installation, kein Eintrag im System; Datei-Assoziation ist hier technisch nicht möglich
+- `Markdown Viewer-0.2.0-Setup.exe` — klassischer Setup-Assistent (NSIS), Installation pro Benutzer (`%LOCALAPPDATA%\Programs\Markdown Viewer`), Start-Menü- und Desktop-Verknüpfung, sauberer Uninstaller. Eine Setup-Seite bietet die **optionale Datei-Assoziation** für `.md`, `.markdown`, `.mdown`, `.mkd` (Default: aktiviert, abwählbar)
+- `Markdown Viewer-0.2.0-Portable.exe` — läuft ohne Installation, kein Eintrag im System; Datei-Assoziation ist hier technisch nicht möglich
 
 > **Datei-Assoziation deaktivieren oder später ändern:** Windows-Einstellungen → Apps → Standard-Apps → Markdown Viewer (oder Endung `.md` suchen). Beim Deinstallieren werden eigene Registry-Einträge automatisch entfernt.
 
@@ -226,7 +226,7 @@ die Multi-Resolution-`icon.ico` (16/24/32/48/64/128/256 px) und
 
 ## Status
 
-Version `0.1.0` — funktional vollständig für den vereinbarten
+Version `0.2.0` — funktional vollständig für den vereinbarten
 Mindestumfang, inklusive Windows-Build (Installer + Portable).
 
 ## Lizenz
