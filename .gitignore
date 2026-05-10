@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build-Ergebnisse
+dist/
+out/
+build/
+*.exe
+*.msi
+*.appx
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor-/Betriebssystem-Dateien
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Lokale Konfiguration
+.env
+.env.local
+.claude/settings.local.json
+
+# Electron User-Data (falls jemand per Symlink lokal testet)
+userData/

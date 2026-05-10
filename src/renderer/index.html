@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self';" />
+    <title>Markdown Viewer</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="toolbar">
+      <div class="toolbar-left">
+        <button id="btn-open" class="btn" title="" data-i18n-title="toolbar.open">
+          <span data-i18n="toolbar.open">Oeffnen</span>
+        </button>
+        <div class="recent-wrapper">
+          <button id="btn-recent" class="btn" data-i18n-title="toolbar.recent" title="">
+            <span data-i18n="toolbar.recent">Zuletzt</span>
+            <span class="caret">&#9662;</span>
+          </button>
+          <div id="recent-menu" class="dropdown" hidden></div>
+        </div>
+      </div>
+      <div class="toolbar-center">
+        <div class="view-toggle" role="group" aria-label="Ansicht">
+          <button data-view="source" class="view-btn" data-i18n="view.source" data-i18n-title="view.source">Quellcode</button>
+          <button data-view="split" class="view-btn active" data-i18n="view.split" data-i18n-title="view.split">Geteilt</button>
+          <button data-view="rendered" class="view-btn" data-i18n="view.rendered" data-i18n-title="view.rendered">Gerendert</button>
+        </div>
+      </div>
+      <div class="toolbar-right">
+        <label class="setting" data-i18n-title="settings.restoreSession">
+          <input type="checkbox" id="chk-restore-session" />
+          <span data-i18n="settings.restoreSession">Sitzung wiederherstellen</span>
+        </label>
+        <select id="lang-select" data-i18n-title="settings.language" title="">
+          <option value="de">Deutsch</option>
+          <option value="en">English</option>
+          <option value="fr">Francais</option>
+          <option value="es">Espanol</option>
+          <option value="it">Italiano</option>
+        </select>
+      </div>
+    </header>
+
+    <div id="tabbar" class="tabbar"></div>
+
+    <main id="content" class="content view-split">
+      <section class="pane pane-source">
+        <pre id="pane-source-pre"><code id="pane-source-code"></code></pre>
+      </section>
+      <div class="splitter" aria-hidden="true"></div>
+      <section class="pane pane-rendered">
+        <article id="pane-rendered-html" class="markdown-body"></article>
+      </section>
+    </main>
+
+    <div id="empty-state" class="empty-state">
+      <div class="empty-state-inner">
+        <h1 data-i18n="empty.title">Markdown Viewer</h1>
+        <p data-i18n="empty.hint">Datei oeffnen oder per Drag &amp; Drop hier ablegen.</p>
+        <button id="btn-open-empty" class="btn btn-primary" data-i18n="toolbar.open">Oeffnen</button>
+      </div>
+    </div>
+
+    <div id="drop-overlay" class="drop-overlay" hidden>
+      <div class="drop-overlay-inner" data-i18n="drop.hint">Markdown-Datei hier ablegen</div>
+    </div>
+
+    <script type="module" src="renderer.js"></script>
+  </body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "toolbar.open": "Apri",
+  "toolbar.recent": "Recenti",
+  "view.source": "Sorgente",
+  "view.split": "Diviso",
+  "view.rendered": "Renderizzato",
+  "settings.restoreSession": "Ripristina sessione",
+  "settings.language": "Lingua",
+  "tab.close": "Chiudi",
+  "empty.title": "Visualizzatore Markdown",
+  "empty.hint": "Apri un file o trascinalo qui.",
+  "drop.hint": "Rilascia qui il file Markdown",
+  "recent.empty": "Nessun file recente"
+}

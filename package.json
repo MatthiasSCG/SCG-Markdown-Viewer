@@ -1,0 +1,25 @@
+{
+  "name": "markdown-viewer",
+  "version": "0.1.0",
+  "description": "Schlanker Markdown-Viewer fuer Windows 11 mit Tabs, Quellcode-/Render-Ansicht, Auto-Reload und Mehrsprachigkeit.",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --enable-logging"
+  },
+  "author": "Matthias Stumm <matthias@stumm-net.de>",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0"
+  },
+  "dependencies": {
+    "chokidar": "^4.0.1",
+    "electron-store": "^10.0.0",
+    "markdown-it": "^14.1.0",
+    "markdown-it-task-lists": "^2.1.1"
+  }
+}

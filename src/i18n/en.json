@@ -1,0 +1,14 @@
+{
+  "toolbar.open": "Open",
+  "toolbar.recent": "Recent",
+  "view.source": "Source",
+  "view.split": "Split",
+  "view.rendered": "Rendered",
+  "settings.restoreSession": "Restore session",
+  "settings.language": "Language",
+  "tab.close": "Close",
+  "empty.title": "Markdown Viewer",
+  "empty.hint": "Open a file or drop one here.",
+  "drop.hint": "Drop Markdown file here",
+  "recent.empty": "No recent files yet"
+}
