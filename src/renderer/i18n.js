@@ -1,4 +1,4 @@
-// Schlanke i18n: laedt JSON pro Sprache, ersetzt data-i18n / data-i18n-title.
+// Schlanke i18n: lädt JSON pro Sprache, ersetzt data-i18n / data-i18n-title.
 'use strict';
 
 const SUPPORTED = ['de', 'en', 'fr', 'es', 'it'];

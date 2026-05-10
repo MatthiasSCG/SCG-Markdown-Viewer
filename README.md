@@ -1,12 +1,12 @@
 # Markdown Viewer
 
-Ein schlanker, lokaler Markdown-Viewer fuer Windows 11 mit Tab-Bedienung,
+Ein schlanker, lokaler Markdown-Viewer für Windows 11 mit Tab-Bedienung,
 umschaltbarer Quellcode-/Render-Ansicht und Auto-Reload.
 
 ## Konzept
 
 Diese Datei dokumentiert das vereinbarte Konzept und den Funktionsumfang.
-Aenderungen am Code werden in der [CHANGELOG.md](./CHANGELOG.md) festgehalten.
+Änderungen am Code werden in der [CHANGELOG.md](./CHANGELOG.md) festgehalten.
 
 ## Funktionsumfang
 
@@ -15,70 +15,70 @@ Aenderungen am Code werden in der [CHANGELOG.md](./CHANGELOG.md) festgehalten.
 - **Quellcode-Ansicht**: zeigt das rohe Markdown
 - **Render-Ansicht**: zeigt die formatierte Darstellung
 - **Geteilte Ansicht (Split)**: beide nebeneinander, per Maus verschiebbar
-- Umschaltbar ueber die Toolbar; die zuletzt gewaehlte Ansicht wird gespeichert
+- Umschaltbar über die Toolbar; die zuletzt gewählte Ansicht wird gespeichert
 
 ### Tabs
 
-- Beliebig viele Markdown-Dateien koennen gleichzeitig geoeffnet sein
-- Jede Datei laeuft in einem eigenen Tab; Tabs lassen sich schliessen
-- Tabs koennen **per Drag & Drop** umsortiert oder zwischen den Spalten verschoben werden
-- **Rechtsklick** auf einen Tab oeffnet ein Kontextmenue mit "Nach links/rechts verschieben" und "Schliessen"
-- Klick auf einen `[Text](datei.md)`-Link oeffnet die Zieldatei in einem neuen Tab
+- Beliebig viele Markdown-Dateien können gleichzeitig geöffnet sein
+- Jede Datei läuft in einem eigenen Tab; Tabs lassen sich schließen
+- Tabs können **per Drag & Drop** umsortiert oder zwischen den Spalten verschoben werden
+- **Rechtsklick** auf einen Tab öffnet ein Kontextmenü mit "Nach links/rechts verschieben" und "Schließen"
+- Klick auf einen `[Text](datei.md)`-Link öffnet die Zieldatei in einem neuen Tab
 - Ist die Zieldatei in **irgendeiner** Spalte bereits offen, wird dorthin gesprungen (kein Duplikat)
 - Pro Tab werden Scroll-Positionen (Quellcode und Render) separat gemerkt
 
 ### Zwei-Spalten-Layout
 
-- Tabs koennen in eine **zweite Spalte** rechts daneben verschoben werden — beide Spalten haben eigene Tab-Leisten und unabhaengige Inhalte
-- Die Aktivierung erfolgt automatisch, sobald ein Tab nach rechts verschoben wird (per Drag, Kontextmenue oder `Strg + Alt + →`)
+- Tabs können in eine **zweite Spalte** rechts daneben verschoben werden — beide Spalten haben eigene Tab-Leisten und unabhängige Inhalte
+- Die Aktivierung erfolgt automatisch, sobald ein Tab nach rechts verschoben wird (per Drag, Kontextmenü oder `Strg + Alt + →`)
 - Jede Spalte hat ihren **eigenen View-Modus** (Quellcode/Geteilt/Gerendert); die Toolbar wirkt auf die zuletzt angeklickte Spalte
 - Wenn die letzte Datei einer Spalte geschlossen wird, klappt das Layout automatisch auf eine Spalte zusammen
 - Die Splitter-Position zwischen den Spalten ist mit der Maus verschiebbar
 
-### Datei oeffnen
+### Datei öffnen
 
 Drei Wege:
 
-1. **Datei-Dialog** ueber den Button "Oeffnen"
+1. **Datei-Dialog** über den Button "Öffnen"
 2. **Drag & Drop** einer oder mehrerer Dateien ins Fenster
-3. **"Oeffnen mit"** im Datei-Explorer (Datei-Assoziation, beim Build aktivierbar)
+3. **"Öffnen mit"** im Datei-Explorer (Datei-Assoziation, beim Build aktivierbar)
 
-Zusaetzlich speichert die Anwendung eine Liste der **zuletzt geoeffneten Dateien**
-(maximal 15), erreichbar ueber den Button "Zuletzt".
+Zusätzlich speichert die Anwendung eine Liste der **zuletzt geöffneten Dateien**
+(maximal 15), erreichbar über den Button "Zuletzt".
 
 ### Auto-Reload
 
-Geoeffnete Dateien werden ueberwacht. Aendert sich eine Datei extern (z.B.
+Geöffnete Dateien werden überwacht. Ändert sich eine Datei extern (z. B.
 durch einen Editor), wird der Tab-Inhalt automatisch aktualisiert. Wird die
-Datei geloescht, wird der Tab-Titel durchgestrichen markiert.
+Datei gelöscht, wird der Tab-Titel durchgestrichen markiert.
 
 ### Bilder
 
 Relative Bildpfade in Markdown (`![Alt](bilder/foo.png)`) werden gegen den
-Pfad des aktuellen Dokuments aufgeloest und als Base64-Data-URI eingebettet.
+Pfad des aktuellen Dokuments aufgelöst und als Base64-Data-URI eingebettet.
 
 ### Links
 
 | Link-Art                    | Verhalten                              |
 |-----------------------------|----------------------------------------|
-| `https://...`, `http://...` | im Standard-Browser oeffnen            |
-| `mailto:...`                | im Standard-Mail-Programm oeffnen      |
+| `https://...`, `http://...` | im Standard-Browser öffnen             |
+| `mailto:...`                | im Standard-Mail-Programm öffnen       |
 | `#anker`                    | im Dokument scrollen                   |
-| `relative/datei.md`         | in neuem Tab oeffnen                   |
+| `relative/datei.md`         | in neuem Tab öffnen                    |
 | Andere relative Dateien     | werden ignoriert (vorerst)             |
 
 ### Sprachen
 
-Die Oberflaeche ist in fuenf Sprachen verfuegbar:
+Die Oberfläche ist in fünf Sprachen verfügbar:
 
 - Deutsch
 - English
-- Francais
-- Espanol
+- Français
+- Español
 - Italiano
 
 Beim ersten Start wird die Sprache aus der Windows-Locale erkannt
-(Fallback: Englisch). Sie kann jederzeit ueber die Toolbar gewechselt werden.
+(Fallback: Englisch). Sie kann jederzeit über die Toolbar gewechselt werden.
 
 ### Theme
 
@@ -88,13 +88,13 @@ das System-Theme zur Laufzeit umgestellt wird.
 ### Sitzung
 
 Die Einstellung **"Sitzung wiederherstellen"** (Toolbar) entscheidet, ob beim
-naechsten Start die zuletzt geoeffneten Tabs erneut geoeffnet werden.
+nächsten Start die zuletzt geöffneten Tabs erneut geöffnet werden.
 
-### Ueber-Dialog
+### Über-Dialog
 
-Toolbar-Button **"Ueber"** (ganz rechts) oder Tastenkuerzel **F1** oeffnet
+Toolbar-Button **"Über"** (ganz rechts) oder Tastenkürzel **F1** öffnet
 einen kleinen Dialog mit App-Name, Versionsnummer (dynamisch aus
-`package.json`) und Credits. Schliessen via Esc, Klick ausserhalb oder OK.
+`package.json`) und Credits. Schließen via Esc, Klick außerhalb oder OK.
 
 ### Markdown-Umfang
 
@@ -104,17 +104,17 @@ GitHub Flavored Markdown (GFM):
 - Task-Listen (`- [ ]` / `- [x]`)
 - Strikethrough (`~~Text~~`)
 - Auto-Links
-- Code-Bloecke mit Sprachangabe (Syntax-Highlighting folgt spaeter)
+- Code-Blöcke mit Sprachangabe (Syntax-Highlighting folgt später)
 
-Zusaetzlich:
+Zusätzlich:
 
 - **Wiki-Links** im Stil von Obsidian/Logseq:
   - `[[Datei]]` — Link zu `Datei.md` im selben Verzeichnis
   - `[[Datei|Anzeigetext]]` — Link mit eigenem Text
   - Hat das Ziel bereits eine Endung (z. B. `[[bild.png]]`), wird sie nicht durch `.md` ersetzt
 
-Mermaid-Diagramme, KaTeX-Mathe und Syntax-Highlighting sind **fuer eine
-spaetere Phase** vorgesehen.
+Mermaid-Diagramme, KaTeX-Mathe und Syntax-Highlighting sind **für eine
+spätere Phase** vorgesehen.
 
 ### Read-only
 
@@ -123,25 +123,25 @@ Der Viewer bearbeitet keine Dateien. Es gibt keine Speichern-Funktion.
 ## Technik-Stack
 
 - **Electron** als Anwendungsrahmen
-- **markdown-it** + **markdown-it-task-lists** fuer GFM-Rendering
-- **chokidar** fuer File-Watching
-- **electron-store** fuer persistente Einstellungen
+- **markdown-it** + **markdown-it-task-lists** für GFM-Rendering
+- **chokidar** für File-Watching
+- **electron-store** für persistente Einstellungen
 
 ## Projektstruktur
 
 ```
 0012_Markdown-Viewer/
 ├── README.md            (diese Datei)
-├── CHANGELOG.md         (Aenderungs-Historie)
+├── CHANGELOG.md         (Änderungs-Historie)
 ├── package.json
 ├── build/
-│   └── installer.nsh    (NSIS Custom-Hooks: Datei-Assoziations-Page)
+│   └── installer.nsh    (NSIS Custom-Hooks: Datei-Assoziations-Seite)
 ├── scripts/
 │   └── build-icon.js    (SVG -> ICO/PNG-Konverter)
 └── src/
     ├── main/
     │   ├── main.js      (Electron Main-Prozess)
-    │   └── preload.js   (Bruecke + Markdown-Rendering)
+    │   └── preload.js   (Brücke + Markdown-Rendering)
     ├── renderer/
     │   ├── index.html
     │   ├── styles.css
@@ -190,30 +190,30 @@ npm run build:installer
 # Nur Portable
 npm run build:portable
 
-# Icon aus SVG neu erzeugen (selten noetig)
+# Icon aus SVG neu erzeugen (selten nötig)
 npm run build:icon
 ```
 
 Build-Ergebnisse landen unter `dist/`:
 
-- `Markdown Viewer-0.1.0-Setup.exe` — klassischer Setup-Assistent (NSIS), Installation per Benutzer (`%LOCALAPPDATA%\Programs\Markdown Viewer`), Start-Menue- und Desktop-Verknuepfung, sauberer Uninstaller. Eine Setup-Seite bietet die **optionale Datei-Assoziation** fuer `.md`, `.markdown`, `.mdown`, `.mkd` (Default: aktiviert, abwaehlbar)
-- `Markdown Viewer-0.1.0-Portable.exe` — laeuft ohne Installation, kein Eintrag im System; Datei-Assoziation ist hier technisch nicht moeglich
+- `Markdown Viewer-0.1.0-Setup.exe` — klassischer Setup-Assistent (NSIS), Installation pro Benutzer (`%LOCALAPPDATA%\Programs\Markdown Viewer`), Start-Menü- und Desktop-Verknüpfung, sauberer Uninstaller. Eine Setup-Seite bietet die **optionale Datei-Assoziation** für `.md`, `.markdown`, `.mdown`, `.mkd` (Default: aktiviert, abwählbar)
+- `Markdown Viewer-0.1.0-Portable.exe` — läuft ohne Installation, kein Eintrag im System; Datei-Assoziation ist hier technisch nicht möglich
 
-> **Datei-Assoziation deaktivieren oder spaeter aendern:** Windows-Einstellungen → Apps → Standard-Apps → Markdown Viewer (oder Endung `.md` suchen). Beim Deinstallieren werden eigene Registry-Eintraege automatisch entfernt.
+> **Datei-Assoziation deaktivieren oder später ändern:** Windows-Einstellungen → Apps → Standard-Apps → Markdown Viewer (oder Endung `.md` suchen). Beim Deinstallieren werden eigene Registry-Einträge automatisch entfernt.
 
-### Tastenkuerzel
+### Tastenkürzel
 
-| Tastenkombination     | Aktion                                      |
-|-----------------------|---------------------------------------------|
-| `Strg + O`            | Datei oeffnen                               |
-| `Strg + W`            | Aktiven Tab schliessen                      |
-| `Strg + Tab`          | Naechster Tab in aktiver Spalte             |
-| `Strg + Shift + Tab`  | Vorheriger Tab in aktiver Spalte            |
+| Tastenkombination     | Aktion                                       |
+|-----------------------|----------------------------------------------|
+| `Strg + O`            | Datei öffnen                                 |
+| `Strg + W`            | Aktiven Tab schließen                        |
+| `Strg + Tab`          | Nächster Tab in aktiver Spalte               |
+| `Strg + Shift + Tab`  | Vorheriger Tab in aktiver Spalte             |
 | `Strg + Alt + →`      | Aktiven Tab in die rechte Spalte verschieben |
 | `Strg + Alt + ←`      | Aktiven Tab in die linke Spalte verschieben  |
-| Mittlere Maustaste    | Tab schliessen                              |
-| `F1`                  | Ueber-Dialog oeffnen                        |
-| `Esc`                 | Offene Menues / About-Dialog schliessen     |
+| Mittlere Maustaste    | Tab schließen                                |
+| `F1`                  | Über-Dialog öffnen                           |
+| `Esc`                 | Offene Menüs / About-Dialog schließen        |
 
 ## Icon
 
@@ -226,5 +226,5 @@ die Multi-Resolution-`icon.ico` (16/24/32/48/64/128/256 px) und
 
 ## Status
 
-Version `0.1.0` — funktional vollstaendig fuer den vereinbarten
+Version `0.1.0` — funktional vollständig für den vereinbarten
 Mindestumfang, inklusive Windows-Build (Installer + Portable).

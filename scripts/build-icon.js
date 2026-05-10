@@ -16,7 +16,7 @@ const PNG_PATH = path.join(ASSETS, 'icon.png');
 const SOURCE_W = 208;
 const SOURCE_H = 128;
 const ASPECT = SOURCE_W / SOURCE_H;
-const MARGIN = 0.08; // 8 % Rand fuer optisches Atmen
+const MARGIN = 0.08; // 8 % Rand für optisches Atmen
 
 async function renderSized(svg, size) {
   const inner = size * (1 - 2 * MARGIN);

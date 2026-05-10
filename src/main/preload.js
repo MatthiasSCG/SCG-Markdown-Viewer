@@ -1,5 +1,5 @@
-// Preload: bruecke zwischen Main-Prozess und Renderer.
-// Markdown-Rendering laeuft hier, weil hier Node-Module verfuegbar sind.
+// Preload: Brücke zwischen Main-Prozess und Renderer.
+// Markdown-Rendering läuft hier, weil hier Node-Module verfügbar sind.
 'use strict';
 
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
@@ -18,7 +18,7 @@ const md = new MarkdownIt({
 md.use(taskLists, { enabled: false, label: true });
 
 // Wiki-Link-Plugin: [[Ziel]] und [[Ziel|Label]] -> <a href="Ziel.md">Label</a>.
-// Wenn das Ziel bereits eine Endung hat, wird .md nicht doppelt angehaengt.
+// Wenn das Ziel bereits eine Endung hat, wird .md nicht doppelt angehängt.
 // Klick-Handling im Renderer ist identisch zu normalen Markdown-Links.
 function wikiLinksPlugin(mdInstance) {
   function tokenize(state, silent) {
@@ -55,8 +55,8 @@ function wikiLinksPlugin(mdInstance) {
 }
 md.use(wikiLinksPlugin);
 
-// Bilder mit relativen Pfaden zum data:-URI aufloesen, damit sie im
-// file://-Kontext zuverlaessig laden. Alternativ koennten wir auf file:// URLs
+// Bilder mit relativen Pfaden zum data:-URI auflösen, damit sie im
+// file://-Kontext zuverlässig laden. Alternativ könnten wir auf file:// URLs
 // umstellen, aber data: ist robuster und vermeidet Caching-Probleme.
 function resolveImagesForBase(html, basePath) {
   if (!basePath) return html;

@@ -1,5 +1,5 @@
 // Renderer-Logik: zwei Tab-Gruppen (Spalten), Tabs, Ansichten,
-// Drag&Drop, i18n, Theme, Splitter, Kontextmenue.
+// Drag&Drop, i18n, Theme, Splitter, Kontextmenü.
 'use strict';
 
 import { loadTranslations, applyTranslations, setLanguage, t, normalizeLocale } from './i18n.js';
@@ -92,7 +92,7 @@ async function init() {
     if (Array.isArray(saved) && saved.length > 0) {
       await restorePanes(saved);
     } else {
-      // Backwards-Compat: alter "openTabs"-Schluessel
+      // Backwards-Compat: alter "openTabs"-Schlüssel
       const legacy = await api.getSetting('openTabs');
       if (Array.isArray(legacy) && legacy.length > 0) {
         await openInPane(0, legacy);
@@ -127,7 +127,7 @@ async function restorePanes(saved) {
       : Math.max(0, Math.min(wantedActive, state.panes[i].tabs.length - 1));
   }
 
-  // Wenn linke Pane leer und rechte gefuellt: rechte hochziehen.
+  // Wenn linke Pane leer und rechte gefüllt: rechte hochziehen.
   if (state.panes.length === 2 && state.panes[0].tabs.length === 0 && state.panes[1].tabs.length > 0) {
     state.panes = [state.panes[1]];
   } else if (state.panes.length === 2 && state.panes[1].tabs.length === 0) {
@@ -164,7 +164,7 @@ function bindUi() {
     await api.setSetting('restoreSession', state.restoreSession);
   });
 
-  // File-Drag&Drop fuer EXTERNE Dateien (nicht fuer Tab-Drag).
+  // File-Drag&Drop für EXTERNE Dateien (nicht für Tab-Drag).
   let dragCounter = 0;
   function isFileDrag(e) {
     return e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files');
@@ -199,7 +199,7 @@ function bindUi() {
     if (files.length > 0) await openInPane(targetPane, files);
   });
 
-  // Klicks ausserhalb von Menues schliessen sie.
+  // Klicks außerhalb von Menüs schließen sie.
   document.addEventListener('mousedown', (e) => {
     if (!recentMenu.contains(e.target) && !$('#btn-recent').contains(e.target)) {
       recentMenu.hidden = true;
@@ -219,7 +219,7 @@ function bindUi() {
     }
   });
 
-  // Tastenkuerzel
+  // Tastenkürzel
   window.addEventListener('keydown', (e) => {
     const ctrl = e.ctrlKey || e.metaKey;
     if (ctrl && e.altKey && e.key === 'ArrowRight') {
@@ -267,7 +267,7 @@ function bindPaneEvents() {
     // Inner-Splitter (Quellcode/Render).
     initInnerSplitter(idx);
 
-    // Tabbar-Drop-Targets fuer Tab-Drag.
+    // Tabbar-Drop-Targets für Tab-Drag.
     const tabbar = root.querySelector('.tabbar');
     tabbar.addEventListener('dragover', (e) => {
       if (Array.from(e.dataTransfer.types).includes(MIME_TAB)) {
@@ -285,7 +285,7 @@ function bindPaneEvents() {
       tabbar.classList.remove('drag-target');
       const data = parseTabDrag(e);
       if (!data) return;
-      // Insertion-Index: wenn ueber einem konkreten Tab gedropped wurde,
+      // Insertion-Index: wenn über einem konkreten Tab gedropped wurde,
       // wird das im tab-spezifischen drop-handler erledigt.
       moveTabBetweenPanes(data.fromPane, data.tabIndex, idx, state.panes[idx].tabs.length);
     });
@@ -343,7 +343,7 @@ function initOuterSplitter() {
   });
 }
 
-// --- Datei oeffnen ----------------------------------------------------------
+// --- Datei öffnen -----------------------------------------------------------
 async function openDialog() {
   const files = await api.openDialog();
   if (files.length > 0) await openInPane(state.activePaneIndex, files);
@@ -465,10 +465,10 @@ function moveTabBetweenPanes(fromPane, fromIdx, toPane, toIdx) {
   // Falls Ziel-Pane noch nicht existiert, anlegen.
   ensurePaneExists(toPane);
 
-  // Pruefen, ob Datei im Ziel-Pane bereits offen ist (Variante B):
+  // Prüfen, ob Datei im Ziel-Pane bereits offen ist (Variante B):
   const targetExisting = state.panes[toPane].tabs.findIndex((tt) => tt.path === tab.path);
   if (targetExisting >= 0) {
-    // Datei dort schon offen → einfach den Quell-Tab schliessen, Ziel aktivieren.
+    // Datei dort schon offen → einfach den Quell-Tab schließen, Ziel aktivieren.
     pane.tabs.splice(fromIdx, 1);
     if (pane.activeIndex >= pane.tabs.length) pane.activeIndex = pane.tabs.length - 1;
     activatePane(toPane);
@@ -559,7 +559,7 @@ function renderTabbar(paneIdx) {
 
     el.addEventListener('mousedown', (e) => {
       if (e.button === 1) {
-        // Mittlere Maustaste = schliessen
+        // Mittlere Maustaste = schließen
         e.preventDefault();
         closeTab(paneIdx, idx);
         return;
@@ -644,7 +644,7 @@ function applyAllLayouts() {
   paneRoots[1].hidden = !split;
   outerSplitter.hidden = !split;
   if (!split) {
-    // Flex zuruecksetzen, damit pane 0 wieder volle Breite bekommt
+    // Flex zurücksetzen, damit pane 0 wieder volle Breite bekommt
     paneRoots[0].style.flex = '1 1 0';
     paneRoots[1].style.flex = '';
   }
@@ -735,7 +735,7 @@ async function handleRenderedClick(e, paneIdx) {
   await openInPane(paneIdx, [resolved]);
 }
 
-// --- Recent-Files-Menue -----------------------------------------------------
+// --- Recent-Files-Menü ------------------------------------------------------
 async function toggleRecentMenu(e) {
   e.stopPropagation();
   if (!recentMenu.hidden) { recentMenu.hidden = true; return; }
@@ -799,7 +799,7 @@ function persistState() {
   api.setSetting('panes', snapshot);
 }
 
-// --- Kontextmenue -----------------------------------------------------------
+// --- Kontextmenü ------------------------------------------------------------
 function showTabContextMenu(event, paneIdx, tabIdx) {
   contextMenu.innerHTML = '';
   const items = [];
@@ -858,7 +858,7 @@ async function showAbout() {
     }
   }
   aboutModal.hidden = false;
-  // Fokus auf OK-Button fuer Esc/Enter-Bedienung.
+  // Fokus auf OK-Button für Esc/Enter-Bedienung.
   setTimeout(() => $('#btn-about-close').focus(), 0);
 }
 

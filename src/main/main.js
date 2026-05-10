@@ -40,7 +40,7 @@ function isMarkdownPath(p) {
   return ext === '.md' || ext === '.markdown' || ext === '.mdown' || ext === '.mkd';
 }
 
-// Extrahiert Datei-Argumente aus process.argv (Windows: "Oeffnen mit").
+// Extrahiert Datei-Argumente aus process.argv (Windows: "Öffnen mit").
 function extractFileArgs(argv) {
   return argv
     .slice(1)
@@ -108,11 +108,11 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false, // Preload braucht require() fuer markdown-it
+      sandbox: false, // Preload braucht require() für markdown-it
     },
   });
 
-  // Standard-Menue ausblenden (eigene Aktionen via UI/Shortcuts).
+  // Standard-Menü ausblenden (eigene Aktionen via UI/Shortcuts).
   Menu.setApplicationMenu(null);
 
   mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
@@ -134,7 +134,7 @@ function createWindow() {
     return { action: 'deny' };
   });
 
-  // System-Theme-Aenderungen an Renderer durchreichen.
+  // System-Theme-Änderungen an Renderer durchreichen.
   nativeTheme.on('updated', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('theme:changed', nativeTheme.shouldUseDarkColors ? 'dark' : 'light');
@@ -147,7 +147,7 @@ function createWindow() {
 function registerIpc() {
   ipcMain.handle('file:openDialog', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
-      title: 'Markdown-Datei oeffnen',
+      title: 'Markdown-Datei öffnen',
       properties: ['openFile', 'multiSelections'],
       filters: [
         { name: 'Markdown', extensions: ['md', 'markdown', 'mdown', 'mkd'] },
@@ -167,7 +167,7 @@ function registerIpc() {
   });
 
   ipcMain.handle('file:resolveLink', async (_event, basePath, target) => {
-    // Loest einen Markdown-Link relativ zum Basisdokument auf.
+    // Löst einen Markdown-Link relativ zum Basisdokument auf.
     if (!target) return null;
     if (/^[a-z]+:\/\//i.test(target)) return null; // externe URL
     const decoded = decodeURI(target.split('#')[0]);
@@ -227,7 +227,7 @@ app.whenReady().then(async () => {
   registerIpc();
   createWindow();
 
-  // Beim Start uebergebene Dateien (Datei-Assoziation, "Oeffnen mit").
+  // Beim Start übergebene Dateien (Datei-Assoziation, "Öffnen mit").
   const initialFiles = extractFileArgs(process.argv);
   if (initialFiles.length > 0) {
     mainWindow.webContents.once('did-finish-load', () => {
