@@ -17,6 +17,44 @@ const md = new MarkdownIt({
 });
 md.use(taskLists, { enabled: false, label: true });
 
+// Wiki-Link-Plugin: [[Ziel]] und [[Ziel|Label]] -> <a href="Ziel.md">Label</a>.
+// Wenn das Ziel bereits eine Endung hat, wird .md nicht doppelt angehaengt.
+// Klick-Handling im Renderer ist identisch zu normalen Markdown-Links.
+function wikiLinksPlugin(mdInstance) {
+  function tokenize(state, silent) {
+    const start = state.pos;
+    if (state.src.charCodeAt(start) !== 0x5b /* [ */) return false;
+    if (state.src.charCodeAt(start + 1) !== 0x5b) return false;
+
+    const end = state.src.indexOf(']]', start + 2);
+    if (end < 0) return false;
+
+    const inner = state.src.slice(start + 2, end);
+    if (inner.length === 0 || inner.includes('\n') || inner.includes('[')) return false;
+
+    const pipeIdx = inner.indexOf('|');
+    const target = (pipeIdx >= 0 ? inner.slice(0, pipeIdx) : inner).trim();
+    const label = (pipeIdx >= 0 ? inner.slice(pipeIdx + 1) : inner).trim();
+    if (!target) return false;
+
+    if (!silent) {
+      const hasExtension = /\.[a-z0-9]{1,8}$/i.test(target);
+      const href = hasExtension ? target : `${target}.md`;
+      const open = state.push('link_open', 'a', 1);
+      open.attrSet('href', href);
+      open.attrSet('class', 'wikilink');
+      const text = state.push('text', '', 0);
+      text.content = label;
+      state.push('link_close', 'a', -1);
+    }
+
+    state.pos = end + 2;
+    return true;
+  }
+  mdInstance.inline.ruler.before('link', 'wikilink', tokenize);
+}
+md.use(wikiLinksPlugin);
+
 // Bilder mit relativen Pfaden zum data:-URI aufloesen, damit sie im
 // file://-Kontext zuverlaessig laden. Alternativ koennten wir auf file:// URLs
 // umstellen, aber data: ist robuster und vermeidet Caching-Probleme.

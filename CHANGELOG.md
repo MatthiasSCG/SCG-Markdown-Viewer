@@ -7,6 +7,10 @@ Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unveroeffentlicht] - 2026-05-10
 
+### Neu
+
+- **Wiki-Links unterstuetzt** (`[[Ziel]]` und `[[Ziel|Anzeigetext]]`): markdown-it-Plugin im Preload, das die Wiki-Syntax in normale Links umwandelt. `.md`-Endung wird automatisch angehaengt, wenn das Ziel keine Endung hat. Klick-Verhalten identisch zu Standard-Markdown-Links.
+
 ### Behoben
 
 - **Drag-&-Drop-Overlay war beim Start permanent sichtbar** (gestrichelter blauer Rahmen ueber der ganzen App). Ursache: `.drop-overlay { display: flex; }` ueberschrieb das HTML5-`hidden`-Attribut. Behoben mit zusaetzlicher Regel `.drop-overlay[hidden] { display: none; }`.

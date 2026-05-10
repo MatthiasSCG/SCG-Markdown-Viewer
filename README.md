@@ -90,6 +90,13 @@ GitHub Flavored Markdown (GFM):
 - Auto-Links
 - Code-Bloecke mit Sprachangabe (Syntax-Highlighting folgt spaeter)
 
+Zusaetzlich:
+
+- **Wiki-Links** im Stil von Obsidian/Logseq:
+  - `[[Datei]]` — Link zu `Datei.md` im selben Verzeichnis
+  - `[[Datei|Anzeigetext]]` — Link mit eigenem Text
+  - Hat das Ziel bereits eine Endung (z. B. `[[bild.png]]`), wird sie nicht durch `.md` ersetzt
+
 Mermaid-Diagramme, KaTeX-Mathe und Syntax-Highlighting sind **fuer eine
 spaetere Phase** vorgesehen.
 
