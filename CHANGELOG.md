@@ -7,6 +7,10 @@ Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unveröffentlicht]
 
+### Geändert
+
+- **Toolbar-Reihenfolge**: Die Toggle-Buttons "Umbruch" und "Nummern" stehen jetzt links vom View-Modus-Block (Quellcode/Geteilt/Gerendert) statt rechts daneben. Logisch passender, weil die beiden Toggles sich auf die Quellcode-Ansicht beziehen.
+
 ### Behoben
 
 - **`.gitignore` schloss `build/` aus**: Dadurch war `build/installer.nsh` (das Custom-NSIS-Skript für die Datei-Assoziations-Page) nie eingechecked, obwohl es in `package.json` referenziert wurde. Lokale Builds funktionierten zufällig, weil die Datei im Working Directory existierte; ein frischer Klone des Repos hätte aber keinen Installer-Build mehr produziert. `build/` ist jetzt nicht mehr in `.gitignore` und `installer.nsh` ist eingechecked.

@@ -149,7 +149,7 @@ body {
 .source-toggles {
   display: inline-flex;
   gap: 4px;
-  margin-left: 8px;
+  margin-right: 8px;
 }
 .btn-toggle {
   background: var(--bg-alt);
