@@ -60,6 +60,7 @@ const restoreCheckbox = $('#chk-restore-session');
 const contextMenu = $('#context-menu');
 const aboutModal = $('#about-modal');
 const aboutVersionEl = $('#about-version');
+const helpModal = $('#help-modal');
 
 function getPaneEls(paneIdx) {
   const root = paneRoots[paneIdx];
@@ -186,6 +187,10 @@ function bindUi() {
   $('#btn-about-close').addEventListener('click', hideAbout);
   aboutModal.querySelector('.about-modal-backdrop').addEventListener('click', hideAbout);
 
+  $('#btn-help').addEventListener('click', showHelp);
+  $('#btn-help-close').addEventListener('click', hideHelp);
+  helpModal.querySelector('.help-modal-backdrop').addEventListener('click', hideHelp);
+
   document.querySelectorAll('.view-btn').forEach((btn) => {
     btn.addEventListener('click', () => setViewMode(btn.dataset.view));
   });
@@ -208,6 +213,8 @@ function bindUi() {
     }
     // Regex-Hilfe wird dynamisch befuellt; bei offener Anzeige neu rendern.
     if (isRegexHelpOpen()) renderRegexHelp();
+    // Hilfe-Modal wird ebenfalls dynamisch befuellt.
+    if (!helpModal.hidden) renderHelpContent();
   });
 
   restoreCheckbox.addEventListener('change', async (e) => {
@@ -267,7 +274,7 @@ function bindUi() {
   });
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      // Reihenfolge: Regex-Hilfe > Suchleiste > Menues/About.
+      // Reihenfolge: Regex-Hilfe > Suchleiste > Modale (Hilfe, About) > Menues.
       if (isRegexHelpOpen()) {
         closeRegexHelp();
         return;
@@ -278,6 +285,7 @@ function bindUi() {
       }
       hideContextMenu();
       recentMenu.hidden = true;
+      hideHelp();
       hideAbout();
     } else if (e.key === 'F1') {
       e.preventDefault();
@@ -1009,6 +1017,106 @@ async function showAbout() {
 
 function hideAbout() {
   aboutModal.hidden = true;
+}
+
+// --- Hilfe-Modal ------------------------------------------------------------
+// Liste der Hauptfunktionen — Reihenfolge bestimmt Anzeige im Modal.
+const HELP_FEATURES = [
+  'help.feature.openFiles',
+  'help.feature.tabs',
+  'help.feature.viewModes',
+  'help.feature.sourceToggles',
+  'help.feature.search',
+  'help.feature.autoReload',
+  'help.feature.restoreSession',
+  'help.feature.links',
+  'help.feature.theme',
+  'help.feature.languages',
+  'help.feature.windowState',
+];
+
+// Shortcuts — { keys: Array von Tasten-Strings, descKey: i18n-Key }.
+// Mehrere Tasten in einer Zeile werden als getrennte <kbd>-Elemente gerendert.
+const HELP_SHORTCUTS = [
+  { keys: ['Strg+O'], descKey: 'help.shortcut.openFile' },
+  { keys: ['Strg+W'], descKey: 'help.shortcut.closeTab' },
+  { keys: ['Strg+Tab', 'Strg+Umschalt+Tab'], descKey: 'help.shortcut.switchTab' },
+  { keys: ['Strg+Alt+→', 'Strg+Alt+←'], descKey: 'help.shortcut.moveTab' },
+  { keys: ['Mittlere Maustaste'], descKey: 'help.shortcut.middleClickClose' },
+  { keys: ['Strg+F'], descKey: 'help.shortcut.openSearch' },
+  { keys: ['F3', 'Umschalt+F3'], descKey: 'help.shortcut.searchNav' },
+  { keys: ['Enter', 'Umschalt+Enter'], descKey: 'help.shortcut.searchNavEnter' },
+  { keys: ['Esc'], descKey: 'help.shortcut.escape' },
+  { keys: ['F1'], descKey: 'help.shortcut.about' },
+];
+
+// Da Tastennamen je nach Sprache anders aussehen ("Strg" vs. "Ctrl",
+// "Umschalt" vs. "Shift", "Mittlere Maustaste" vs. "Middle click"), liefern wir
+// die Tasten auch ueber i18n-Keys, mit deutschen Defaults als Fallback.
+const KEY_LABEL_KEY = {
+  'Strg': 'help.key.ctrl',
+  'Umschalt': 'help.key.shift',
+  'Alt': 'help.key.alt',
+  'Tab': 'help.key.tab',
+  'Enter': 'help.key.enter',
+  'Esc': 'help.key.esc',
+  'Mittlere Maustaste': 'help.key.middleClick',
+};
+
+function localizeKey(token) {
+  const key = KEY_LABEL_KEY[token];
+  if (!key) return token;
+  const translated = t(key);
+  return translated === key ? token : translated;
+}
+
+function renderHelpContent() {
+  const featuresEl = $('#help-features');
+  featuresEl.innerHTML = '';
+  for (const key of HELP_FEATURES) {
+    const li = document.createElement('li');
+    li.textContent = t(key);
+    featuresEl.appendChild(li);
+  }
+
+  const shortcutsEl = $('#help-shortcuts');
+  shortcutsEl.innerHTML = '';
+  for (const sc of HELP_SHORTCUTS) {
+    const tr = document.createElement('tr');
+    const tdKeys = document.createElement('td');
+    sc.keys.forEach((k, i) => {
+      if (i > 0) tdKeys.appendChild(document.createTextNode('  /  '));
+      // Einzelne Tasten innerhalb eines Strings sind durch '+' getrennt.
+      const parts = k.split('+');
+      parts.forEach((part, j) => {
+        if (j > 0) tdKeys.appendChild(document.createTextNode(' + '));
+        const kbd = document.createElement('kbd');
+        kbd.textContent = localizeKey(part);
+        tdKeys.appendChild(kbd);
+      });
+    });
+    const tdDesc = document.createElement('td');
+    tdDesc.textContent = t(sc.descKey);
+    tr.appendChild(tdKeys);
+    tr.appendChild(tdDesc);
+    shortcutsEl.appendChild(tr);
+  }
+}
+
+function showHelp() {
+  renderHelpContent();
+  helpModal.hidden = false;
+  // Scroll-Position des Modals zuruecksetzen — sonst landet man dort, wo der
+  // Fokus den Container hinscrollt (oder beim letzten Stand).
+  const content = helpModal.querySelector('.help-modal-content');
+  if (content) content.scrollTop = 0;
+  // preventScroll verhindert, dass der Fokus den OK-Button am Modal-Ende
+  // sofort in den sichtbaren Bereich scrollt.
+  setTimeout(() => $('#btn-help-close').focus({ preventScroll: true }), 0);
+}
+
+function hideHelp() {
+  helpModal.hidden = true;
 }
 
 // --- Hilfs-Funktionen -------------------------------------------------------

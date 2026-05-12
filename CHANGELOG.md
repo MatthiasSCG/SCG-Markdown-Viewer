@@ -5,6 +5,16 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.4.0] - 2026-05-12
+
+### Neu
+
+- **Fenster-Position und -Größe werden gespeichert**: Beim Beenden merkt sich die App x/y/Breite/Höhe sowie den Maximiert-Status; beim nächsten Start öffnet das Fenster wieder an der gleichen Stelle auf dem gleichen Monitor. Für Setups mit mehreren Bildschirmen praktisch, weil die App vorher immer auf dem Hauptmonitor startete. Gespeichert wird live während des Verschiebens und Größenänderns (debounced, 500 ms) sowie beim Maximieren/Wiederherstellen und beim Schließen — so geht die Position auch nach einem unsauberen Beenden nicht verloren.
+- **Sicherheitsnetz für abgesteckte Monitore**: Wenn der gespeicherte Fensterbereich beim nächsten Start auf keinem aktiven Display mehr sichtbar ist (z.B. weil ein Monitor abgesteckt oder die Auflösung geändert wurde), fällt die App auf die Standard-Position auf dem Hauptmonitor zurück, statt offscreen zu öffnen.
+- **Vollbild-Status wird bewusst nicht persistiert**: damit die App nie überraschend im Vollbild startet.
+- **Hilfe-Dialog** (`?`-Button rechts neben „Über“): Modal mit zwei Sektionen — _Funktionen_ als Bullet-Liste (11 Einträge: Dateien öffnen, Tabs/Spalten, Ansichten, Quellcode-Toggles, Suche, Auto-Reload, Sitzungs-Wiederherstellung, Links/Wiki-Links, Theme, Sprachen, Fenster-Status) und _Tastenkürzel_ als zweispaltige Tabelle mit `<kbd>`-Tasten und Beschreibung. Schließbar per `Esc`, OK-Button oder Klick auf den Hintergrund. Tastenbezeichnungen sind ebenfalls lokalisiert (z.B. „Strg“ / „Ctrl“ / „Maj“ / „Mayús“ / „Maiusc“). Bei Sprachwechsel mit offenem Dialog wird der Inhalt automatisch neu gerendert.
+- **i18n**: 30 neue Keys für die Hilfe (`help.button`, `help.title`, `help.featuresTitle`, `help.shortcutsTitle`, 11 `help.feature.*`, 10 `help.shortcut.*`, 7 `help.key.*`) in allen 5 Sprachen.
+
 ## [0.3.0] - 2026-05-12
 
 ### Neu

@@ -46,6 +46,7 @@
         <button id="btn-about" class="btn" data-i18n-title="about.button" title="">
           <span data-i18n="about.button">Über</span>
         </button>
+        <button id="btn-help" class="btn btn-help-icon" data-i18n-title="help.button" title="" aria-label="Help">?</button>
       </div>
     </header>
 
@@ -113,6 +114,24 @@
     <div id="regex-help-popover" class="regex-help-popover" hidden role="dialog" aria-labelledby="regex-help-title">
       <h3 id="regex-help-title" class="regex-help-title" data-i18n="search.regexHelpTitle">Regulärer Ausdruck</h3>
       <dl class="regex-help-list" id="regex-help-list"></dl>
+    </div>
+
+    <div id="help-modal" class="help-modal" hidden>
+      <div class="help-modal-backdrop"></div>
+      <div class="help-modal-content" role="dialog" aria-modal="true" aria-labelledby="help-title">
+        <h2 id="help-title" data-i18n="help.title">Hilfe</h2>
+        <div class="help-section">
+          <h3 data-i18n="help.featuresTitle">Funktionen</h3>
+          <ul class="help-features" id="help-features"></ul>
+        </div>
+        <div class="help-section">
+          <h3 data-i18n="help.shortcutsTitle">Tastenkürzel</h3>
+          <table class="help-shortcuts">
+            <tbody id="help-shortcuts"></tbody>
+          </table>
+        </div>
+        <button id="btn-help-close" class="btn btn-primary" data-i18n="about.ok">OK</button>
+      </div>
     </div>
 
     <div id="about-modal" class="about-modal" hidden>

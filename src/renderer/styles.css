@@ -694,6 +694,95 @@ select {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
 }
 
+/* === Hilfe-Modal ========================================================= */
+.btn-help-icon {
+  font-weight: 700;
+  padding: 5px 10px;
+  min-width: 32px;
+}
+.help-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.help-modal[hidden] { display: none; }
+.help-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+.help-modal-content {
+  position: relative;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px 32px 20px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  width: min(640px, 92vw);
+  max-height: 85vh;
+  overflow-y: auto;
+  text-align: left;
+}
+.help-modal-content h2 {
+  margin: 0 0 16px;
+  font-size: 1.4em;
+  font-weight: 600;
+  text-align: center;
+}
+.help-section {
+  margin: 0 0 18px;
+}
+.help-section h3 {
+  margin: 0 0 8px;
+  font-size: 1.05em;
+  font-weight: 600;
+  color: var(--fg);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+.help-features {
+  margin: 0;
+  padding-left: 1.4em;
+}
+.help-features li {
+  margin: 4px 0;
+  line-height: 1.45;
+}
+.help-shortcuts {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+.help-shortcuts td {
+  padding: 5px 8px;
+  vertical-align: top;
+}
+.help-shortcuts tr:nth-child(odd) td { background: var(--bg-alt); }
+.help-shortcuts td:first-child {
+  white-space: nowrap;
+  width: 1%;
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+.help-shortcuts kbd {
+  background: var(--code-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+.help-modal-content > button {
+  display: block;
+  margin: 16px auto 0;
+  min-width: 100px;
+}
+
 /* === Scrollbars (dezent) ================================================ */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }

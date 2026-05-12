@@ -3,7 +3,7 @@
 
 const path = require('node:path');
 const fs = require('node:fs/promises');
-const { app, BrowserWindow, dialog, ipcMain, shell, nativeTheme, Menu } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell, nativeTheme, Menu, screen } = require('electron');
 const chokidar = require('chokidar');
 
 // Single-Instance-Lock: zweite Instanz reicht ihre Datei an die erste weiter.
@@ -28,6 +28,8 @@ async function loadStore() {
       recentFiles: [],
       language: null, // null = aus Windows-Locale ableiten
       viewMode: 'split', // 'source' | 'rendered' | 'split'
+      windowBounds: null, // { x, y, width, height } oder null
+      windowMaximized: false,
     },
   });
 }
@@ -95,8 +97,52 @@ async function unwatchAll() {
 
 // --- Fenster -----------------------------------------------------------------
 
+// Prueft, ob die gespeicherten Bounds noch auf einem aktiven Display sichtbar
+// sind — verhindert, dass das Fenster offscreen oeffnet, wenn ein Monitor
+// abgesteckt wurde. Mind. 100x100 Pixel muessen mit einem Display ueberlappen.
+function isBoundsVisibleOnAnyDisplay(bounds) {
+  if (!bounds || typeof bounds.x !== 'number' || typeof bounds.y !== 'number') return false;
+  if (typeof bounds.width !== 'number' || typeof bounds.height !== 'number') return false;
+  const displays = screen.getAllDisplays();
+  for (const d of displays) {
+    const a = d.bounds;
+    const x1 = Math.max(bounds.x, a.x);
+    const y1 = Math.max(bounds.y, a.y);
+    const x2 = Math.min(bounds.x + bounds.width, a.x + a.width);
+    const y2 = Math.min(bounds.y + bounds.height, a.y + a.height);
+    if (x2 - x1 > 100 && y2 - y1 > 100) return true;
+  }
+  return false;
+}
+
+let saveBoundsTimer = null;
+
+function saveWindowBounds() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  // Wenn minimiert oder Vollbild: Bounds sind nicht aussagekraeftig, also ueberspringen.
+  if (mainWindow.isMinimized() || mainWindow.isFullScreen()) return;
+  const isMax = mainWindow.isMaximized();
+  // getNormalBounds liefert die "wiederhergestellten" Bounds, auch wenn das
+  // Fenster gerade maximiert ist — damit speichern wir die echten Werte.
+  const bounds = isMax ? mainWindow.getNormalBounds() : mainWindow.getBounds();
+  store?.set('windowBounds', bounds);
+  store?.set('windowMaximized', isMax);
+}
+
+function scheduleSaveBounds() {
+  if (saveBoundsTimer) clearTimeout(saveBoundsTimer);
+  saveBoundsTimer = setTimeout(() => {
+    saveBoundsTimer = null;
+    saveWindowBounds();
+  }, 500);
+}
+
 function createWindow() {
-  mainWindow = new BrowserWindow({
+  const storedBounds = store?.get('windowBounds');
+  const storedMaximized = !!store?.get('windowMaximized');
+  const useStored = isBoundsVisibleOnAnyDisplay(storedBounds);
+
+  const options = {
     width: 1200,
     height: 800,
     minWidth: 600,
@@ -110,7 +156,17 @@ function createWindow() {
       nodeIntegration: false,
       sandbox: false, // Preload braucht require() für markdown-it
     },
-  });
+  };
+  if (useStored) {
+    options.x = storedBounds.x;
+    options.y = storedBounds.y;
+    options.width = Math.max(storedBounds.width, options.minWidth);
+    options.height = Math.max(storedBounds.height, options.minHeight);
+  }
+
+  mainWindow = new BrowserWindow(options);
+
+  if (useStored && storedMaximized) mainWindow.maximize();
 
   // Standard-Menü ausblenden (eigene Aktionen via UI/Shortcuts).
   Menu.setApplicationMenu(null);
@@ -119,6 +175,19 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+  });
+
+  // Fenster-Geometrie persistieren (debounced bei Move/Resize, sofort bei Maximize-Wechsel und Close).
+  mainWindow.on('move', scheduleSaveBounds);
+  mainWindow.on('resize', scheduleSaveBounds);
+  mainWindow.on('maximize', saveWindowBounds);
+  mainWindow.on('unmaximize', saveWindowBounds);
+  mainWindow.on('close', () => {
+    if (saveBoundsTimer) {
+      clearTimeout(saveBoundsTimer);
+      saveBoundsTimer = null;
+    }
+    saveWindowBounds();
   });
 
   mainWindow.on('closed', async () => {
