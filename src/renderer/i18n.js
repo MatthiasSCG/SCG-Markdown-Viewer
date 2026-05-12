@@ -38,4 +38,8 @@ export function applyTranslations(root) {
     const key = el.getAttribute('data-i18n-title');
     if (key && dict[key] != null) el.title = dict[key];
   });
+  root.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (key && dict[key] != null) el.placeholder = dict[key];
+  });
 }

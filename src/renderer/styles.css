@@ -553,6 +553,147 @@ select {
   min-width: 100px;
 }
 
+/* === Suchleiste ========================================================== */
+.search-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--bg-toolbar);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+  user-select: none;
+}
+.search-bar[hidden] { display: none; }
+.search-scope {
+  font-size: 12px;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+.search-input {
+  flex: 1;
+  min-width: 120px;
+  max-width: 480px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 8px;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+}
+.search-input:focus { border-color: var(--accent); }
+.search-input.invalid {
+  border-color: #c0392b;
+  background: rgba(192, 57, 43, 0.08);
+}
+.search-count {
+  font-size: 12px;
+  color: var(--fg-muted);
+  min-width: 70px;
+  text-align: right;
+  white-space: nowrap;
+}
+.search-count.empty { color: #c0392b; }
+.search-toggle {
+  min-width: 32px;
+  text-align: center;
+  font-family: var(--font-mono);
+}
+.search-nav {
+  padding: 4px 8px;
+  min-width: 28px;
+  font-size: 13px;
+}
+.search-close {
+  padding: 4px 8px;
+  min-width: 28px;
+}
+.search-help {
+  padding: 4px 8px;
+  min-width: 28px;
+  font-weight: 700;
+}
+.search-help.active {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+
+/* === Regex-Hilfe-Popover ================================================= */
+.regex-help-popover {
+  position: fixed;
+  z-index: 1600;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 16px 14px;
+  box-shadow: var(--shadow);
+  max-width: 380px;
+  font-size: 12.5px;
+  user-select: text;
+}
+.regex-help-popover[hidden] { display: none; }
+.regex-help-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.regex-help-list {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 12px;
+  row-gap: 4px;
+  align-items: baseline;
+}
+.regex-help-list dt {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  background: var(--code-bg);
+  padding: 1px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.regex-help-list dd {
+  margin: 0;
+  color: var(--fg);
+}
+
+/* === Treffer-Hervorhebung ================================================ */
+.mdv-match {
+  background: #fff59d;
+  color: inherit;
+  border-radius: 2px;
+  padding: 0;
+}
+.mdv-match-current {
+  background: #ff9800;
+  color: #000;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+[data-theme="dark"] .mdv-match {
+  background: #6b5a00;
+  color: #fff;
+}
+[data-theme="dark"] .mdv-match-current {
+  background: #ff9800;
+  color: #1a1a1a;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
 /* === Scrollbars (dezent) ================================================ */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }

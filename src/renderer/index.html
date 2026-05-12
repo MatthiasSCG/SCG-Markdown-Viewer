@@ -91,6 +91,30 @@
 
     <div id="context-menu" class="context-menu" hidden></div>
 
+    <div id="search-bar" class="search-bar" hidden>
+      <div class="search-scope" id="search-scope" data-i18n-title="search.scopeTitle" title=""></div>
+      <input
+        type="text"
+        id="search-input"
+        class="search-input"
+        spellcheck="false"
+        autocomplete="off"
+        data-i18n-placeholder="search.placeholder"
+      />
+      <span id="search-count" class="search-count"></span>
+      <button id="btn-search-case" class="btn-toggle search-toggle" data-i18n-title="search.caseSensitiveTitle" title="">Aa</button>
+      <button id="btn-search-regex" class="btn-toggle search-toggle" data-i18n-title="search.regexTitle" title="">.*</button>
+      <button id="btn-search-help" class="btn search-help" data-i18n-title="search.helpTitle" title="" aria-label="Regex help">?</button>
+      <button id="btn-search-prev" class="btn search-nav" data-i18n-title="search.prevTitle" title="" aria-label="Previous">&#x2191;</button>
+      <button id="btn-search-next" class="btn search-nav" data-i18n-title="search.nextTitle" title="" aria-label="Next">&#x2193;</button>
+      <button id="btn-search-close" class="btn search-close" data-i18n-title="search.closeTitle" title="" aria-label="Close">&#x2715;</button>
+    </div>
+
+    <div id="regex-help-popover" class="regex-help-popover" hidden role="dialog" aria-labelledby="regex-help-title">
+      <h3 id="regex-help-title" class="regex-help-title" data-i18n="search.regexHelpTitle">Regulärer Ausdruck</h3>
+      <dl class="regex-help-list" id="regex-help-list"></dl>
+    </div>
+
     <div id="about-modal" class="about-modal" hidden>
       <div class="about-modal-backdrop"></div>
       <div class="about-modal-content" role="dialog" aria-modal="true" aria-labelledby="about-title">

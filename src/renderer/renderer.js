@@ -111,6 +111,8 @@ async function init() {
   // Bindings
   bindUi();
   bindPaneEvents();
+  bindSearchUi();
+  await initSearchFromSettings();
 
   // Datei-Events
   api.onOpenExternal((files) => openInPane(state.activePaneIndex, files));
@@ -199,6 +201,13 @@ function bindUi() {
     applyTranslations(document);
     setLanguage(newLang);
     renderAllPanes();
+    // Such-Labels (Scope, Counter) sind nicht ueber data-i18n abgedeckt.
+    if (search.visible) {
+      updateSearchScopeLabel();
+      updateSearchCounter();
+    }
+    // Regex-Hilfe wird dynamisch befuellt; bei offener Anzeige neu rendern.
+    if (isRegexHelpOpen()) renderRegexHelp();
   });
 
   restoreCheckbox.addEventListener('change', async (e) => {
@@ -248,9 +257,25 @@ function bindUi() {
     if (!contextMenu.contains(e.target)) {
       hideContextMenu();
     }
+    // Regex-Hilfe schliessen bei Klick ausserhalb (Hilfe-Button toggelt selbst).
+    if (isRegexHelpOpen()) {
+      const help = getSearchEls();
+      if (!help.helpPopover.contains(e.target) && !help.btnHelp.contains(e.target)) {
+        closeRegexHelp();
+      }
+    }
   });
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
+      // Reihenfolge: Regex-Hilfe > Suchleiste > Menues/About.
+      if (isRegexHelpOpen()) {
+        closeRegexHelp();
+        return;
+      }
+      if (search.visible) {
+        closeSearchBar();
+        return;
+      }
       hideContextMenu();
       recentMenu.hidden = true;
       hideAbout();
@@ -283,6 +308,14 @@ function bindUi() {
     } else if (ctrl && e.key.toLowerCase() === 'o') {
       e.preventDefault();
       openDialog();
+    } else if (ctrl && e.key.toLowerCase() === 'f') {
+      e.preventDefault();
+      openSearchBar();
+    } else if (e.key === 'F3') {
+      if (!search.visible) return;
+      e.preventDefault();
+      if (e.shiftKey) prevMatch();
+      else nextMatch();
     }
   });
 
@@ -427,6 +460,8 @@ function activatePane(paneIdx) {
   state.activePaneIndex = paneIdx;
   updateActivePaneClasses();
   syncToolbarToActiveTab();
+  // Bei aktiver Suche im neuen Pane neu suchen.
+  refreshSearchIfVisible();
 }
 
 function updateActivePaneClasses() {
@@ -710,7 +745,11 @@ function renderPaneContent(paneIdx) {
   requestAnimationFrame(() => {
     els.sourceEl.scrollTop = tab.scrollSrc || 0;
     els.renderedEl.scrollTop = tab.scrollRen || 0;
-    requestAnimationFrame(() => { suppressScrollSave = false; });
+    requestAnimationFrame(() => {
+      suppressScrollSave = false;
+      // Suche nach DOM-Wechsel neu ausfuehren (Tab-/View-Wechsel, Reload).
+      if (paneIdx === state.activePaneIndex) refreshSearchIfVisible();
+    });
   });
 }
 
@@ -845,6 +884,8 @@ function setViewMode(mode) {
   els.content.classList.add(`view-${mode}`);
   syncToolbarToActiveTab();
   persistState();
+  // Modus-Wechsel kann den Such-Scope aendern (Quelltext <-> Vorschau).
+  refreshSearchIfVisible();
 }
 
 function toggleWrapLines() {
@@ -870,7 +911,10 @@ function toggleShowLineNumbers() {
   // Scroll-Position wiederherstellen.
   requestAnimationFrame(() => {
     els.sourceEl.scrollTop = tab.scrollSrc || 0;
-    requestAnimationFrame(() => { suppressScrollSave = false; });
+    requestAnimationFrame(() => {
+      suppressScrollSave = false;
+      refreshSearchIfVisible();
+    });
   });
   syncToolbarToActiveTab();
   persistState();
@@ -976,4 +1020,417 @@ function parseTabDrag(e) {
   } catch {
     return null;
   }
+}
+
+// === Suche ==================================================================
+// Globale Suchleiste am unteren Fensterrand, gilt fuer den aktiven Pane.
+// Sucht im jeweils sichtbaren Inhalt (Quelltext oder Vorschau). Im Split-Modus
+// wird in der Vorschau gesucht. Treffer werden mit <mark>-Elementen markiert.
+const MAX_MATCHES = 5000;
+const SEARCH_DEBOUNCE_MS = 150;
+
+const search = {
+  visible: false,
+  query: '',
+  useRegex: false,
+  caseSensitive: false,
+  matches: [],      // Array von <mark>-Elementen, in DOM-Order
+  currentIndex: -1,
+  scope: 'rendered', // 'source' | 'rendered'
+  debounceTimer: null,
+};
+
+let searchEls = null;
+
+function getSearchEls() {
+  if (!searchEls) {
+    searchEls = {
+      bar: $('#search-bar'),
+      input: $('#search-input'),
+      count: $('#search-count'),
+      scope: $('#search-scope'),
+      btnCase: $('#btn-search-case'),
+      btnRegex: $('#btn-search-regex'),
+      btnHelp: $('#btn-search-help'),
+      btnPrev: $('#btn-search-prev'),
+      btnNext: $('#btn-search-next'),
+      btnClose: $('#btn-search-close'),
+      helpPopover: $('#regex-help-popover'),
+      helpList: $('#regex-help-list'),
+    };
+  }
+  return searchEls;
+}
+
+// Regex-Cheatsheet: Pattern bleibt gleich, Erklaerung ueber i18n-Key.
+const REGEX_HELP_ITEMS = [
+  { pattern: '.',     key: 'search.regexHelp.any' },
+  { pattern: '*',     key: 'search.regexHelp.star' },
+  { pattern: '+',     key: 'search.regexHelp.plus' },
+  { pattern: '?',     key: 'search.regexHelp.optional' },
+  { pattern: '^',     key: 'search.regexHelp.lineStart' },
+  { pattern: '$',     key: 'search.regexHelp.lineEnd' },
+  { pattern: '\\d',   key: 'search.regexHelp.digit' },
+  { pattern: '\\w',   key: 'search.regexHelp.word' },
+  { pattern: '\\s',   key: 'search.regexHelp.space' },
+  { pattern: '\\b',   key: 'search.regexHelp.wordBoundary' },
+  { pattern: '[abc]', key: 'search.regexHelp.charset' },
+  { pattern: '[^abc]', key: 'search.regexHelp.notCharset' },
+  { pattern: 'a|b',   key: 'search.regexHelp.alternation' },
+  { pattern: '\\.',   key: 'search.regexHelp.escape' },
+];
+
+function renderRegexHelp() {
+  const els = getSearchEls();
+  els.helpList.innerHTML = '';
+  for (const item of REGEX_HELP_ITEMS) {
+    const dt = document.createElement('dt');
+    dt.textContent = item.pattern;
+    const dd = document.createElement('dd');
+    dd.textContent = t(item.key);
+    els.helpList.appendChild(dt);
+    els.helpList.appendChild(dd);
+  }
+  // Titel-Text aktualisieren (von applyTranslations gesetzt, hier nicht noetig — wird via data-i18n erfasst).
+}
+
+function positionRegexHelp() {
+  const els = getSearchEls();
+  const btnRect = els.btnHelp.getBoundingClientRect();
+  // Erst sichtbar machen, um die echte Groesse zu kennen.
+  els.helpPopover.style.left = '0px';
+  els.helpPopover.style.top = '0px';
+  els.helpPopover.hidden = false;
+  const popRect = els.helpPopover.getBoundingClientRect();
+  // Mittig ueber dem Button platzieren, 8 px Abstand.
+  let left = btnRect.left + btnRect.width / 2 - popRect.width / 2;
+  let top = btnRect.top - popRect.height - 8;
+  // In den Viewport zwingen.
+  if (left < 8) left = 8;
+  if (left + popRect.width > window.innerWidth - 8) left = window.innerWidth - popRect.width - 8;
+  if (top < 8) top = btnRect.bottom + 8;
+  els.helpPopover.style.left = `${left}px`;
+  els.helpPopover.style.top = `${top}px`;
+}
+
+function isRegexHelpOpen() {
+  return !getSearchEls().helpPopover.hidden;
+}
+
+function openRegexHelp() {
+  const els = getSearchEls();
+  renderRegexHelp();
+  positionRegexHelp();
+  els.btnHelp.classList.add('active');
+}
+
+function closeRegexHelp() {
+  const els = getSearchEls();
+  els.helpPopover.hidden = true;
+  els.btnHelp.classList.remove('active');
+}
+
+function toggleRegexHelp() {
+  if (isRegexHelpOpen()) closeRegexHelp();
+  else openRegexHelp();
+}
+
+function determineSearchScope() {
+  const tab = activeTab();
+  if (!tab) return 'rendered';
+  // Im Split-Modus den Quelltext durchsuchen: dort steht die Markdown-Syntax
+  // (z.B. `###`), die in der gerenderten Vorschau gar nicht mehr vorkommt.
+  if (tab.viewMode === 'source' || tab.viewMode === 'split') return 'source';
+  return 'rendered';
+}
+
+function getSearchContainer(scope) {
+  const els = getPaneEls(state.activePaneIndex);
+  return scope === 'source' ? els.sourceCode : els.renderedHtml;
+}
+
+function getSearchScrollContainer(scope) {
+  const els = getPaneEls(state.activePaneIndex);
+  return scope === 'source' ? els.sourceEl : els.renderedEl;
+}
+
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function buildRegex(query, useRegex, caseSensitive) {
+  const pattern = useRegex ? query : escapeRegex(query);
+  const flags = 'gm' + (caseSensitive ? '' : 'i');
+  return new RegExp(pattern, flags);
+}
+
+function clearSearchHighlights() {
+  // Suchen unter beiden Panes; alte <mark>-Elemente entfernen und Textknoten zusammenfuehren.
+  const marks = document.querySelectorAll('.mdv-match');
+  const parents = new Set();
+  marks.forEach((m) => {
+    const parent = m.parentNode;
+    if (!parent) return;
+    while (m.firstChild) parent.insertBefore(m.firstChild, m);
+    parent.removeChild(m);
+    parents.add(parent);
+  });
+  parents.forEach((p) => p.normalize());
+  search.matches = [];
+  search.currentIndex = -1;
+}
+
+function highlightInContainer(container, regex) {
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      if (!node.nodeValue) return NodeFilter.FILTER_REJECT;
+      // Treffer in Mark-Elementen vermeiden (kommt nach clearSearchHighlights nicht vor, doppelt sicher).
+      if (node.parentNode && node.parentNode.classList && node.parentNode.classList.contains('mdv-match')) {
+        return NodeFilter.FILTER_REJECT;
+      }
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+
+  const textNodes = [];
+  let n;
+  while ((n = walker.nextNode())) textNodes.push(n);
+
+  const marks = [];
+  let total = 0;
+  for (const textNode of textNodes) {
+    if (total >= MAX_MATCHES) break;
+    const text = textNode.nodeValue;
+    regex.lastIndex = 0;
+    const ranges = [];
+    let m;
+    while ((m = regex.exec(text))) {
+      if (m[0].length === 0) {
+        // Bei Nullbreiten-Treffern (z.B. ^/$) Endlosschleife verhindern.
+        regex.lastIndex += 1;
+        continue;
+      }
+      ranges.push({ start: m.index, end: m.index + m[0].length });
+      if (total + ranges.length >= MAX_MATCHES) break;
+    }
+    if (ranges.length === 0) continue;
+
+    const parent = textNode.parentNode;
+    if (!parent) continue;
+    const frag = document.createDocumentFragment();
+    let cursor = 0;
+    for (const r of ranges) {
+      if (r.start > cursor) frag.appendChild(document.createTextNode(text.slice(cursor, r.start)));
+      const mark = document.createElement('mark');
+      mark.className = 'mdv-match';
+      mark.textContent = text.slice(r.start, r.end);
+      frag.appendChild(mark);
+      marks.push(mark);
+      cursor = r.end;
+    }
+    if (cursor < text.length) frag.appendChild(document.createTextNode(text.slice(cursor)));
+    parent.replaceChild(frag, textNode);
+    total += ranges.length;
+  }
+  return marks;
+}
+
+function findFirstVisibleMatchIndex() {
+  if (search.matches.length === 0) return -1;
+  const scrollContainer = getSearchScrollContainer(search.scope);
+  const cRect = scrollContainer.getBoundingClientRect();
+  for (let i = 0; i < search.matches.length; i++) {
+    const r = search.matches[i].getBoundingClientRect();
+    if (r.bottom >= cRect.top) return i;
+  }
+  return 0;
+}
+
+function setCurrentMatch(idx, scroll = true) {
+  if (search.currentIndex >= 0 && search.matches[search.currentIndex]) {
+    search.matches[search.currentIndex].classList.remove('mdv-match-current');
+  }
+  search.currentIndex = idx;
+  if (idx >= 0 && search.matches[idx]) {
+    const m = search.matches[idx];
+    m.classList.add('mdv-match-current');
+    if (scroll) m.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' });
+  }
+  updateSearchCounter();
+}
+
+function updateSearchCounter() {
+  const els = getSearchEls();
+  const total = search.matches.length;
+  if (!search.query) {
+    els.count.textContent = '';
+    els.count.classList.remove('empty');
+    return;
+  }
+  if (total === 0) {
+    els.count.textContent = t('search.noResults');
+    els.count.classList.add('empty');
+    return;
+  }
+  els.count.classList.remove('empty');
+  els.count.textContent = `${search.currentIndex + 1} / ${total}`;
+}
+
+function updateSearchScopeLabel() {
+  const els = getSearchEls();
+  const key = search.scope === 'source' ? 'search.scopeSource' : 'search.scopeRendered';
+  els.scope.textContent = t(key);
+}
+
+function setInvalidRegex(invalid) {
+  const els = getSearchEls();
+  els.input.classList.toggle('invalid', !!invalid);
+  if (invalid) {
+    els.count.textContent = t('search.invalidRegex');
+    els.count.classList.add('empty');
+  }
+}
+
+function performSearch(opts = {}) {
+  const { keepCurrent = false } = opts;
+  clearSearchHighlights();
+  search.scope = determineSearchScope();
+  updateSearchScopeLabel();
+
+  if (!search.query) {
+    setInvalidRegex(false);
+    updateSearchCounter();
+    return;
+  }
+
+  let regex;
+  try {
+    regex = buildRegex(search.query, search.useRegex, search.caseSensitive);
+  } catch {
+    setInvalidRegex(true);
+    return;
+  }
+  setInvalidRegex(false);
+
+  const container = getSearchContainer(search.scope);
+  if (!container) {
+    updateSearchCounter();
+    return;
+  }
+  search.matches = highlightInContainer(container, regex);
+
+  if (search.matches.length === 0) {
+    search.currentIndex = -1;
+    updateSearchCounter();
+    return;
+  }
+
+  const startIdx = keepCurrent && search.currentIndex >= 0 && search.currentIndex < search.matches.length
+    ? search.currentIndex
+    : findFirstVisibleMatchIndex();
+  setCurrentMatch(startIdx);
+}
+
+function debouncedSearch() {
+  if (search.debounceTimer) clearTimeout(search.debounceTimer);
+  search.debounceTimer = setTimeout(() => {
+    search.debounceTimer = null;
+    performSearch();
+  }, SEARCH_DEBOUNCE_MS);
+}
+
+function nextMatch() {
+  if (search.matches.length === 0) return;
+  const n = (search.currentIndex + 1) % search.matches.length;
+  setCurrentMatch(n);
+}
+
+function prevMatch() {
+  if (search.matches.length === 0) return;
+  const n = (search.currentIndex - 1 + search.matches.length) % search.matches.length;
+  setCurrentMatch(n);
+}
+
+function openSearchBar() {
+  const els = getSearchEls();
+  search.visible = true;
+  els.bar.hidden = false;
+  els.input.focus();
+  els.input.select();
+  // Suche aktuellen Inhalt, falls Begriff schon vorhanden.
+  if (search.query) performSearch();
+  else updateSearchScopeLabel();
+}
+
+function closeSearchBar() {
+  const els = getSearchEls();
+  search.visible = false;
+  els.bar.hidden = true;
+  closeRegexHelp();
+  clearSearchHighlights();
+  setInvalidRegex(false);
+  updateSearchCounter();
+}
+
+function refreshSearchIfVisible() {
+  if (!search.visible) return;
+  // Nach DOM-Wechsel (Tab-/View-Wechsel, Reload) sind alte Mark-Refs detached.
+  // Versuche, den aktuellen Treffer-Index zu erhalten.
+  const prevIdx = search.currentIndex;
+  search.matches = [];
+  search.currentIndex = -1;
+  performSearch({ keepCurrent: prevIdx >= 0 });
+}
+
+function bindSearchUi() {
+  const els = getSearchEls();
+
+  els.input.addEventListener('input', (e) => {
+    search.query = e.target.value;
+    debouncedSearch();
+  });
+  els.input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (e.shiftKey) prevMatch();
+      else nextMatch();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      if (isRegexHelpOpen()) closeRegexHelp();
+      else closeSearchBar();
+    }
+  });
+
+  els.btnPrev.addEventListener('click', () => { prevMatch(); els.input.focus(); });
+  els.btnNext.addEventListener('click', () => { nextMatch(); els.input.focus(); });
+  els.btnClose.addEventListener('click', () => closeSearchBar());
+  els.btnHelp.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleRegexHelp();
+  });
+
+  els.btnCase.addEventListener('click', async () => {
+    search.caseSensitive = !search.caseSensitive;
+    els.btnCase.classList.toggle('active', search.caseSensitive);
+    await api.setSetting('searchCaseSensitive', search.caseSensitive);
+    performSearch({ keepCurrent: true });
+    els.input.focus();
+  });
+  els.btnRegex.addEventListener('click', async () => {
+    search.useRegex = !search.useRegex;
+    els.btnRegex.classList.toggle('active', search.useRegex);
+    await api.setSetting('searchUseRegex', search.useRegex);
+    performSearch({ keepCurrent: true });
+    els.input.focus();
+  });
+}
+
+async function initSearchFromSettings() {
+  const els = getSearchEls();
+  const useRegex = await api.getSetting('searchUseRegex');
+  const caseSensitive = await api.getSetting('searchCaseSensitive');
+  search.useRegex = !!useRegex;
+  search.caseSensitive = !!caseSensitive;
+  els.btnRegex.classList.toggle('active', search.useRegex);
+  els.btnCase.classList.toggle('active', search.caseSensitive);
 }

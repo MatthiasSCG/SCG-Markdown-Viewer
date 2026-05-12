@@ -5,7 +5,25 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
-## [Unveröffentlicht]
+## [0.3.0] - 2026-05-12
+
+### Neu
+
+- **Suchfunktion** in der Vorschau und im Quelltext (`Strg + F` öffnet die Suchleiste am unteren Fensterrand):
+  - **Live-Suche** während des Tippens (mit 150 ms Debounce), keine Eingabebestätigung nötig
+  - **Regex-Modus** umschaltbar (`.*`-Button): wenn aus, werden Sonderzeichen wörtlich gesucht; wenn an, gelten reguläre Ausdrücke (Flags `gm`, plus `i` ohne Case-Sensitivity)
+  - **Groß-/Kleinschreibung** umschaltbar (`Aa`-Button)
+  - Beide Optionen werden über Sitzungen hinweg gespeichert (Settings `searchUseRegex` und `searchCaseSensitive`)
+  - **Treffer-Zähler** ("3 / 17") sowie roter "Keine Treffer"-Text bei Leertreffer und "Ungültiger regulärer Ausdruck"-Text mit rotem Eingaberahmen bei invalidem Regex
+  - **Such-Bereich-Anzeige** links in der Suchleiste ("Suche im Quelltext" / "Suche in der Vorschau"): die Suche arbeitet im sichtbaren Inhalt — im Modus _Gerendert_ in der Vorschau, in den Modi _Quellcode_ und _Geteilt_ im Quelltext (im Split-Modus ist der Quelltext sichtbar und enthält die Markdown-Syntax wie `###`, die in der gerenderten Vorschau gar nicht mehr vorkommt). Modus-Wechsel aktualisiert die Suche automatisch.
+  - **Hilfe-Knopf** (`?`) in der Suchleiste öffnet eine kompakte Regex-Kurzreferenz als Popover über dem Knopf: 14 Einträge (`.`, `*`, `+`, `?`, `^`, `$`, `\d`, `\w`, `\s`, `\b`, `[abc]`, `[^abc]`, `a|b`, `\.`) mit Pattern und Erklärung. Schließbar per erneutem Klick, `Esc` oder Klick außerhalb. Die Erklärungstexte werden in allen 5 Sprachen geliefert.
+  - **Treffer-Hervorhebung**: alle Treffer gelb (im Dark-Theme dunkelgelb), aktueller Treffer orange — gerendert via `<mark class="mdv-match">`. Treffer-Limit 5000 pro Suche, um den DOM nicht zu sprengen.
+  - **Navigation** zum nächsten/vorherigen Treffer per `F3` / `Umschalt+F3`, `Enter` / `Umschalt+Enter` im Eingabefeld oder den Pfeil-Buttons. Aktueller Treffer wird automatisch zentriert in den Viewport gescrollt.
+  - **Startposition** beim Öffnen oder neuer Suche: erster Treffer ab aktueller Scroll-Position (nicht Dokumentanfang).
+  - **Schließen** der Suche per `Esc` oder Schließen-Button — entfernt alle Hervorhebungen.
+  - **Robust gegen DOM-Wechsel**: bei Tab-Wechsel, View-Modus-Wechsel, Auto-Reload geänderter Dateien und Spalten-Wechsel wird die Suche automatisch im neuen Inhalt wiederholt, der bisherige Treffer-Index wird wenn möglich beibehalten.
+- **i18n**: 28 neue Keys in allen 5 Sprachen — Suchleisten-Texte (`search.placeholder`, `search.regexTitle`, `search.caseSensitiveTitle`, `search.prevTitle`, `search.nextTitle`, `search.closeTitle`, `search.noResults`, `search.invalidRegex`, `search.scopeSource`, `search.scopeRendered`, `search.scopeTitle`, `search.helpTitle`) und Regex-Kurzreferenz (`search.regexHelpTitle` plus 14 `search.regexHelp.*`-Einträge).
+- **i18n-Erweiterung**: `applyTranslations` unterstützt jetzt zusätzlich `data-i18n-placeholder` für Input-Platzhalter.
 
 ### Geändert
 
@@ -14,6 +32,11 @@ Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 ### Behoben
 
 - **`.gitignore` schloss `build/` aus**: Dadurch war `build/installer.nsh` (das Custom-NSIS-Skript für die Datei-Assoziations-Page) nie eingechecked, obwohl es in `package.json` referenziert wurde. Lokale Builds funktionierten zufällig, weil die Datei im Working Directory existierte; ein frischer Klone des Repos hätte aber keinen Installer-Build mehr produziert. `build/` ist jetzt nicht mehr in `.gitignore` und `installer.nsh` ist eingechecked.
+
+### Bekannte Einschränkungen
+
+- Treffer-Hervorhebung bleibt innerhalb eines einzelnen Textknotens — Treffer, die HTML-Knoten überspannen (z.B. eine Phrase, die durch ein `<strong>` mittendrin zerschnitten ist), werden in der Vorschau nicht gefunden. Empfehlung: in diesem Fall in den Quelltext-Modus wechseln.
+- Im Quelltext mit aktivierten Zeilennummern wird zeilenweise gesucht (jede Zeile ist ein eigener Span). Multiline-Regex mit `\n` oder zeilenübergreifende Muster funktionieren nur ohne Zeilennummern oder im Vorschau-Modus zuverlässig.
 
 ## [0.2.0] - 2026-05-10
 
