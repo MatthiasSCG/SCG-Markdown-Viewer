@@ -5,6 +5,12 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
+## [Unreleased]
+
+### Geändert
+
+- **Lizenz**: Repository auf [MIT-Lizenz](./LICENSE) umgestellt (vorher „All rights reserved" mit `UNLICENSED`-Marker in `package.json`). `LICENSE`-Datei im Repo-Root ergänzt, `package.json` (`license: "MIT"`) und der Lizenz-Abschnitt im README entsprechend angepasst. Der Code darf damit modifiziert, verbreitet und kommerziell weiterverwendet werden, sofern die ursprüngliche Lizenz- und Copyright-Notice erhalten bleibt. Das App-Icon (Markdown Mark) bleibt unverändert unter CC0 1.0.
+
 ## [0.4.0] - 2026-05-12
 
 ### Neu

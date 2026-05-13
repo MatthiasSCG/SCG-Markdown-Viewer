@@ -12,7 +12,7 @@
     "build:portable": "electron-builder --win portable"
   },
   "author": "Matthias Stumm <matthias@stumm-net.de>",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "private": true,
   "engines": {
     "node": ">=20"

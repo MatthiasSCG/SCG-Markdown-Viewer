@@ -231,14 +231,12 @@ Mindestumfang, inklusive Windows-Build (Installer + Portable).
 
 ## Lizenz
 
-© 2026 Matthias Stumm. Alle Rechte vorbehalten.
+Dieser Code steht unter der [MIT-Lizenz](./LICENSE).
 
-Dies ist ein persönliches Projekt. Der Quellcode ist hier öffentlich
-einsehbar, **steht aber nicht unter einer Open-Source-Lizenz**. Eine
-Weiterverwendung, Modifikation oder Verbreitung des Codes ist ohne
-ausdrückliche Genehmigung des Autors nicht gestattet.
+Copyright © 2026 Matthias Stumm. Nutzung, Modifikation, Verbreitung und
+kommerzielle Weiterverwendung sind erlaubt, sofern die ursprüngliche
+Lizenz- und Copyright-Notice in abgeleiteten Werken erhalten bleibt.
 
 Das verwendete App-Icon basiert auf dem
 [Markdown Mark](https://github.com/dcurtis/markdown-mark) von Dustin Curtis,
-welches separat unter **CC0 1.0 (Public Domain)** veröffentlicht ist und
-nicht unter diese Lizenzeinschränkung fällt.
+welches separat unter **CC0 1.0 (Public Domain)** veröffentlicht ist.
