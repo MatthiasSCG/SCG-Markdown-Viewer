@@ -12,7 +12,9 @@ Wenn ein Commit eine neue Version setzt (z.B. `package.json` von `0.4.0` auf `0.
 npm run build
 ```
 
-Erzeugt `dist/Markdown Viewer-<version>-Setup.exe` und `dist/Markdown Viewer-<version>-Portable.exe`. Bestehende EXEs älterer Versionen bleiben im `dist/`-Ordner stehen (Versions-Archiv).
+Erzeugt zunächst die EXEs unter `dist/`. Ein `postbuild`-Hook (`scripts/archive-build.js`) verschiebt anschließend `Markdown Viewer-<version>-Setup.exe` und `Markdown Viewer-<version>-Portable.exe` automatisch in den **Versions-Archiv-Ordner `releases/`**. `dist/` bleibt damit reiner Build-Output und enthält nur das aktuelle Build inklusive Zwischenprodukten (`win-unpacked/`, `*.blockmap`, Uninstaller). Bestehende EXEs älterer Versionen sammeln sich in `releases/`.
+
+Beide Ordner sind gitignored — die EXEs hängen am GitHub-Release.
 
 ### 2. Tag anlegen und pushen
 
@@ -30,8 +32,8 @@ gh release create v0.5.0 \
   --title "v0.5.0 — <Schlagwort>" \
   --notes-file <notes-tempfile.md> \
   --latest \
-  "dist/Markdown Viewer-0.5.0-Setup.exe" \
-  "dist/Markdown Viewer-0.5.0-Portable.exe"
+  "releases/Markdown Viewer-0.5.0-Setup.exe" \
+  "releases/Markdown Viewer-0.5.0-Portable.exe"
 ```
 
 - `--latest` setzt die neue Version als „Latest" auf der GitHub-Repo-Seite.

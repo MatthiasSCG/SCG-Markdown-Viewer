@@ -9,7 +9,10 @@
     "build:icon": "node scripts/build-icon.js",
     "build": "electron-builder --win",
     "build:installer": "electron-builder --win nsis",
-    "build:portable": "electron-builder --win portable"
+    "build:portable": "electron-builder --win portable",
+    "postbuild": "node scripts/archive-build.js",
+    "postbuild:installer": "node scripts/archive-build.js",
+    "postbuild:portable": "node scripts/archive-build.js"
   },
   "author": "Matthias Stumm <matthias@stumm-net.de>",
   "license": "MIT",

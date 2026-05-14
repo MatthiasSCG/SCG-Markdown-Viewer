@@ -10,6 +10,11 @@ out/
 # Hinweis: build/ ist NICHT ausgeschlossen — dort liegen Build-Ressourcen
 # wie installer.nsh fuer electron-builder, die ins Repo gehoeren.
 
+# Versions-Archiv der EXEs (per scripts/archive-build.js nach dem Build
+# aus dist/ hierher verschoben). Die EXEs haengen am GitHub-Release und
+# gehoeren nicht ins Repo.
+releases/
+
 # Logs
 *.log
 npm-debug.log*

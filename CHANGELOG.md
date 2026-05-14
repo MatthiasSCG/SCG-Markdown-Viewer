@@ -7,6 +7,12 @@ Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+### Build & Tooling
+
+- **`releases/`-Ordner als Versions-Archiv** (vorher `dist/`): `dist/` ist jetzt reiner Build-Output von electron-builder und enthält nur das aktuelle Build samt Zwischenprodukten (`win-unpacked/`, `builder-debug.yml`, `latest.yml`, aktuelle `*.blockmap`). Die fertigen EXEs werden per `postbuild`-Hook (`scripts/archive-build.js`) automatisch nach `releases/` verschoben, wo sich das Versions-Archiv über die Releases hinweg sammelt. Beide Ordner sind weiter gitignored. Ältere EXEs (v0.1.0 bis v0.5.1) wurden in einem Schritt mit migriert.
+- **Alte `.blockmap`-Dateien werden automatisch aufgeräumt**: Das `postbuild`-Script entfernt jetzt zusätzlich `.blockmap`-Dateien aus früheren Builds, die nicht mehr zur aktuellen Version gehören. Hintergrund: Blockmaps sind für den electron-updater-Auto-Update-Mechanismus gedacht, der im Projekt nicht konfiguriert ist; sie sind also reine Build-Output-Artefakte ohne Nutzen für uns. Bis 0.5.1 hatten sich fünf solche Dateien zu insgesamt 425 KB angesammelt.
+- **`gh release create`**-Aufrufe verweisen ab jetzt auf `releases/Markdown Viewer-<version>-*.exe` statt auf `dist/...`. CLAUDE.md im Projekt-Root entsprechend aktualisiert.
+
 ## [0.5.1] - 2026-05-14
 
 ### Behoben
