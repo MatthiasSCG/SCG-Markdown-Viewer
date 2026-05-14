@@ -39,7 +39,9 @@ gh release create v0.5.0 \
 
 ### Release-Notes-Struktur
 
-Stil siehe vorhandene Releases (`gh release view v0.4.0` als Referenz):
+**Vorlage**: [docs/release-notes-template.md](docs/release-notes-template.md). Datei kopieren nach `dist/release-notes-<version>.md` (gitignored, taucht im Repo nicht auf), Platzhalter `{{...}}` ersetzen, beim `gh release create` per `--notes-file` referenzieren.
+
+Kurzfassung des Aufbaus (Details in der Vorlage):
 
 1. **Untertitel**: ein Satz, was die Version besonders macht
 2. **Download**: Tabelle mit Setup-EXE und Portable-EXE und kurzer Beschreibung
@@ -48,7 +50,7 @@ Stil siehe vorhandene Releases (`gh release view v0.4.0` als Referenz):
 5. **Hinweise**: SmartScreen-Warnung mangels Code-Signing, Migrations-Hinweise
 6. **Link zum CHANGELOG.md** am Ende
 
-Notes auf **Deutsch** mit Umlauten, im Stil der bisherigen Releases.
+Notes auf **Deutsch** mit Umlauten, im Stil der bisherigen Releases (`gh release view v0.5.0` als aktuelle Referenz).
 
 ## Hilfe-Dialog bei neuen Funktionen erweitern
 
