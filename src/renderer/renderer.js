@@ -92,6 +92,23 @@ const initialStatePromise = new Promise((resolve) => {
   api.onInitialState((payload) => resolve(payload || { panes: [] }));
 });
 
+// Externe Datei-Argumente (kalter Start mit "Öffnen mit" oder Doppelklick auf
+// .md) werden vom Main per 'file:openExternal' geschickt — zeitlich direkt
+// nach 'window:initialState'. Dieser Listener MUSS deshalb auch synchron beim
+// Modul-Laden registriert werden, sonst geht die Nachricht verloren, weil
+// Electron-IPC keine Nachrichten puffert. Solange init() nicht durch ist,
+// sammeln wir die Files; danach werden sie geoeffnet.
+let initDone = false;
+const pendingExternalFiles = [];
+api.onOpenExternal((files) => {
+  if (!Array.isArray(files) || files.length === 0) return;
+  if (!initDone) {
+    pendingExternalFiles.push(...files);
+  } else {
+    openInPane(state.activePaneIndex, files);
+  }
+});
+
 // --- Initialisierung --------------------------------------------------------
 init();
 
@@ -125,8 +142,9 @@ async function init() {
   bindSearchUi();
   await initSearchFromSettings();
 
-  // Datei-Events
-  api.onOpenExternal((files) => openInPane(state.activePaneIndex, files));
+  // Datei-Events. onOpenExternal wird bereits beim Modul-Laden synchron
+  // registriert (siehe oben), damit das 'file:openExternal' beim kalten Start
+  // mit Datei-Argument nicht verpasst wird.
   api.onFileChanged((p) => reloadFile(p));
   api.onFileRemoved((p) => markFileMissing(p));
 
@@ -140,6 +158,14 @@ async function init() {
   }
 
   applyAllLayouts();
+
+  // Init ist durch — gepufferte Datei-Argumente vom kalten Start jetzt oeffnen,
+  // und ab jetzt direkt verarbeiten statt zu puffern.
+  initDone = true;
+  if (pendingExternalFiles.length > 0) {
+    const files = pendingExternalFiles.splice(0);
+    await openInPane(state.activePaneIndex, files);
+  }
 }
 
 async function restorePanes(saved) {

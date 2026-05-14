@@ -7,6 +7,12 @@ Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-05-14
+
+### Behoben
+
+- **Datei-Argument beim kalten Start ging verloren** (Issue [#2](https://github.com/MatthiasSCG/SCG-Markdown-Viewer/issues/2)): Ein Doppelklick auf eine `.md`-Datei oder „Öffnen mit" im Explorer öffnete bei geschlossener App zwar das Fenster, zeigte aber die angeklickte Datei nicht an. Ursache: der `file:openExternal`-Listener wurde im Renderer erst in `init()` nach mehreren `await`-Punkten registriert. Wenn der Main-Prozess die Nachricht direkt nach `did-finish-load` schickte, kam sie an, bevor der Listener da war, und Electron-IPC puffert nicht. Bei laufender App (warmer Start) trat das Problem nicht auf, weil `app.on('second-instance', ...)` zu einem Zeitpunkt feuert, an dem der Listener längst registriert ist. Fix: Listener jetzt synchron beim Modul-Laden registrieren, gepufferte Dateien nach Abschluss von `init()` öffnen, analog zum bestehenden `window:initialState`-Pattern aus 0.5.0.
+
 ## [0.5.0] - 2026-05-14
 
 ### Neu
