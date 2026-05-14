@@ -83,6 +83,15 @@ function activeTab() {
   return pane.tabs[pane.activeIndex];
 }
 
+// --- Initialer Main-Zustand -------------------------------------------------
+// Der Main-Prozess schickt nach did-finish-load IMMER ein 'window:initialState'.
+// Den Listener registrieren wir synchron beim Modul-Laden — sonst koennten wir
+// das Event verpassen, falls did-finish-load feuert, bevor init() den ersten
+// awaitable Punkt erreicht.
+const initialStatePromise = new Promise((resolve) => {
+  api.onInitialState((payload) => resolve(payload || { panes: [] }));
+});
+
 // --- Initialisierung --------------------------------------------------------
 init();
 
@@ -105,7 +114,8 @@ async function init() {
   applyTranslations(document);
   langSelect.value = lang;
 
-  // Restore-Setting
+  // Restore-Setting (steuert UI-Toggle; die eigentliche Restore-Entscheidung
+  // trifft der Main-Prozess vor dem Fenster-Aufbau).
   state.restoreSession = await api.getSetting('restoreSession');
   restoreCheckbox.checked = !!state.restoreSession;
 
@@ -120,18 +130,13 @@ async function init() {
   api.onFileChanged((p) => reloadFile(p));
   api.onFileRemoved((p) => markFileMissing(p));
 
-  // Sitzung wiederherstellen
-  if (state.restoreSession) {
-    const saved = await api.getSetting('panes');
-    if (Array.isArray(saved) && saved.length > 0) {
-      await restorePanes(saved);
-    } else {
-      // Backwards-Compat: alter "openTabs"-Schlüssel
-      const legacy = await api.getSetting('openTabs');
-      if (Array.isArray(legacy) && legacy.length > 0) {
-        await openInPane(0, legacy);
-      }
-    }
+  // Initialen Zustand vom Main-Prozess uebernehmen. Main schickt das Event
+  // IMMER (auch leer), sodass wir deterministisch darauf warten koennen,
+  // statt selbst aus den Settings zu lesen — das gehoert im Multi-Window-Setup
+  // in den Main-Prozess, der die Pane-Zuordnung pro Fenster kennt.
+  const initialState = await initialStatePromise;
+  if (initialState && Array.isArray(initialState.panes) && initialState.panes.length > 0) {
+    await restorePanes(initialState.panes);
   }
 
   applyAllLayouts();
@@ -612,6 +617,40 @@ function moveActiveTabBetweenPanes(direction) {
   }
 }
 
+// Baut aus einem einzelnen Tab einen Single-Pane-Snapshot, wie ihn der
+// Main-Prozess als initialPanes fuer ein neues Fenster erwartet.
+function singlePaneSnapshotFromTab(tab) {
+  return [{
+    paths: [tab.path],
+    activeIndex: 0,
+    tabSettings: [{
+      viewMode: tab.viewMode,
+      wrapLines: tab.wrapLines,
+      showLineNumbers: tab.showLineNumbers,
+    }],
+  }];
+}
+
+async function copyTabToNewWindow(paneIdx, tabIdx) {
+  const pane = state.panes[paneIdx];
+  if (!pane) return;
+  const tab = pane.tabs[tabIdx];
+  if (!tab) return;
+  await api.openNewWindow(singlePaneSnapshotFromTab(tab));
+}
+
+async function moveTabToNewWindow(paneIdx, tabIdx) {
+  const pane = state.panes[paneIdx];
+  if (!pane) return;
+  const tab = pane.tabs[tabIdx];
+  if (!tab) return;
+  // Erst Fenster oeffnen, dann Tab schliessen. So bleibt die Datei waehrend
+  // des Uebergangs sicher in mindestens einem Fenster offen — der File-Watcher
+  // im Main-Prozess macht das ueber Refcounting korrekt.
+  await api.openNewWindow(singlePaneSnapshotFromTab(tab));
+  await closeTab(paneIdx, tabIdx);
+}
+
 // --- Rendering --------------------------------------------------------------
 function renderTabbar(paneIdx) {
   const els = getPaneEls(paneIdx);
@@ -941,8 +980,15 @@ function updateEmptyState() {
 }
 
 // --- Persistenz -------------------------------------------------------------
+// Schickt den aktuellen Pane-Stand an den Main-Prozess. Main fuehrt die
+// Multi-Window-Persistenz pro Fenster zusammen und schreibt sie in die Settings.
 function persistState() {
-  const snapshot = state.panes.map((p) => ({
+  const snapshot = buildPanesSnapshot();
+  api.reportPanes(snapshot);
+}
+
+function buildPanesSnapshot() {
+  return state.panes.map((p) => ({
     paths: p.tabs.map((t) => t.path),
     activeIndex: p.activeIndex,
     tabSettings: p.tabs.map((t) => ({
@@ -951,7 +997,6 @@ function persistState() {
       showLineNumbers: t.showLineNumbers,
     })),
   }));
-  api.setSetting('panes', snapshot);
 }
 
 // --- Kontextmenü ------------------------------------------------------------
@@ -964,6 +1009,9 @@ function showTabContextMenu(event, paneIdx, tabIdx) {
   } else {
     items.push({ key: 'tab.moveLeft', action: () => moveTabBetweenPanes(paneIdx, tabIdx, 0, state.panes[0].tabs.length) });
   }
+  items.push({ separator: true });
+  items.push({ key: 'tab.moveToNewWindow', action: () => moveTabToNewWindow(paneIdx, tabIdx) });
+  items.push({ key: 'tab.copyToNewWindow', action: () => copyTabToNewWindow(paneIdx, tabIdx) });
   items.push({ separator: true });
   items.push({ key: 'tab.close', action: () => closeTab(paneIdx, tabIdx) });
 
@@ -1024,6 +1072,7 @@ function hideAbout() {
 const HELP_FEATURES = [
   'help.feature.openFiles',
   'help.feature.tabs',
+  'help.feature.multiWindow',
   'help.feature.viewModes',
   'help.feature.sourceToggles',
   'help.feature.search',

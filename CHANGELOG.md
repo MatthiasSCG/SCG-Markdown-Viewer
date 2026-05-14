@@ -7,9 +7,30 @@ Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-14
+
+### Neu
+
+- **Mehrere Fenster gleichzeitig** (Issue [#1](https://github.com/MatthiasSCG/SCG-Markdown-Viewer/issues/1)): Ein Tab lässt sich per Rechtsklick aus dem laufenden Fenster in ein **neues Fenster auslagern** und auf einen anderen Monitor verschieben. Zwei neue Einträge im Tab-Kontextmenü:
+  - **„In neues Fenster verschieben"**: Tab schließt im Ursprung, öffnet sich im neuen Fenster.
+  - **„In neues Fenster kopieren"**: Tab bleibt im Ursprung, eine Kopie öffnet sich im neuen Fenster. Beide Tabs sind danach unabhängig, werden aber durch den Datei-Watcher synchron neu geladen, wenn die Datei auf der Platte geändert wird.
+  Das neue Fenster startet immer als Single-Pane mit dem ausgelagerten Tab und positioniert sich leicht versetzt (+30 px x/y) zum Ursprungsfenster, damit es nicht direkt überdeckt.
+- **Sitzungs-Wiederherstellung für alle Fenster**: Bei aktivierter „Sitzung wiederherstellen"-Option werden beim nächsten Start nicht mehr nur die Tabs des einen Fensters, sondern alle beim Beenden offenen Fenster wieder geöffnet — jeweils an ihrer alten Position, mit ihren Tabs, View-Modi und Zeilennummer-/Umbruch-Einstellungen.
+- **Single-Instance-Lock bleibt erhalten**: Neue Fenster entstehen ausschließlich aus der App heraus über das Kontextmenü, nicht durch externes Starten der EXE. Eine zweite Instanz mit Datei-Argument (z.B. „Öffnen mit" im Explorer) reicht ihre Datei jetzt an das **zuletzt fokussierte** Fenster der laufenden App weiter.
+- **i18n**: drei neue Keys (`tab.moveToNewWindow`, `tab.copyToNewWindow`, `help.feature.multiWindow`) in allen 5 Sprachen.
+
 ### Geändert
 
+- **Settings-Struktur**: Der alte Schlüssel `panes` (Tabs eines einzelnen Fensters) wird durch `windows` ersetzt (Liste pro Fenster: Bounds, Maximiert-Status und Panes). Migration aus dem alten Format läuft beim ersten Start automatisch — der alte `panes`-Stand wird zum ersten Fenster, die alten `windowBounds`/`windowMaximized` werden dessen Bounds. Danach gilt nur noch das neue Format.
+- **File-Watcher mit Refcounting**: Wenn dieselbe Datei in mehreren Fenstern offen ist, hält der Watcher sie so lange aktiv, bis sie im letzten Fenster geschlossen wird. Vorher hätte das Schließen in einem Fenster die anderen Fenster vom Auto-Reload abgeschnitten.
+- **Theme-Broadcast** an alle Fenster, damit ein Wechsel des Windows-System-Themes in allen offenen Fenstern gleichzeitig ankommt.
+- **Persistenz-Logik in den Main-Prozess verlagert**: Der Renderer meldet seinen Pane-Stand per IPC; der Main-Prozess führt alle Fenster-Stände zusammen und schreibt sie atomar in die Settings. So überschreiben sich Fenster nicht gegenseitig.
+- **Hilfe-Dialog**: Neuer Funktions-Eintrag „Tabs in ein neues Fenster auslagern" zwischen „Tabs/Spalten" und „Ansichten" eingefügt.
 - **Lizenz**: Repository auf [MIT-Lizenz](./LICENSE) umgestellt (vorher „All rights reserved" mit `UNLICENSED`-Marker in `package.json`). `LICENSE`-Datei im Repo-Root ergänzt, `package.json` (`license: "MIT"`) und der Lizenz-Abschnitt im README entsprechend angepasst. Der Code darf damit modifiziert, verbreitet und kommerziell weiterverwendet werden, sofern die ursprüngliche Lizenz- und Copyright-Notice erhalten bleibt. Das App-Icon (Markdown Mark) bleibt unverändert unter CC0 1.0.
+
+### Hinweis zur Wiederherstellung
+
+- Beim **Schließen eines einzelnen Fensters** in einer Multi-Fenster-Sitzung verschwindet dieses Fenster aus dem persistierten Sitzungsstand. Beim nächsten Start kommen nur die Fenster wieder, die beim **Quit** der App noch offen waren. Wenn alle Fenster bis auf eines geschlossen werden und dann die App beendet wird, kommt beim Neustart auch nur ein Fenster.
 
 ## [0.4.0] - 2026-05-12
 

@@ -120,9 +120,14 @@ contextBridge.exposeInMainWorld('api', {
     return resolveImagesForBase(html, basePath);
   },
 
+  // Multi-Window
+  openNewWindow: (initialTabs) => ipcRenderer.invoke('window:openNew', initialTabs),
+  reportPanes: (panes) => ipcRenderer.invoke('window:reportPanes', panes),
+
   // Events vom Main-Prozess
   onFileChanged: (cb) => ipcRenderer.on('file:changed', (_e, p) => cb(p)),
   onFileRemoved: (cb) => ipcRenderer.on('file:removed', (_e, p) => cb(p)),
   onOpenExternal: (cb) => ipcRenderer.on('file:openExternal', (_e, files) => cb(files)),
   onThemeChanged: (cb) => ipcRenderer.on('theme:changed', (_e, theme) => cb(theme)),
+  onInitialState: (cb) => ipcRenderer.once('window:initialState', (_e, payload) => cb(payload)),
 });
