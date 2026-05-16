@@ -236,6 +236,7 @@ function bindUi() {
     await loadTranslations(newLang);
     applyTranslations(document);
     setLanguage(newLang);
+    reportMenuStateNow();
     renderAllPanes();
     // Such-Labels (Scope, Counter) sind nicht ueber data-i18n abgedeckt.
     if (search.visible) {
@@ -318,10 +319,9 @@ function bindUi() {
       recentMenu.hidden = true;
       hideHelp();
       hideAbout();
-    } else if (e.key === 'F1') {
-      e.preventDefault();
-      showAbout();
     }
+    // F1 ist jetzt am Menue-Eintrag "Hilfe" als Accelerator gebunden, kein
+    // manueller Handler hier mehr noetig.
   });
 
   // Tastenkürzel
@@ -344,9 +344,6 @@ function bindUi() {
         const next = (pane.activeIndex + (e.shiftKey ? -1 : 1) + pane.tabs.length) % pane.tabs.length;
         activateTab(state.activePaneIndex, next);
       }
-    } else if (ctrl && e.key.toLowerCase() === 'o') {
-      e.preventDefault();
-      openDialog();
     } else if (ctrl && e.key.toLowerCase() === 'f') {
       e.preventDefault();
       openSearchBar();
@@ -356,6 +353,22 @@ function bindUi() {
       if (e.shiftKey) prevMatch();
       else nextMatch();
     }
+  });
+
+  // Menue-Aktionen vom Main-Prozess. Klicks auf Menue-Eintraege werden ueber
+  // IPC an den Renderer geschickt, der dieselben Funktionen aufruft, die auch
+  // an die alten Toolbar-Buttons gebunden sind. Damit funktionieren Menue und
+  // Toolbar parallel; die Toolbar entfaellt erst in 4T-0002.
+  api.onMenuOpenFile(() => openDialog());
+  api.onMenuViewChange((mode) => setViewMode(mode));
+  api.onMenuToggleLineNumbers(() => toggleShowLineNumbers());
+  api.onMenuToggleWordWrap(() => toggleWrapLines());
+  api.onMenuOpenHelp(() => showHelp());
+  api.onMenuOpenAbout(() => showAbout());
+  api.onMenuToggleRestoreSession(async () => {
+    state.restoreSession = !state.restoreSession;
+    restoreCheckbox.checked = state.restoreSession;
+    await api.setSetting('restoreSession', state.restoreSession);
   });
 
   initOuterSplitter();
@@ -526,6 +539,21 @@ function syncToolbarToActiveTab() {
   numbersBtn.classList.toggle('active', numbers);
   wrapBtn.disabled = !sourceVisible || !tab;
   numbersBtn.disabled = !sourceVisible || !tab;
+  reportMenuStateNow();
+}
+
+// Spiegelt den menue-relevanten Stand an den Main-Prozess, damit das
+// Fenster-Menue Haekchen und Disabled-States passend zum aktiven Tab anzeigt.
+function reportMenuStateNow() {
+  const tab = activeTab();
+  const viewMode = tab ? tab.viewMode : null;
+  api.reportMenuState({
+    locale: state.language,
+    viewMode,
+    lineNumbers: tab ? !!tab.showLineNumbers : true,
+    wordWrap: tab ? !!tab.wrapLines : false,
+    togglesEnabled: viewMode === 'source' || viewMode === 'split',
+  });
 }
 
 // --- Tab-Verwaltung ---------------------------------------------------------

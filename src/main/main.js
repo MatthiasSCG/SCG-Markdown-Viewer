@@ -6,6 +6,7 @@ const path = require('node:path');
 const fs = require('node:fs/promises');
 const { app, BrowserWindow, dialog, ipcMain, shell, nativeTheme, Menu, screen } = require('electron');
 const chokidar = require('chokidar');
+const { buildMenu, clearDictCache: clearMenuDictCache } = require('./menu');
 
 // Single-Instance-Lock: zweite Instanz reicht ihre Datei an die laufende weiter.
 const gotLock = app.requestSingleInstanceLock();
@@ -250,6 +251,34 @@ function persistAllWindows() {
 // passenden Tabs persistiert.
 const lastReportedPanes = new Map(); // ownerId -> panes-Array
 
+// Der Renderer meldet ausserdem den menue-relevanten Stand (Sprache, View-Modus,
+// Zeilennummern, Umbruch). Das Menue dieses Fensters wird daraus pro Aenderung
+// neu gebaut und gesetzt, damit Haekchen synchron bleiben.
+const menuStates = new Map(); // ownerId -> { locale, viewMode, lineNumbers, wordWrap, togglesEnabled }
+
+function getMenuState(id) {
+  const base = menuStates.get(id) || {};
+  return {
+    locale: base.locale || 'en',
+    viewMode: base.viewMode || 'rendered',
+    lineNumbers: base.lineNumbers !== undefined ? base.lineNumbers : true,
+    wordWrap: !!base.wordWrap,
+    togglesEnabled: !!base.togglesEnabled,
+    restoreSession: !!(store && store.get('restoreSession')),
+  };
+}
+
+function applyMenuToWindow(win) {
+  if (!win || win.isDestroyed()) return;
+  const state = getMenuState(win.webContents.id);
+  const menu = buildMenu(win, state);
+  win.setMenu(menu);
+}
+
+function applyMenuToAllWindows() {
+  for (const win of windows.values()) applyMenuToWindow(win);
+}
+
 // Erstellt ein neues Fenster. opts:
 //   bounds, maximized   - Startposition/-groesse, optional
 //   initialPanes        - Pane-Snapshots ([{paths, activeIndex, tabSettings}, ...]),
@@ -288,7 +317,7 @@ function createWindow(opts = {}) {
 
   if (useStored && opts.maximized) win.maximize();
 
-  Menu.setApplicationMenu(null);
+  applyMenuToWindow(win);
 
   const initPanes = Array.isArray(opts.initialPanes) ? opts.initialPanes : [];
   pendingInitPanes.set(id, initPanes);
@@ -331,6 +360,7 @@ function createWindow(opts = {}) {
     windows.delete(id);
     lastReportedPanes.delete(id);
     pendingInitPanes.delete(id);
+    menuStates.delete(id);
     if (lastFocusedId === id) {
       lastFocusedId = null;
       const first = windows.keys().next();
@@ -417,6 +447,9 @@ function registerIpc() {
   ipcMain.handle('settings:get', (_event, key) => store?.get(key));
   ipcMain.handle('settings:set', (_event, key, value) => {
     store?.set(key, value);
+    // Menue-relevante Settings spiegeln sich in den Haekchen wider. Bei einem
+    // Wechsel in einem Fenster muessen alle Fenster-Menues angepasst werden.
+    if (key === 'restoreSession') applyMenuToAllWindows();
   });
 
   ipcMain.handle('app:locale', () => app.getLocale());
@@ -428,6 +461,16 @@ function registerIpc() {
   // die passenden Tabs persistieren koennen.
   ipcMain.handle('window:reportPanes', (event, panes) => {
     lastReportedPanes.set(event.sender.id, Array.isArray(panes) ? panes : []);
+  });
+
+  // Renderer meldet den menue-relevanten Stand (Sprache, View-Modus, Toggles).
+  // Wir bauen das Menue dieses Fensters daraufhin neu, damit Haekchen und
+  // Disabled-States synchron sind.
+  ipcMain.handle('window:reportMenuState', (event, state) => {
+    const id = event.sender.id;
+    menuStates.set(id, state || {});
+    const win = windows.get(id);
+    if (win) applyMenuToWindow(win);
   });
 
   // Renderer fordert ein neues Fenster mit initialen Panes/Tabs an.

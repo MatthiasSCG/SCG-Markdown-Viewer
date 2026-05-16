@@ -123,6 +123,7 @@ contextBridge.exposeInMainWorld('api', {
   // Multi-Window
   openNewWindow: (initialTabs) => ipcRenderer.invoke('window:openNew', initialTabs),
   reportPanes: (panes) => ipcRenderer.invoke('window:reportPanes', panes),
+  reportMenuState: (state) => ipcRenderer.invoke('window:reportMenuState', state),
 
   // Events vom Main-Prozess
   onFileChanged: (cb) => ipcRenderer.on('file:changed', (_e, p) => cb(p)),
@@ -130,4 +131,13 @@ contextBridge.exposeInMainWorld('api', {
   onOpenExternal: (cb) => ipcRenderer.on('file:openExternal', (_e, files) => cb(files)),
   onThemeChanged: (cb) => ipcRenderer.on('theme:changed', (_e, theme) => cb(theme)),
   onInitialState: (cb) => ipcRenderer.once('window:initialState', (_e, payload) => cb(payload)),
+
+  // Menue-Events vom Main an den Renderer
+  onMenuOpenFile: (cb) => ipcRenderer.on('menu:openFile', () => cb()),
+  onMenuViewChange: (cb) => ipcRenderer.on('menu:viewChange', (_e, mode) => cb(mode)),
+  onMenuToggleLineNumbers: (cb) => ipcRenderer.on('menu:toggleLineNumbers', () => cb()),
+  onMenuToggleWordWrap: (cb) => ipcRenderer.on('menu:toggleWordWrap', () => cb()),
+  onMenuOpenHelp: (cb) => ipcRenderer.on('menu:openHelp', () => cb()),
+  onMenuOpenAbout: (cb) => ipcRenderer.on('menu:openAbout', () => cb()),
+  onMenuToggleRestoreSession: (cb) => ipcRenderer.on('menu:toggleRestoreSession', () => cb()),
 });

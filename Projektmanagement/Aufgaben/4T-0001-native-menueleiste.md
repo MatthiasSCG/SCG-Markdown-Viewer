@@ -1,6 +1,6 @@
 # 4T-0001 — Native Menüleiste mit Datei/Ansicht/Hilfe einführen
 
-**Status**: Offen
+**Status**: Erledigt
 **Epic**: [3E-0001 — Edit-Modus, Menüleiste und Layout-Reorganisation](3E-0001-edit-modus-und-menue.md)
 **Zielversion**: 0.6.0
 
@@ -59,4 +59,20 @@ Die Toolbar oben ist über fünf Versionen zu einer dichten Sammlung von Druckta
 
 ## Lösung
 
-(Wird nach Umsetzung ausgefüllt.)
+Native Electron-Menüleiste pro Fenster mit Datei / Ansicht / Hilfe umgesetzt. Bestehende Toolbar bleibt parallel funktionsfähig; die Auflösung der Toolbar erfolgt in 4T-0002.
+
+**Neue Datei** `src/main/menu.js`: Factory `buildMenu(win, state)` baut das `Menu` aus den i18n-Strings (geladen direkt aus den JSON-Dateien) und dem aktuellen Stand (Sprache, View-Modus, Toggles, Sitzungs-Toggle). Click-Handler schicken IPC-Events an genau das Fenster, dem das Menü gehört. Dict-Cache pro Sprache, leerbar bei Sprachwechsel (für künftige Erweiterungen).
+
+**`src/main/main.js`**: Map `menuStates` (ownerId → State), Helper `getMenuState`, `applyMenuToWindow`, `applyMenuToAllWindows`. In `createWindow` ersetzt `applyMenuToWindow(win)` das bisherige `Menu.setApplicationMenu(null)`. Cleanup im `closed`-Handler. Neuer IPC-Handler `window:reportMenuState` empfängt Renderer-Stand und re-buildt das Menü. Setting `restoreSession` triggert über `settings:set` einen Broadcast an alle Fenster-Menüs, damit der Häkchen-Stand multi-window-synchron ist.
+
+**`src/main/preload.js`**: `reportMenuState(state)` als API; sieben Listener `onMenuOpenFile`, `onMenuViewChange`, `onMenuToggleLineNumbers`, `onMenuToggleWordWrap`, `onMenuOpenHelp`, `onMenuOpenAbout`, `onMenuToggleRestoreSession`.
+
+**`src/renderer/renderer.js`**: Helper `reportMenuStateNow()` schickt Locale, View-Modus, Zeilennummern, Umbruch, `togglesEnabled` an Main. Aufrufstellen: am Ende von `syncToolbarToActiveTab` (deckt View-Wechsel, Toggle-Wechsel und Tab-Wechsel ab) sowie im langSelect-Handler. Sieben `onMenu*`-Listener in `bindUi` rufen dieselben Funktionen wie die Toolbar-Buttons. Manuelle Renderer-Handler für `F1` und `Strg+O` entfernt — Menü-Akzeleratoren übernehmen. F1 öffnet damit jetzt das Hilfe-Modal statt das Über-Modal (gewollte Verhaltensänderung).
+
+**i18n** (`src/i18n/{de,en,fr,es,it}.json`): 19 neue Keys pro Sprache (`menu.file.*`, `menu.view.*`, `menu.help.*`), Top-Level-Menüs mit Mnemonics (`&Datei` / `&File` / `&Fichier` / `&Archivo` / `&File`, etc.). Mnemonics pro Sprache kollisionsfrei.
+
+**Bewusst nicht umgesetzt in 4T-0001** (kommen in Folge-Tasks):
+- Datei → Neu (`disabled`, kommt in 4T-0006)
+- Datei → Speichern und Speichern unter (`disabled`, 4T-0004)
+- Datei → Zuletzt mit echter Recent-Liste (`disabled`-Submenü „Keine zuletzt geöffneten Dateien", 4T-0005)
+- Hilfe-Modal-Inhalt um neue Shortcuts erweitern (4T-0009)
