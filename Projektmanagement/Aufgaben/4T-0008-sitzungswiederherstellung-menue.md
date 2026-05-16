@@ -1,6 +1,6 @@
 # 4T-0008 — Sitzungswiederherstellung als Toggle ins Hilfe-Menü
 
-**Status**: Offen
+**Status**: Erledigt
 **Epic**: [3E-0001 — Edit-Modus, Menüleiste und Layout-Reorganisation](3E-0001-edit-modus-und-menue.md)
 **Zielversion**: 0.6.0
 
@@ -36,4 +36,21 @@ Die Checkbox „Sitzung wiederherstellen" steht heute in der Toolbar rechts oben
 
 ## Lösung
 
-(Wird nach Umsetzung ausgefüllt.)
+Die Migration wurde **gleitend** über 4T-0001 und 4T-0002 hinweg umgesetzt — kein eigener Code-Commit für 4T-0008 nötig.
+
+**In [4T-0001](4T-0001-native-menueleiste.md) bereits erledigt:**
+
+- Toggle-Eintrag `Sitzung wiederherstellen` im Hilfe-Menü als `type: 'checkbox'`, Häkchen aus `store.get('restoreSession')` (Quelle der Wahrheit) abgeleitet (`src/main/menu.js`).
+- Klick schickt `menu:toggleRestoreSession` an den Renderer; der Renderer toggelt den State, schreibt `restoreSession` zurück in die Settings (`src/renderer/renderer.js`, `bindUi`).
+- Multi-Window-Synchronisation: `ipcMain.handle('settings:set', …)` ruft bei Key `restoreSession` `applyMenuToAllWindows()` auf, sodass das Häkchen in allen offenen Fenstern sofort aktualisiert wird (`src/main/main.js`).
+- Neuer i18n-Key `menu.help.restoreSession` in allen fünf Sprachen.
+
+**In [4T-0002](4T-0002-statusbar-layout.md) bereits erledigt:**
+
+- Toolbar-Checkbox `<label class="setting"><input id="chk-restore-session">` aus `src/renderer/index.html` entfernt (mit dem ganzen `<header class="toolbar">`-Block).
+- DOM-Referenz `restoreCheckbox` aus `src/renderer/renderer.js` entfernt; alte `restoreCheckbox.addEventListener('change', …)`-Logik und `restoreCheckbox.checked = …`-Zeilen entfernt.
+- Alter i18n-Key `settings.restoreSession` aus allen fünf Sprachen entfernt (der neue Key `menu.help.restoreSession` deckt den Anwendungsfall vollständig ab).
+
+**Persistenz und Sitzungs-Verhalten** beim Quit/Start sind unverändert zu 0.5.x — der Main-Code in `app.whenReady` liest `store.get('restoreSession')` und entscheidet entsprechend.
+
+Manuelle Verifikation der Akzeptanzkriterien (Toolbar-Checkbox weg, Häkchen im Menü, Klick toggelt, Multi-Window-Synchronisation, Persistenz über Neustart) lief im Rahmen der Tests von 4T-0001 und 4T-0002 mit.
