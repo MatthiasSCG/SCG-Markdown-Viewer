@@ -1,6 +1,6 @@
 # 4T-0004 — Dirty-State, Speichern, Speichern unter, Schließen-Dialog
 
-**Status**: Offen
+**Status**: In Umsetzung
 **Epic**: [3E-0001 — Edit-Modus, Menüleiste und Layout-Reorganisation](3E-0001-edit-modus-und-menue.md)
 **Zielversion**: 0.6.0
 
@@ -70,4 +70,39 @@ Sobald Editieren möglich ist (4T-0003), muss klar sichtbar sein, dass ein Buffe
 
 ## Lösung
 
-(Wird nach Umsetzung ausgefüllt.)
+Umsetzung in zwei Phasen — Phase 1 (Dirty-State, Speichern, Konflikt-Dialog, Schließen-Dialog) ist erledigt, Phase 2 (Auto-Save) folgt im nächsten Commit innerhalb desselben Tasks.
+
+### Phase 1 — erledigt
+
+**Dirty-State (`src/renderer/renderer.js`)**:
+- `createTab` legt `originalContent` (Snapshot des zuletzt gespeicherten/gelesenen Stands) und `dirty: false` an.
+- `EditorView.updateListener` aktualisiert bei jedem Doc-Change `tab.content` und berechnet `tab.dirty = (tab.content !== tab.originalContent)`. Bei Wechsel des Dirty-Stands werden `renderTabbar(paneIdx)` und `updateWindowTitle()` neu gerendert.
+- `renderTabbar` setzt `• ` vor den Dateinamen bei dirty plus CSS-Klasse `dirty` am Tab-Element.
+- `updateWindowTitle()` setzt `document.title` auf `[• ]<Name> — Markdown Viewer`. Aufrufe in `syncToolbarToActiveTab` (Tab-Wechsel), `reloadFile` (Reload und Konflikt-Reload) und im Update-Listener.
+
+**Speichern (`src/main/main.js` + `src/renderer/renderer.js`)**:
+- IPC `file:save(filePath, content)`: schreibt UTF-8/LF ohne BOM (`String(content).replace(/\r\n/g, '\n')`), markiert den Pfad als Eigen-Schreibvorgang via `markSelfWriting(absolute, 1500)`. Der `chokidar`-`change`-Listener prüft `isSelfWriting` und unterdrückt das Event in diesem Fenster.
+- IPC `file:saveAs(suggestedPath, content)`: zeigt `dialog.showSaveDialog` mit lokalisiertem Titel und Default-Pfad, schreibt nach OK, ruft `pushRecent`.
+- Renderer-Helper `saveTab(paneIdx, tabIdx)` / `saveTabAs(...)` und Convenience-Wrapper `saveCurrentTab` / `saveCurrentTabAs`. Bei `saveAs` mit neuem Pfad: alter Watcher per `api.unwatchFile(oldPath)` freigegeben, neuer Pfad per `api.readFile(newPath)` registriert (kleiner Round-Trip; Inhalt verworfen, Watcher und Recent landen korrekt).
+
+**Menü-Aktivierung (`src/main/menu.js`)**:
+- `Speichern` (Strg+S) und `Speichern unter…` (Strg+Umschalt+S) sind nun `enabled` sobald `state.hasActiveTab`. Click-Handler via `actions.save` und `actions.saveAs`, die per IPC `menu:save` / `menu:saveAs` an den Renderer gehen.
+- `applyMenuToWindow` reicht die Actions an die Factory; `getMenuState` liest `hasActiveTab` aus dem zuletzt gemeldeten Renderer-Stand. `reportMenuStateNow` setzt `hasActiveTab`.
+
+**Schließen-Dialog**:
+- `closeTab(paneIdx, tabIdx, { skipDirtyCheck = false })` prüft `tab.dirty`. Bei dirty: aktiviert den Tab visuell, ruft `api.confirmCloseDirty({ detail: tab.path })`. Drei Optionen: Speichern / Verwerfen / Abbrechen (Default 0, Cancel 2). Bei Speichern: `saveTab(paneIdx, tabIdx)`; bei Erfolg fährt Schließen fort, bei Fehler/Abbruch bleibt der Tab offen.
+- `moveTabToNewWindow` ruft `closeTab(..., { skipDirtyCheck: true })`. Buffer-Inhalt geht beim Transfer verloren (Datei wird im neuen Fenster vom Disk geladen). Sauberer Transfer auf TODO 0.7 vermerkt.
+- Window-Close: `win.on('close', e)` ruft `e.preventDefault()` und schickt `window:requestClose` an den Renderer. Der iteriert alle dirtigen Tabs und fragt pro Tab. Nach Bearbeitung ruft `api.confirmClose()`, das `confirmedClosings.add(win)` setzt und `win.close()` aufruft — der erneute `close`-Hook erkennt die Bestätigung und lässt das Fenster zugehen.
+
+**Konflikt-Dialog**:
+- `reloadFile` prüft `tab.dirty`. Bei dirty: `api.confirmConflict({ detail: filePath })` mit zwei Buttons (`reload` / `keepOurs`, Default `keepOurs` zum Schutz vor Datenverlust). Bei `reload`: Buffer und originalContent werden vom Disk gesetzt, dirty zurück. Bei `keepOurs`: nichts tun, der Buffer bleibt; beim nächsten Save wird der externe Stand überschrieben.
+
+**Fehler-Dialog**:
+- `api.showSaveError(detail)` → `dialog.showMessageBox` mit Type `error`, lokalisierter Titel/Message und Pfad+Fehler als Detail.
+
+**i18n (5 Sprachen)** — 13 neue Keys: `save.unsavedTitle`, `save.unsavedMessage`, `save.btnSave`, `save.btnDiscard`, `save.btnCancel`, `save.conflictTitle`, `save.conflictMessage`, `save.conflictReload`, `save.conflictKeepOurs`, `save.saveAsTitle`, `save.untitled`, `save.errorTitle`, `save.errorMessage`.
+
+### Phase 2 — offen
+
+- Auto-Save (opt-in): Toggle im Datei-Menü oberhalb von „Speichern" mit Häkchen, persistent als `autoSave: boolean`. Trigger 2 s Inaktivität **oder** Fenster-Fokusverlust. Voraussetzung: Buffer hat Datei-Pfad. UI-Feedback: 1-Sek-Statusbar-Hinweis „Gespeichert", Schreibfehler 3-Sek-Hinweis „Speichern fehlgeschlagen".
+- App-weiter Pre-Quit-Check für saubere Quit-UX (aktuell läuft Window-Close pro Fenster, was die meisten Fälle abdeckt, aber bei „Datei → Beenden" mit mehreren Fenstern unschöne Zwischenstände erzeugt). Optional — eventuell erst 0.7.

@@ -71,15 +71,19 @@ function createTab(path, content, settings = {}) {
   return {
     path,
     content,
+    // Letzter gespeicherter bzw. zuletzt von Datei gelesener Stand. Die
+    // Dirty-Berechnung vergleicht content gegen originalContent.
+    originalContent: content,
     scrollSrc: 0,
     scrollRen: 0,
     missing: false,
     viewMode: settings.viewMode || DEFAULT_VIEW_MODE,
     wrapLines: settings.wrapLines ?? DEFAULT_WRAP_LINES,
     showLineNumbers: settings.showLineNumbers ?? DEFAULT_SHOW_LINE_NUMBERS,
-    // Edit-Modus pro Tab; nicht persistiert ueber Neustarts (kommt mit
-    // Dirty-State und Speichern erst in 4T-0004 ins Settings-Modell).
+    // Edit-Modus pro Tab; nicht persistiert ueber Neustarts.
     editMode: false,
+    // Dirty-Flag: true sobald content vom originalContent abweicht.
+    dirty: false,
   };
 }
 
@@ -155,6 +159,12 @@ function createEditorState(opts = {}) {
         const tab = pane.tabs[pane.activeIndex];
         if (!tab) return;
         tab.content = update.state.doc.toString();
+        const wasDirty = tab.dirty;
+        tab.dirty = tab.content !== tab.originalContent;
+        if (wasDirty !== tab.dirty) {
+          renderTabbar(pIdx);
+          updateWindowTitle();
+        }
         if (tab.viewMode === 'split') schedulePreviewUpdate(pIdx);
       }),
     ],
@@ -235,6 +245,18 @@ function renderPreviewForPane(paneIdx) {
   const els = getPaneEls(paneIdx);
   if (!els.renderedHtml) return;
   els.renderedHtml.innerHTML = api.renderMarkdown(tab.content, tab.path);
+}
+
+// Setzt den Fenstertitel auf "[•] <Dateiname> — Markdown Viewer" passend zum
+// aktiven Tab. Wird bei Tab-Wechsel und Dirty-Wechsel aufgerufen.
+function updateWindowTitle() {
+  const tab = activeTab();
+  if (!tab) {
+    document.title = 'Markdown Viewer';
+    return;
+  }
+  const name = tab.path ? api.basename(tab.path) : t('save.untitled');
+  document.title = `${tab.dirty ? '• ' : ''}${name} — Markdown Viewer`;
 }
 
 // --- Initialer Main-Zustand -------------------------------------------------
@@ -512,11 +534,40 @@ function bindUi() {
   api.onMenuViewChange((mode) => setViewMode(mode));
   api.onMenuToggleLineNumbers(() => toggleShowLineNumbers());
   api.onMenuToggleWordWrap(() => toggleWrapLines());
+  api.onMenuSave(() => saveCurrentTab());
+  api.onMenuSaveAs(() => saveCurrentTabAs());
   api.onMenuOpenHelp(() => showHelp());
   api.onMenuOpenAbout(() => showAbout());
   api.onMenuToggleRestoreSession(async () => {
     state.restoreSession = !state.restoreSession;
     await api.setSetting('restoreSession', state.restoreSession);
+  });
+
+  // Window-Close-Anfrage vom Main-Prozess. Wir pruefen alle dirtigen Tabs in
+  // diesem Fenster und fragen pro Tab nach (Speichern/Verwerfen/Abbrechen).
+  // Wenn der Nutzer "Abbrechen" waehlt, wird das Schliessen abgebrochen,
+  // sonst confirmClose() an Main melden.
+  api.onWindowRequestClose(async () => {
+    const dirty = [];
+    for (let p = 0; p < state.panes.length; p++) {
+      for (let i = 0; i < state.panes[p].tabs.length; i++) {
+        const tb = state.panes[p].tabs[i];
+        if (tb.dirty) dirty.push({ paneIdx: p, tabIdx: i, tab: tb });
+      }
+    }
+    for (const d of dirty) {
+      activatePane(d.paneIdx);
+      activateTab(d.paneIdx, d.tabIdx);
+      const detail = d.tab.path || t('save.untitled');
+      const result = await api.confirmCloseDirty({ detail });
+      if (result === 'cancel') return; // Schliessen abgebrochen
+      if (result === 'save') {
+        const ok = await saveTab(d.paneIdx, d.tabIdx);
+        if (!ok) return; // Speichern abgebrochen/gescheitert
+      }
+      // 'discard': fortfahren ohne Speichern
+    }
+    api.confirmClose();
   });
 
   initOuterSplitter();
@@ -694,6 +745,7 @@ function syncToolbarToActiveTab() {
     btnEdit.disabled = !tab;
   }
   reportMenuStateNow();
+  updateWindowTitle();
 }
 
 // Spiegelt den menue-relevanten Stand an den Main-Prozess, damit das
@@ -707,6 +759,7 @@ function reportMenuStateNow() {
     lineNumbers: tab ? !!tab.showLineNumbers : true,
     wordWrap: tab ? !!tab.wrapLines : false,
     togglesEnabled: viewMode === 'source' || viewMode === 'split',
+    hasActiveTab: !!tab,
   });
 }
 
@@ -722,14 +775,32 @@ function activateTab(paneIdx, tabIdx) {
   persistState();
 }
 
-async function closeTab(paneIdx, tabIdx) {
+async function closeTab(paneIdx, tabIdx, opts = {}) {
   const pane = state.panes[paneIdx];
   if (!pane) return;
   const tab = pane.tabs[tabIdx];
   if (!tab) return;
 
-  const stillElsewhere = state.panes.some((p, pi) => p.tabs.some((tb, ti) => tb.path === tab.path && !(pi === paneIdx && ti === tabIdx)));
-  if (!stillElsewhere) await api.unwatchFile(tab.path);
+  // Dirty-Check: bei ungespeicherten Aenderungen Dialog mit Speichern/
+  // Verwerfen/Abbrechen. Bei intern ausgeloestem Schliessen (z.B. Tab in
+  // anderes Fenster verschieben) wird der Check uebersprungen.
+  if (tab.dirty && !opts.skipDirtyCheck) {
+    activatePane(paneIdx);
+    activateTab(paneIdx, tabIdx);
+    const detail = tab.path || t('save.untitled');
+    const result = await api.confirmCloseDirty({ detail });
+    if (result === 'cancel') return;
+    if (result === 'save') {
+      const ok = await saveTab(paneIdx, tabIdx);
+      if (!ok) return;
+    }
+    // 'discard' faellt durch zum Schliessen
+  }
+
+  const stillElsewhere = tab.path
+    ? state.panes.some((p, pi) => p.tabs.some((tb, ti) => tb.path === tab.path && !(pi === paneIdx && ti === tabIdx)))
+    : true;
+  if (tab.path && !stillElsewhere) await api.unwatchFile(tab.path);
 
   pane.tabs.splice(tabIdx, 1);
   if (pane.tabs.length === 0) {
@@ -855,8 +926,11 @@ async function moveTabToNewWindow(paneIdx, tabIdx) {
   // Erst Fenster oeffnen, dann Tab schliessen. So bleibt die Datei waehrend
   // des Uebergangs sicher in mindestens einem Fenster offen — der File-Watcher
   // im Main-Prozess macht das ueber Refcounting korrekt.
+  // Dirty-Check ueberspringen, weil das neue Fenster die Datei ohnehin neu
+  // lädt; der nicht-gespeicherte Buffer-Stand des Quell-Tabs geht dabei
+  // verloren. (TODO: sauberer Transfer in 0.7.)
   await api.openNewWindow(singlePaneSnapshotFromTab(tab));
-  await closeTab(paneIdx, tabIdx);
+  await closeTab(paneIdx, tabIdx, { skipDirtyCheck: true });
 }
 
 // --- Rendering --------------------------------------------------------------
@@ -868,13 +942,14 @@ function renderTabbar(paneIdx) {
 
   pane.tabs.forEach((tab, idx) => {
     const el = document.createElement('div');
-    el.className = 'tab' + (idx === pane.activeIndex ? ' active' : '') + (tab.missing ? ' tab-missing' : '');
-    el.title = tab.path;
+    el.className = 'tab' + (idx === pane.activeIndex ? ' active' : '') + (tab.missing ? ' tab-missing' : '') + (tab.dirty ? ' dirty' : '');
+    const baseName = tab.path ? api.basename(tab.path) : t('save.untitled');
+    el.title = tab.path || baseName;
     el.draggable = true;
 
     const title = document.createElement('span');
     title.className = 'tab-title';
-    title.textContent = api.basename(tab.path);
+    title.textContent = (tab.dirty ? '• ' : '') + baseName;
     el.appendChild(title);
 
     const close = document.createElement('span');
@@ -1017,12 +1092,31 @@ async function reloadFile(filePath) {
   for (let p = 0; p < state.panes.length; p++) {
     const idx = state.panes[p].tabs.findIndex((t) => t.path === filePath);
     if (idx < 0) continue;
+    const tab = state.panes[p].tabs[idx];
+
+    // Dirty-Buffer: nicht stillschweigend ueberschreiben, sondern Nutzer fragen.
+    if (tab.dirty) {
+      const choice = await api.confirmConflict({ detail: filePath });
+      if (choice !== 'reload') {
+        // 'keepOurs': Buffer behalten. Beim naechsten Save wird der externe
+        // Stand ueberschrieben — der originalContent bleibt jetzt aus
+        // unserer Sicht "veraltet", aber das ist die bewusste Entscheidung.
+        continue;
+      }
+      // 'reload' faellt durch zum normalen Reload-Pfad
+    }
+
     try {
       const data = await api.readFile(filePath);
-      state.panes[p].tabs[idx].content = data.content;
-      state.panes[p].tabs[idx].missing = false;
+      tab.content = data.content;
+      tab.originalContent = data.content;
+      tab.dirty = false;
+      tab.missing = false;
       if (idx === state.panes[p].activeIndex) renderPaneContent(p);
       renderTabbar(p);
+      if (p === state.activePaneIndex && idx === state.panes[p].activeIndex) {
+        updateWindowTitle();
+      }
     } catch {
       markFileMissing(filePath);
     }
@@ -1113,6 +1207,78 @@ function toggleShowLineNumbers() {
   syncToolbarToActiveTab();
   persistState();
   refreshSearchIfVisible();
+}
+
+// --- Speichern --------------------------------------------------------------
+// Speichert einen bestimmten Tab. Wenn kein Pfad vorhanden, leitet in
+// saveTabAs weiter. Aktualisiert originalContent + dirty + UI bei Erfolg.
+// Returnt true bei Erfolg (oder kein Speichern noetig), false bei Fehler/Abbruch.
+async function saveTab(paneIdx, tabIdx) {
+  const pane = state.panes[paneIdx];
+  if (!pane) return false;
+  const tab = pane.tabs[tabIdx];
+  if (!tab) return false;
+  if (!tab.path) return saveTabAs(paneIdx, tabIdx);
+  try {
+    await api.saveFile(tab.path, tab.content);
+    tab.originalContent = tab.content;
+    if (tab.dirty) {
+      tab.dirty = false;
+      renderTabbar(paneIdx);
+      if (paneIdx === state.activePaneIndex && tabIdx === pane.activeIndex) {
+        updateWindowTitle();
+      }
+    }
+    return true;
+  } catch (err) {
+    await api.showSaveError(`${tab.path}\n${(err && err.message) || String(err)}`);
+    return false;
+  }
+}
+
+// Speichern unter: OS-Dialog im Main, schreibt, aktualisiert Tab und
+// File-Watcher.
+async function saveTabAs(paneIdx, tabIdx) {
+  const pane = state.panes[paneIdx];
+  if (!pane) return false;
+  const tab = pane.tabs[tabIdx];
+  if (!tab) return false;
+  try {
+    const result = await api.saveFileAs(tab.path || null, tab.content);
+    if (!result || !result.path) return false;
+    const oldPath = tab.path;
+    tab.path = result.path;
+    tab.originalContent = tab.content;
+    tab.dirty = false;
+    if (oldPath && oldPath !== result.path) {
+      api.unwatchFile(oldPath);
+    }
+    // Watcher fuer neuen Pfad registrieren (kleiner Round-Trip ueber file:read;
+    // der zurueckgegebene Inhalt ist exakt das, was wir gerade geschrieben
+    // haben, wir verwerfen ihn).
+    try { await api.readFile(result.path); } catch {}
+    renderTabbar(paneIdx);
+    if (paneIdx === state.activePaneIndex && tabIdx === pane.activeIndex) {
+      updateWindowTitle();
+    }
+    persistState();
+    return true;
+  } catch (err) {
+    await api.showSaveError((err && err.message) || String(err));
+    return false;
+  }
+}
+
+function saveCurrentTab() {
+  const pane = state.panes[state.activePaneIndex];
+  if (!pane || pane.activeIndex < 0) return Promise.resolve(false);
+  return saveTab(state.activePaneIndex, pane.activeIndex);
+}
+
+function saveCurrentTabAs() {
+  const pane = state.panes[state.activePaneIndex];
+  if (!pane || pane.activeIndex < 0) return Promise.resolve(false);
+  return saveTabAs(state.activePaneIndex, pane.activeIndex);
 }
 
 // Klick auf den Stift-Toggle in der Statusbar bzw. Strg+E. Im Render-Modus

@@ -92,7 +92,18 @@ contextBridge.exposeInMainWorld('api', {
   // Datei-Operationen
   openDialog: () => ipcRenderer.invoke('file:openDialog'),
   readFile: (p) => ipcRenderer.invoke('file:read', p),
+  saveFile: (p, content) => ipcRenderer.invoke('file:save', p, content),
+  saveFileAs: (suggested, content) => ipcRenderer.invoke('file:saveAs', suggested, content),
   pushRecent: (p) => ipcRenderer.invoke('recent:push', p),
+
+  // Dialog-Helfer fuer Dirty-State und Konflikt-Strategie
+  confirmCloseDirty: (opts) => ipcRenderer.invoke('dialog:confirmCloseDirty', opts),
+  confirmConflict: (opts) => ipcRenderer.invoke('dialog:confirmConflict', opts),
+  showSaveError: (detail) => ipcRenderer.invoke('dialog:showSaveError', detail),
+
+  // Window-Close-Bestaetigung: Renderer ruft dies, sobald alle dirtigen Tabs
+  // gespeichert oder verworfen sind und das Fenster zugehen darf.
+  confirmClose: () => ipcRenderer.invoke('window:confirmClose'),
   resolveLink: (basePath, target) => ipcRenderer.invoke('file:resolveLink', basePath, target),
   isMarkdownPath: (p) => ipcRenderer.invoke('file:isMarkdown', p),
   fileExists: (p) => ipcRenderer.invoke('file:exists', p),
@@ -138,7 +149,13 @@ contextBridge.exposeInMainWorld('api', {
   onMenuViewChange: (cb) => ipcRenderer.on('menu:viewChange', (_e, mode) => cb(mode)),
   onMenuToggleLineNumbers: (cb) => ipcRenderer.on('menu:toggleLineNumbers', () => cb()),
   onMenuToggleWordWrap: (cb) => ipcRenderer.on('menu:toggleWordWrap', () => cb()),
+  onMenuSave: (cb) => ipcRenderer.on('menu:save', () => cb()),
+  onMenuSaveAs: (cb) => ipcRenderer.on('menu:saveAs', () => cb()),
   onMenuOpenHelp: (cb) => ipcRenderer.on('menu:openHelp', () => cb()),
   onMenuOpenAbout: (cb) => ipcRenderer.on('menu:openAbout', () => cb()),
   onMenuToggleRestoreSession: (cb) => ipcRenderer.on('menu:toggleRestoreSession', () => cb()),
+
+  // Window-Close-Anfrage: Main fragt nach Bestaetigung; Renderer prueft
+  // Dirty-Tabs und ruft confirmClose() zurueck.
+  onWindowRequestClose: (cb) => ipcRenderer.on('window:requestClose', () => cb()),
 });

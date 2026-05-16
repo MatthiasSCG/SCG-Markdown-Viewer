@@ -114,14 +114,14 @@ function buildMenu(win, state, actions) {
         {
           label: t('menu.file.save'),
           accelerator: 'CmdOrCtrl+S',
-          // Aktivierung in 4T-0004.
-          enabled: false,
+          enabled: !!(state && state.hasActiveTab),
+          click: () => { if (actions && actions.save) actions.save(); },
         },
         {
           label: t('menu.file.saveAs'),
           accelerator: 'CmdOrCtrl+Shift+S',
-          // Aktivierung in 4T-0004.
-          enabled: false,
+          enabled: !!(state && state.hasActiveTab),
+          click: () => { if (actions && actions.saveAs) actions.saveAs(); },
         },
         { type: 'separator' },
         {

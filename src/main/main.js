@@ -35,6 +35,28 @@ let store = null; // electron-store, asynchron geladen (ESM-only)
 //   filePath -> { watcher, owners: Set<webContents.id> }
 const watchers = new Map();
 
+// Pfade, die wir gerade selbst schreiben (Save bzw. Auto-Save). Der Watcher
+// soll fuer einen kurzen Moment nach dem Eigen-Schreiben keinen Change-Event
+// an den Renderer melden, damit kein selbst ausgeloester Reload-Loop entsteht.
+//   filePath -> Timer
+const selfWritingPaths = new Map();
+
+function markSelfWriting(filePath, durationMs = 1500) {
+  const existing = selfWritingPaths.get(filePath);
+  if (existing) clearTimeout(existing);
+  const timer = setTimeout(() => selfWritingPaths.delete(filePath), durationMs);
+  selfWritingPaths.set(filePath, timer);
+}
+
+function isSelfWriting(filePath) {
+  return selfWritingPaths.has(filePath);
+}
+
+// Fenster, die der Nutzer im Renderer schon abgenickt hat ("Speichern" /
+// "Verwerfen" bei dirtigen Tabs). Verhindert, dass der on('close')-Hook den
+// Dialog ein zweites Mal aufruft beim folgenden win.close().
+const confirmedClosings = new Set();
+
 // --- Settings ----------------------------------------------------------------
 
 async function loadStore() {
@@ -138,6 +160,8 @@ function watchFile(filePath, ownerId) {
     watchers.set(filePath, entry);
 
     watcher.on('change', () => {
+      // Eigene Schreibvorgaenge nicht als externer Change melden.
+      if (isSelfWriting(filePath)) return;
       for (const id of entry.owners) {
         const win = windows.get(id);
         if (win && !win.isDestroyed()) win.webContents.send('file:changed', filePath);
@@ -265,6 +289,7 @@ function getMenuState(id) {
     lineNumbers: base.lineNumbers !== undefined ? base.lineNumbers : true,
     wordWrap: !!base.wordWrap,
     togglesEnabled: !!base.togglesEnabled,
+    hasActiveTab: !!base.hasActiveTab,
     restoreSession: !!(store && store.get('restoreSession')),
     recentFiles: (store && store.get('recentFiles')) || [],
   };
@@ -276,6 +301,12 @@ function applyMenuToWindow(win) {
   const actions = {
     openRecent: (p) => openRecentFile(p, win),
     clearRecent: () => clearRecentList(win),
+    save: () => {
+      if (!win.isDestroyed()) win.webContents.send('menu:save');
+    },
+    saveAs: () => {
+      if (!win.isDestroyed()) win.webContents.send('menu:saveAs');
+    },
   };
   const menu = buildMenu(win, state, actions);
   win.setMenu(menu);
@@ -411,7 +442,16 @@ function createWindow(opts = {}) {
   win.on('maximize', () => persistAllWindows());
   win.on('unmaximize', () => persistAllWindows());
 
-  win.on('close', () => {
+  win.on('close', (e) => {
+    // Dirty-Check: wenn der Renderer noch nicht bestaetigt hat, dass das
+    // Schliessen OK ist, Frage an ihn weiterreichen. Beim App-Quit greift
+    // dieselbe Logik pro Fenster.
+    if (!confirmedClosings.has(win)) {
+      e.preventDefault();
+      if (!win.isDestroyed()) win.webContents.send('window:requestClose');
+      return;
+    }
+    confirmedClosings.delete(win);
     const timer = saveBoundsTimers.get(id);
     if (timer) {
       clearTimeout(timer);
@@ -522,6 +562,99 @@ function registerIpc() {
   ipcMain.handle('recent:push', (_event, filePath) => {
     if (!filePath) return;
     pushRecent(path.resolve(filePath));
+  });
+
+  // Datei speichern (Inhalt nach UTF-8/LF, kein BOM). Markiert den Pfad als
+  // Eigen-Schreibvorgang, damit der Watcher nicht meldet.
+  ipcMain.handle('file:save', async (_event, filePath, content) => {
+    if (!filePath) throw new Error('file:save ohne Pfad aufgerufen');
+    const absolute = path.resolve(filePath);
+    const normalized = String(content || '').replace(/\r\n/g, '\n');
+    markSelfWriting(absolute);
+    await fs.writeFile(absolute, normalized, { encoding: 'utf8' });
+    return { path: absolute };
+  });
+
+  // Speichern unter: OS-Dialog, dann schreiben. Returnt den gewaehlten Pfad
+  // oder null, wenn der Nutzer abgebrochen hat.
+  ipcMain.handle('file:saveAs', async (event, suggestedPath, content) => {
+    const owner = senderWindow(event);
+    const defaultPath = suggestedPath || tForWindow(owner, 'save.untitled');
+    const dlgResult = await dialog.showSaveDialog(owner || undefined, {
+      title: tForWindow(owner, 'save.saveAsTitle'),
+      defaultPath,
+      filters: [
+        { name: 'Markdown', extensions: ['md', 'markdown', 'mdown', 'mkd'] },
+        { name: 'Alle Dateien', extensions: ['*'] },
+      ],
+    });
+    if (dlgResult.canceled || !dlgResult.filePath) return null;
+    const absolute = path.resolve(dlgResult.filePath);
+    const normalized = String(content || '').replace(/\r\n/g, '\n');
+    markSelfWriting(absolute);
+    await fs.writeFile(absolute, normalized, { encoding: 'utf8' });
+    pushRecent(absolute);
+    return { path: absolute };
+  });
+
+  // Dirty-Tab-Schliessen-Dialog. Returnt 'save' | 'discard' | 'cancel'.
+  ipcMain.handle('dialog:confirmCloseDirty', async (event, opts) => {
+    const owner = senderWindow(event);
+    const t = (k) => tForWindow(owner, k);
+    const result = await dialog.showMessageBox(owner || undefined, {
+      type: 'warning',
+      title: t('save.unsavedTitle'),
+      message: t('save.unsavedMessage'),
+      detail: (opts && opts.detail) ? opts.detail : '',
+      buttons: [t('save.btnSave'), t('save.btnDiscard'), t('save.btnCancel')],
+      defaultId: 0,
+      cancelId: 2,
+      noLink: true,
+    });
+    if (result.response === 0) return 'save';
+    if (result.response === 1) return 'discard';
+    return 'cancel';
+  });
+
+  // Externer-Change-Konflikt-Dialog. Returnt 'reload' | 'keepOurs'.
+  ipcMain.handle('dialog:confirmConflict', async (event, opts) => {
+    const owner = senderWindow(event);
+    const t = (k) => tForWindow(owner, k);
+    const result = await dialog.showMessageBox(owner || undefined, {
+      type: 'warning',
+      title: t('save.conflictTitle'),
+      message: t('save.conflictMessage'),
+      detail: (opts && opts.detail) ? opts.detail : '',
+      buttons: [t('save.conflictReload'), t('save.conflictKeepOurs')],
+      defaultId: 1,
+      cancelId: 1,
+      noLink: true,
+    });
+    if (result.response === 0) return 'reload';
+    return 'keepOurs';
+  });
+
+  // Schreibfehler-Dialog (Datei nicht schreibbar etc.).
+  ipcMain.handle('dialog:showSaveError', async (event, detail) => {
+    const owner = senderWindow(event);
+    const t = (k) => tForWindow(owner, k);
+    await dialog.showMessageBox(owner || undefined, {
+      type: 'error',
+      title: t('save.errorTitle'),
+      message: t('save.errorMessage'),
+      detail: detail || '',
+      buttons: ['OK'],
+    });
+  });
+
+  // Renderer signalisiert, dass das Fenster nun tatsaechlich geschlossen
+  // werden darf (alle dirtigen Tabs wurden gespeichert oder verworfen).
+  ipcMain.handle('window:confirmClose', (event) => {
+    const w = senderWindow(event);
+    if (w && !w.isDestroyed()) {
+      confirmedClosings.add(w);
+      w.close();
+    }
   });
 
   ipcMain.handle('app:locale', () => app.getLocale());
