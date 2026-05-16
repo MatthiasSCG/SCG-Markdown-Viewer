@@ -2,6 +2,12 @@
 
 Diese Datei dokumentiert verbindliche Arbeitsabläufe für das Projekt. Sie ergänzt die persönlichen Vorlieben aus `~/.claude/CLAUDE.md` (Deutsch, Umlaute, etc.).
 
+## Aufgabenverfolgung: lokales PM statt GitHub-Issues
+
+**Abweichung von der globalen Regel** in `~/.claude/project-standards.md`: Epics und Tasks werden in diesem Projekt **lokal** im Ordner `Projektmanagement/Aufgaben/` als Markdown-Dateien geführt, nicht über GitHub-Issues. Grund: Die Konzept- und Designphasen erfordern ausführliche Begründungen, Lösungsansätze und Architekturentscheidungen, die als bidirektional verlinkte Markdown-Dokumente lesbarer und einfacher pflegbar sind als GitHub-Issues. Die bisherigen Issues [#1](https://github.com/MatthiasSCG/SCG-Markdown-Viewer/issues/1) und [#2](https://github.com/MatthiasSCG/SCG-Markdown-Viewer/issues/2) bleiben als historische Spur aus der Frühphase erhalten, neue Vorgänge ab Version 0.6.0 werden lokal angelegt.
+
+ID-Konventionen, Datei-Struktur, Status-Werte und Workflow stehen in [Projektmanagement/README.md](Projektmanagement/README.md).
+
 ## Release-Prozess: Tag + GitHub-Release bei jedem Versionssprung
 
 Wenn ein Commit eine neue Version setzt (z.B. `package.json` von `0.4.0` auf `0.5.0`), nach `git push` **immer zusätzlich** folgendes durchführen — sonst ist die neue Version nur als Commit, aber nicht als Release auf GitHub sichtbar (und der Hauptmonitor unter „Releases" zeigt weiter die alte Version als „Latest").
