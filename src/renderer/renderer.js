@@ -466,6 +466,7 @@ async function openInPane(targetPaneIdx, paths) {
     if (found) {
       activatePane(found.paneIdx);
       activateTab(found.paneIdx, found.tabIdx);
+      api.pushRecent(p);
       continue;
     }
     try {
@@ -473,6 +474,7 @@ async function openInPane(targetPaneIdx, paths) {
       state.panes[targetPaneIdx].tabs.push(createTab(data.path, data.content));
       activatePane(targetPaneIdx);
       activateTab(targetPaneIdx, state.panes[targetPaneIdx].tabs.length - 1);
+      api.pushRecent(data.path);
     } catch (err) {
       console.error('Konnte Datei nicht lesen:', p, err);
     }

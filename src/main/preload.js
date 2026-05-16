@@ -92,6 +92,7 @@ contextBridge.exposeInMainWorld('api', {
   // Datei-Operationen
   openDialog: () => ipcRenderer.invoke('file:openDialog'),
   readFile: (p) => ipcRenderer.invoke('file:read', p),
+  pushRecent: (p) => ipcRenderer.invoke('recent:push', p),
   resolveLink: (basePath, target) => ipcRenderer.invoke('file:resolveLink', basePath, target),
   isMarkdownPath: (p) => ipcRenderer.invoke('file:isMarkdown', p),
   fileExists: (p) => ipcRenderer.invoke('file:exists', p),

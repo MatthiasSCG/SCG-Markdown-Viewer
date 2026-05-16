@@ -6,7 +6,7 @@ const path = require('node:path');
 const fs = require('node:fs/promises');
 const { app, BrowserWindow, dialog, ipcMain, shell, nativeTheme, Menu, screen } = require('electron');
 const chokidar = require('chokidar');
-const { buildMenu, clearDictCache: clearMenuDictCache } = require('./menu');
+const { buildMenu, clearDictCache: clearMenuDictCache, tForLocale } = require('./menu');
 
 // Single-Instance-Lock: zweite Instanz reicht ihre Datei an die laufende weiter.
 const gotLock = app.requestSingleInstanceLock();
@@ -107,7 +107,8 @@ function pushRecent(filePath) {
   const recent = store.get('recentFiles', []);
   const filtered = recent.filter((p) => p !== filePath);
   filtered.unshift(filePath);
-  store.set('recentFiles', filtered.slice(0, 15));
+  store.set('recentFiles', filtered.slice(0, 10));
+  applyMenuToAllWindows();
 }
 
 // Liefert das aktuell „relevante" Fenster (zuletzt fokussiert, fallback: irgendeins).
@@ -265,18 +266,80 @@ function getMenuState(id) {
     wordWrap: !!base.wordWrap,
     togglesEnabled: !!base.togglesEnabled,
     restoreSession: !!(store && store.get('restoreSession')),
+    recentFiles: (store && store.get('recentFiles')) || [],
   };
 }
 
 function applyMenuToWindow(win) {
   if (!win || win.isDestroyed()) return;
   const state = getMenuState(win.webContents.id);
-  const menu = buildMenu(win, state);
+  const actions = {
+    openRecent: (p) => openRecentFile(p, win),
+    clearRecent: () => clearRecentList(win),
+  };
+  const menu = buildMenu(win, state, actions);
   win.setMenu(menu);
 }
 
 function applyMenuToAllWindows() {
   for (const win of windows.values()) applyMenuToWindow(win);
+}
+
+// Lokalisierter String mit der Sprache des angegebenen Fensters. Faellt auf
+// Englisch zurueck, wenn das Fenster keine Sprache gemeldet hat.
+function tForWindow(win, key) {
+  const state = win && !win.isDestroyed() ? menuStates.get(win.webContents.id) : null;
+  return tForLocale(state?.locale || 'en', key);
+}
+
+// Klick auf einen Recent-Eintrag im Datei-Menue. Prueft zunaechst, ob die
+// Datei noch existiert; wenn nicht, raus aus der Liste und Fehlerdialog.
+// Sonst: Datei als neuer Tab im sourceWindow oeffnen (analog zu "Oeffnen mit"
+// im Explorer). Der Renderer aktualisiert die Recent-Liste selbst ueber
+// recent:push, wenn er die Datei in openInPane verarbeitet.
+async function openRecentFile(filePath, sourceWindow) {
+  try {
+    await fs.access(filePath);
+  } catch {
+    const recent = (store && store.get('recentFiles')) || [];
+    const filtered = recent.filter((p) => p !== filePath);
+    if (store) store.set('recentFiles', filtered);
+    applyMenuToAllWindows();
+    await dialog.showMessageBox(sourceWindow || undefined, {
+      type: 'warning',
+      title: tForWindow(sourceWindow, 'recent.missingFileTitle'),
+      message: tForWindow(sourceWindow, 'recent.missingFile'),
+      detail: filePath,
+      buttons: ['OK'],
+    });
+    return;
+  }
+  const target = (sourceWindow && !sourceWindow.isDestroyed())
+    ? sourceWindow
+    : getActiveWindow();
+  if (target && !target.isDestroyed()) {
+    target.focus();
+    target.webContents.send('file:openExternal', [filePath]);
+  }
+}
+
+// Klick auf "Liste loeschen" im Recent-Submenue. Bestaetigungsdialog mit
+// "Loeschen" / "Abbrechen"; bei Loeschen wird die Liste geleert und alle
+// Fenster-Menues aktualisiert.
+async function clearRecentList(sourceWindow) {
+  const t = (key) => tForWindow(sourceWindow, key);
+  const result = await dialog.showMessageBox(sourceWindow || undefined, {
+    type: 'question',
+    title: t('menu.file.recentClear'),
+    message: t('menu.file.recentClearConfirm'),
+    buttons: [t('menu.file.recentClearBtnYes'), t('menu.file.recentClearBtnNo')],
+    defaultId: 0,
+    cancelId: 1,
+  });
+  if (result.response === 0) {
+    if (store) store.set('recentFiles', []);
+    applyMenuToAllWindows();
+  }
 }
 
 // Erstellt ein neues Fenster. opts:
@@ -410,7 +473,9 @@ function registerIpc() {
   ipcMain.handle('file:read', async (event, filePath) => {
     const absolute = path.resolve(filePath);
     const content = await fs.readFile(absolute, 'utf8');
-    pushRecent(absolute);
+    // Kein pushRecent hier — file:read deckt auch passive Pfade ab
+    // (Sitzungs-Restore, Auto-Reload). Aktives Oeffnen meldet sich separat
+    // ueber recent:push aus dem Renderer.
     watchFile(absolute, event.sender.id);
     return { path: absolute, content };
   });
@@ -450,6 +515,13 @@ function registerIpc() {
     // Menue-relevante Settings spiegeln sich in den Haekchen wider. Bei einem
     // Wechsel in einem Fenster muessen alle Fenster-Menues angepasst werden.
     if (key === 'restoreSession') applyMenuToAllWindows();
+  });
+
+  // Renderer meldet ein aktives Datei-Oeffnen, damit der Pfad in die Recent-
+  // Liste rutscht. Wird in openInPane aufgerufen, nicht beim Restore/Reload.
+  ipcMain.handle('recent:push', (_event, filePath) => {
+    if (!filePath) return;
+    pushRecent(path.resolve(filePath));
   });
 
   ipcMain.handle('app:locale', () => app.getLocale());

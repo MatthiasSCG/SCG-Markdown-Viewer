@@ -30,6 +30,14 @@ function clearDictCache() {
   dictCache.clear();
 }
 
+// Liefert einen lokalisierten String aus dem Dictionary einer Sprache. Wird
+// von main.js fuer Dialog-Texte (Recent-Liste loeschen, Datei nicht gefunden)
+// genutzt, die unabhaengig vom Fenster-Menue gerendert werden.
+function tForLocale(locale, key) {
+  const dict = loadDict(locale);
+  return dict[key] != null ? dict[key] : key;
+}
+
 // state: {
 //   locale: 'de'|'en'|'fr'|'es'|'it',
 //   viewMode: 'source'|'split'|'rendered'|null,
@@ -38,7 +46,7 @@ function clearDictCache() {
 //   togglesEnabled: boolean,   // true wenn aktiver Tab eine sichtbare Quellcode-Pane hat
 //   restoreSession: boolean,
 // }
-function buildMenu(win, state) {
+function buildMenu(win, state, actions) {
   const locale = state && state.locale ? state.locale : FALLBACK_LOCALE;
   const dict = loadDict(locale);
   const t = (k) => (dict[k] != null ? dict[k] : k);
@@ -49,6 +57,39 @@ function buildMenu(win, state) {
 
   const viewMode = state && state.viewMode ? state.viewMode : 'rendered';
   const togglesEnabled = !!(state && state.togglesEnabled);
+  const recentFiles = Array.isArray(state && state.recentFiles) ? state.recentFiles : [];
+
+  // Recent-Files-Submenue dynamisch befuellen. Bei leerer Liste ein disabled
+  // Platzhalter, sonst je Eintrag ein MenuItem (Dateiname mit Disambiguator
+  // bei gleichnamigen Dateien, voller Pfad als Tooltip), gefolgt von Trenner
+  // und „Liste loeschen"-Eintrag.
+  const buildRecentSubmenu = () => {
+    if (recentFiles.length === 0) {
+      return [{ label: t('menu.file.recentEmpty'), enabled: false }];
+    }
+    const basenameCount = new Map();
+    for (const p of recentFiles) {
+      const b = path.basename(p);
+      basenameCount.set(b, (basenameCount.get(b) || 0) + 1);
+    }
+    const items = recentFiles.map((fullPath) => {
+      const base = path.basename(fullPath);
+      const label = basenameCount.get(base) > 1
+        ? `${base} (${path.basename(path.dirname(fullPath))})`
+        : base;
+      return {
+        label,
+        toolTip: fullPath,
+        click: () => { if (actions && actions.openRecent) actions.openRecent(fullPath); },
+      };
+    });
+    items.push({ type: 'separator' });
+    items.push({
+      label: t('menu.file.recentClear'),
+      click: () => { if (actions && actions.clearRecent) actions.clearRecent(); },
+    });
+    return items;
+  };
 
   const template = [
     {
@@ -67,10 +108,7 @@ function buildMenu(win, state) {
         },
         {
           label: t('menu.file.recent'),
-          // Befuellung in 4T-0005; vorerst nur Platzhalter.
-          submenu: [
-            { label: t('menu.file.recentEmpty'), enabled: false },
-          ],
+          submenu: buildRecentSubmenu(),
         },
         { type: 'separator' },
         {
@@ -159,4 +197,4 @@ function buildMenu(win, state) {
   return Menu.buildFromTemplate(template);
 }
 
-module.exports = { buildMenu, clearDictCache };
+module.exports = { buildMenu, clearDictCache, tForLocale };
