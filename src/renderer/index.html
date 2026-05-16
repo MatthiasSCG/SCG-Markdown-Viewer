@@ -7,49 +7,6 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header class="toolbar">
-      <div class="toolbar-left">
-        <button id="btn-open" class="btn" title="" data-i18n-title="toolbar.open">
-          <span data-i18n="toolbar.open">Öffnen</span>
-        </button>
-        <div class="recent-wrapper">
-          <button id="btn-recent" class="btn" data-i18n-title="toolbar.recent" title="">
-            <span data-i18n="toolbar.recent">Zuletzt</span>
-            <span class="caret">&#9662;</span>
-          </button>
-          <div id="recent-menu" class="dropdown" hidden></div>
-        </div>
-      </div>
-      <div class="toolbar-center">
-        <div class="source-toggles" role="group">
-          <button id="btn-wrap" class="btn-toggle" data-i18n="source.wrap" data-i18n-title="source.wrapTitle">Umbruch</button>
-          <button id="btn-numbers" class="btn-toggle" data-i18n="source.numbers" data-i18n-title="source.numbersTitle">Nummern</button>
-        </div>
-        <div class="view-toggle" role="group" aria-label="Ansicht">
-          <button data-view="source" class="view-btn" data-i18n="view.source" data-i18n-title="view.source">Quellcode</button>
-          <button data-view="split" class="view-btn" data-i18n="view.split" data-i18n-title="view.split">Geteilt</button>
-          <button data-view="rendered" class="view-btn active" data-i18n="view.rendered" data-i18n-title="view.rendered">Gerendert</button>
-        </div>
-      </div>
-      <div class="toolbar-right">
-        <label class="setting" data-i18n-title="settings.restoreSession">
-          <input type="checkbox" id="chk-restore-session" />
-          <span data-i18n="settings.restoreSession">Sitzung wiederherstellen</span>
-        </label>
-        <select id="lang-select" data-i18n-title="settings.language" title="">
-          <option value="de">Deutsch</option>
-          <option value="en">English</option>
-          <option value="fr">Français</option>
-          <option value="es">Español</option>
-          <option value="it">Italiano</option>
-        </select>
-        <button id="btn-about" class="btn" data-i18n-title="about.button" title="">
-          <span data-i18n="about.button">Über</span>
-        </button>
-        <button id="btn-help" class="btn btn-help-icon" data-i18n-title="help.button" title="" aria-label="Help">?</button>
-      </div>
-    </header>
-
     <main id="panes-container" class="panes-container">
       <section class="pane-group active-pane" data-pane="0">
         <div class="tabbar"></div>
@@ -77,6 +34,35 @@
         </div>
       </section>
     </main>
+
+    <footer class="statusbar">
+      <div class="statusbar-left">
+        <div class="source-toggles" role="group">
+          <button id="btn-numbers" class="btn-toggle" data-i18n="source.numbers" data-i18n-title="source.numbersTitle">Nummern</button>
+          <button id="btn-wrap" class="btn-toggle" data-i18n="source.wrap" data-i18n-title="source.wrapTitle">Umbruch</button>
+        </div>
+        <div class="view-toggle" role="group" aria-label="Ansicht">
+          <button data-view="source" class="view-btn" data-i18n="view.source" data-i18n-title="view.source">Quellcode</button>
+          <button data-view="split" class="view-btn" data-i18n="view.split" data-i18n-title="view.split">Geteilt</button>
+          <button data-view="rendered" class="view-btn active" data-i18n="view.rendered" data-i18n-title="view.rendered">Gerendert</button>
+        </div>
+      </div>
+      <div class="statusbar-right">
+        <button id="btn-edit" class="btn-toggle btn-edit" disabled data-i18n-title="statusbar.edit" title="" aria-label="Edit">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+        </button>
+        <select id="lang-select" data-i18n-title="settings.language" title="">
+          <option value="de">Deutsch</option>
+          <option value="en">English</option>
+          <option value="fr">Français</option>
+          <option value="es">Español</option>
+          <option value="it">Italiano</option>
+        </select>
+      </div>
+    </footer>
 
     <div id="empty-state" class="empty-state">
       <div class="empty-state-inner">

@@ -1,6 +1,6 @@
 # 4T-0002 — Statusbar unten mit View-Toggles und Such-Overlay
 
-**Status**: Offen
+**Status**: Erledigt
 **Epic**: [3E-0001 — Edit-Modus, Menüleiste und Layout-Reorganisation](3E-0001-edit-modus-und-menue.md)
 **Zielversion**: 0.6.0
 
@@ -42,4 +42,26 @@ Die Quick-Toggles für Ansichtsmodus (Gerendert/Geteilt/Quellcode) und Quellcode
 
 ## Lösung
 
-(Wird nach Umsetzung ausgefüllt.)
+Toolbar oben entfernt, Statusbar als `<footer>` unten eingeführt. Die Quick-Toggles wurden so reorganisiert, dass sie inhaltlich gruppiert sind, der Edit-Toggle und der Sprache-Selektor sitzen rechts.
+
+**`src/renderer/index.html`**: `<header class="toolbar">…</header>` komplett entfernt. Neu: `<footer class="statusbar">` direkt nach `</main>` mit zwei Bereichen:
+- **Links**: `.source-toggles` (Nummern, Umbruch) und `.view-toggle` (Quellcode, Geteilt, Gerendert) — Nummern/Umbruch links von Quellcode, weil sie sich konkret auf die Quellcode-Pane beziehen (Anordnung auf Wunsch des Nutzers während des Tests).
+- **Rechts**: `<button id="btn-edit" class="btn-toggle btn-edit" disabled>` mit Stift-SVG-Icon (Pfad ähnlich Lucide/Feather Edit-Icon), Tooltip „Bearbeiten (Strg+E)" lokalisiert; daneben `<select id="lang-select">`.
+
+**`src/renderer/styles.css`**: Neuer Block `.statusbar`, `.statusbar-left`, `.statusbar-right`, `.btn-edit`, `.btn-edit svg`. Statusbar-Layout: 36 px min-height, dezenter `border-top`, Light/Dark via bestehende `--bg-toolbar`-Variable. `.panes-container` zusätzlich `position: relative`, damit der Empty-State-Overlay (`inset: 0`) sich am Panes-Bereich orientiert und die Statusbar nicht überdeckt. Toter Code entfernt: `.toolbar`, `.toolbar-left/center/right`, `.caret`, `.recent-wrapper`, `.dropdown`/`-item`/`-empty`, `.setting`/`-input`, `.btn-help-icon` — knapp 70 CSS-Zeilen.
+
+**`src/renderer/renderer.js`**:
+- DOM-Referenzen `recentMenu` und `restoreCheckbox` entfernt
+- In `init()`: `restoreCheckbox.checked = …` entfernt (Setting bleibt persistent, Häkchen liegt jetzt nur im Hilfe-Menü)
+- In `bindUi()`: Event-Bindings für `#btn-open`, `#btn-recent`, `#btn-about`, `#btn-help` und die `restoreCheckbox.change`-Logik entfernt
+- `mousedown`-Außerhalb-Logik um den `recentMenu`-Zweig bereinigt
+- `Esc`-Handler: `recentMenu.hidden = true` entfernt
+- `toggleRecentMenu`-Funktion komplett entfernt (~25 Zeilen)
+- In `onMenuToggleRestoreSession`: Zeile `restoreCheckbox.checked = …` entfernt
+
+**`src/i18n/{de,en,fr,es,it}.json`**: Neuer Key `statusbar.edit` (Tooltip Edit-Toggle) in allen fünf Sprachen. Tote Keys entfernt: `toolbar.recent`, `settings.restoreSession`, `recent.empty`, `about.button`, `help.button` — die zugehörigen UI-Elemente sind weg, die Menü-Pendants nutzen `menu.file.recent*`, `menu.help.restoreSession`, `menu.help.about`, `menu.help.help`. `toolbar.open` bleibt erhalten, weil der Empty-State-Button (`#btn-open-empty`) den Text noch verwendet.
+
+**Bewusst nicht in dieser Stufe**:
+- Edit-Toggle ist `disabled` — Aktivierung kommt in 4T-0003 zusammen mit CodeMirror
+- Such-Overlay wurde nicht in die Statusbar-Zeile integriert. Es bleibt `position: fixed; bottom: 0` und überdeckt die Statusbar, solange aktiv. Das entspricht der Architekturentscheidung im Epic („überlagert sie bei Bedarf"), spart Komplexität, und der Nutzer hat das Verhalten beim Test akzeptiert.
+- Die zwei Hilfe-Modal-Texte `help.feature.restoreSession` und `help.feature.languages` erwähnen noch die Toolbar, sind aber nach 4T-0002 inhaltlich veraltet. Anpassung in 4T-0009.

@@ -1,6 +1,5 @@
 {
   "toolbar.open": "Abrir",
-  "toolbar.recent": "Recientes",
   "view.source": "Codigo fuente",
   "view.split": "Dividido",
   "view.rendered": "Renderizado",
@@ -8,7 +7,6 @@
   "source.wrapTitle": "Ajuste de línea en el código fuente",
   "source.numbers": "Números",
   "source.numbersTitle": "Números de línea en el código fuente",
-  "settings.restoreSession": "Restaurar sesion",
   "settings.language": "Idioma",
   "tab.close": "Cerrar",
   "tab.moveRight": "Mover a la derecha",
@@ -18,8 +16,6 @@
   "empty.title": "Visor de Markdown",
   "empty.hint": "Abra un archivo o arrastrelo aqui.",
   "drop.hint": "Suelte el archivo Markdown aqui",
-  "recent.empty": "No hay archivos recientes",
-  "about.button": "Acerca de",
   "about.versionLabel": "Version",
   "about.author": "Creado por Matthias Stumm en colaboracion con Claude Code (Anthropic)",
   "about.icon": "Icono: Markdown Mark (CC0) — dcurtis/markdown-mark",
@@ -51,7 +47,6 @@
   "search.regexHelp.notCharset": "ninguno de los caracteres a, b, c",
   "search.regexHelp.alternation": "a o b",
   "search.regexHelp.escape": "carácter especial literal (aquí: punto)",
-  "help.button": "Ayuda",
   "help.title": "Ayuda",
   "help.featuresTitle": "Funciones",
   "help.shortcutsTitle": "Atajos de teclado",
@@ -101,5 +96,6 @@
   "menu.help.title": "A&yuda",
   "menu.help.help": "Ayuda",
   "menu.help.about": "Acerca de…",
-  "menu.help.restoreSession": "Restaurar sesión"
+  "menu.help.restoreSession": "Restaurar sesión",
+  "statusbar.edit": "Editar (Ctrl+E)"
 }

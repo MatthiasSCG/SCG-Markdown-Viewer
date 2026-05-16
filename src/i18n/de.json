@@ -1,6 +1,5 @@
 {
   "toolbar.open": "Öffnen",
-  "toolbar.recent": "Zuletzt",
   "view.source": "Quellcode",
   "view.split": "Geteilt",
   "view.rendered": "Gerendert",
@@ -8,7 +7,6 @@
   "source.wrapTitle": "Zeilenumbruch im Quellcode",
   "source.numbers": "Nummern",
   "source.numbersTitle": "Zeilennummern im Quellcode",
-  "settings.restoreSession": "Sitzung wiederherstellen",
   "settings.language": "Sprache",
   "tab.close": "Schließen",
   "tab.moveRight": "Nach rechts verschieben",
@@ -18,8 +16,6 @@
   "empty.title": "Markdown Viewer",
   "empty.hint": "Datei öffnen oder per Drag & Drop hier ablegen.",
   "drop.hint": "Markdown-Datei hier ablegen",
-  "recent.empty": "Noch keine zuletzt geöffneten Dateien",
-  "about.button": "Über",
   "about.versionLabel": "Version",
   "about.author": "Erstellt von Matthias Stumm in Zusammenarbeit mit Claude Code (Anthropic)",
   "about.icon": "App-Icon: Markdown Mark (CC0) — dcurtis/markdown-mark",
@@ -51,7 +47,6 @@
   "search.regexHelp.notCharset": "keines der Zeichen a, b, c",
   "search.regexHelp.alternation": "a oder b",
   "search.regexHelp.escape": "wörtliches Sonderzeichen (hier: Punkt)",
-  "help.button": "Hilfe",
   "help.title": "Hilfe",
   "help.featuresTitle": "Funktionen",
   "help.shortcutsTitle": "Tastenkürzel",
@@ -101,5 +96,6 @@
   "menu.help.title": "&Hilfe",
   "menu.help.help": "Hilfe",
   "menu.help.about": "Über…",
-  "menu.help.restoreSession": "Sitzung wiederherstellen"
+  "menu.help.restoreSession": "Sitzung wiederherstellen",
+  "statusbar.edit": "Bearbeiten (Strg+E)"
 }

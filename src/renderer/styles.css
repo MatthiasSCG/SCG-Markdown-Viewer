@@ -51,25 +51,7 @@ body {
   flex-direction: column;
 }
 
-/* === Toolbar ============================================================== */
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 10px;
-  background: var(--bg-toolbar);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-  user-select: none;
-}
-.toolbar-left, .toolbar-center, .toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.toolbar-center { flex: 1; justify-content: center; }
-.toolbar-right { gap: 12px; }
-
+/* === Buttons und Toggles ================================================== */
 .btn {
   background: var(--bg-alt);
   color: var(--fg);
@@ -89,39 +71,6 @@ body {
   border-color: var(--accent);
 }
 .btn-primary:hover { filter: brightness(1.05); }
-.caret { font-size: 10px; margin-left: 4px; opacity: 0.7; }
-
-.recent-wrapper { position: relative; }
-.dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  margin-top: 4px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  box-shadow: var(--shadow);
-  min-width: 280px;
-  max-width: 480px;
-  z-index: 100;
-  max-height: 360px;
-  overflow-y: auto;
-}
-.dropdown-item {
-  padding: 6px 12px;
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 13px;
-}
-.dropdown-item:hover { background: var(--hover); }
-.dropdown-empty {
-  padding: 10px 12px;
-  color: var(--fg-muted);
-  font-style: italic;
-  font-size: 13px;
-}
 
 .view-toggle {
   display: inline-flex;
@@ -173,14 +122,34 @@ body {
   opacity: 0.4;
 }
 
-.setting {
+/* === Statusbar ============================================================ */
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 4px 10px;
+  background: var(--bg-toolbar);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  user-select: none;
+  font-size: 13px;
+  min-height: 36px;
+}
+.statusbar-left, .statusbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.statusbar-right { margin-left: auto; }
+.btn-edit {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  cursor: pointer;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
 }
-.setting input { cursor: pointer; }
+.btn-edit svg { display: block; }
 
 select {
   background: var(--bg-alt);
@@ -195,6 +164,7 @@ select {
 
 /* === Panes-Container (Spalten-Layout) ===================================== */
 .panes-container {
+  position: relative;
   flex: 1;
   display: flex;
   overflow: hidden;
@@ -695,11 +665,6 @@ select {
 }
 
 /* === Hilfe-Modal ========================================================= */
-.btn-help-icon {
-  font-weight: 700;
-  padding: 5px 10px;
-  min-width: 32px;
-}
 .help-modal {
   position: fixed;
   inset: 0;

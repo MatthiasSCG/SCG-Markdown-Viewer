@@ -1,6 +1,5 @@
 {
   "toolbar.open": "Open",
-  "toolbar.recent": "Recent",
   "view.source": "Source",
   "view.split": "Split",
   "view.rendered": "Rendered",
@@ -8,7 +7,6 @@
   "source.wrapTitle": "Word-wrap in source view",
   "source.numbers": "Numbers",
   "source.numbersTitle": "Line numbers in source view",
-  "settings.restoreSession": "Restore session",
   "settings.language": "Language",
   "tab.close": "Close",
   "tab.moveRight": "Move to right",
@@ -18,8 +16,6 @@
   "empty.title": "Markdown Viewer",
   "empty.hint": "Open a file or drop one here.",
   "drop.hint": "Drop Markdown file here",
-  "recent.empty": "No recent files yet",
-  "about.button": "About",
   "about.versionLabel": "Version",
   "about.author": "Created by Matthias Stumm in collaboration with Claude Code (Anthropic)",
   "about.icon": "App icon: Markdown Mark (CC0) — dcurtis/markdown-mark",
@@ -51,7 +47,6 @@
   "search.regexHelp.notCharset": "none of the characters a, b, c",
   "search.regexHelp.alternation": "a or b",
   "search.regexHelp.escape": "literal special character (here: dot)",
-  "help.button": "Help",
   "help.title": "Help",
   "help.featuresTitle": "Features",
   "help.shortcutsTitle": "Keyboard shortcuts",
@@ -101,5 +96,6 @@
   "menu.help.title": "&Help",
   "menu.help.help": "Help",
   "menu.help.about": "About…",
-  "menu.help.restoreSession": "Restore Session"
+  "menu.help.restoreSession": "Restore Session",
+  "statusbar.edit": "Edit (Ctrl+E)"
 }

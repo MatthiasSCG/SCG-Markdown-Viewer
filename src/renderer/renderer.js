@@ -54,9 +54,7 @@ const paneRoots = Array.from(panesContainer.querySelectorAll('.pane-group'));
 const outerSplitter = panesContainer.querySelector('.outer-splitter');
 const emptyState = $('#empty-state');
 const dropOverlay = $('#drop-overlay');
-const recentMenu = $('#recent-menu');
 const langSelect = $('#lang-select');
-const restoreCheckbox = $('#chk-restore-session');
 const contextMenu = $('#context-menu');
 const aboutModal = $('#about-modal');
 const aboutVersionEl = $('#about-version');
@@ -131,10 +129,10 @@ async function init() {
   applyTranslations(document);
   langSelect.value = lang;
 
-  // Restore-Setting (steuert UI-Toggle; die eigentliche Restore-Entscheidung
-  // trifft der Main-Prozess vor dem Fenster-Aufbau).
+  // Restore-Setting (Quelle der Wahrheit fuer das Haekchen im Hilfe-Menue;
+  // die eigentliche Restore-Entscheidung trifft der Main-Prozess vor dem
+  // Fenster-Aufbau).
   state.restoreSession = await api.getSetting('restoreSession');
-  restoreCheckbox.checked = !!state.restoreSession;
 
   // Bindings
   bindUi();
@@ -211,14 +209,14 @@ async function restorePanes(saved) {
 
 // --- UI-Bindings ------------------------------------------------------------
 function bindUi() {
-  $('#btn-open').addEventListener('click', openDialog);
+  // "Öffnen", "Über", "Hilfe" und die Sitzungs-Checkbox sind seit 4T-0002 nicht
+  // mehr in der UI, sondern im nativen Menue (siehe 4T-0001). Hier bleiben nur
+  // noch die Bindings fuer Empty-State-Button und die Modal-Schliesser, plus
+  // die Statusbar-Toggles und der Sprach-Selektor.
   $('#btn-open-empty').addEventListener('click', openDialog);
-  $('#btn-recent').addEventListener('click', toggleRecentMenu);
-  $('#btn-about').addEventListener('click', showAbout);
   $('#btn-about-close').addEventListener('click', hideAbout);
   aboutModal.querySelector('.about-modal-backdrop').addEventListener('click', hideAbout);
 
-  $('#btn-help').addEventListener('click', showHelp);
   $('#btn-help-close').addEventListener('click', hideHelp);
   helpModal.querySelector('.help-modal-backdrop').addEventListener('click', hideHelp);
 
@@ -247,11 +245,6 @@ function bindUi() {
     if (isRegexHelpOpen()) renderRegexHelp();
     // Hilfe-Modal wird ebenfalls dynamisch befuellt.
     if (!helpModal.hidden) renderHelpContent();
-  });
-
-  restoreCheckbox.addEventListener('change', async (e) => {
-    state.restoreSession = e.target.checked;
-    await api.setSetting('restoreSession', state.restoreSession);
   });
 
   // File-Drag&Drop für EXTERNE Dateien (nicht für Tab-Drag).
@@ -290,9 +283,6 @@ function bindUi() {
 
   // Klicks außerhalb von Menüs schließen sie.
   document.addEventListener('mousedown', (e) => {
-    if (!recentMenu.contains(e.target) && !$('#btn-recent').contains(e.target)) {
-      recentMenu.hidden = true;
-    }
     if (!contextMenu.contains(e.target)) {
       hideContextMenu();
     }
@@ -316,7 +306,6 @@ function bindUi() {
         return;
       }
       hideContextMenu();
-      recentMenu.hidden = true;
       hideHelp();
       hideAbout();
     }
@@ -367,7 +356,6 @@ function bindUi() {
   api.onMenuOpenAbout(() => showAbout());
   api.onMenuToggleRestoreSession(async () => {
     state.restoreSession = !state.restoreSession;
-    restoreCheckbox.checked = state.restoreSession;
     await api.setSetting('restoreSession', state.restoreSession);
   });
 
@@ -948,32 +936,6 @@ async function handleRenderedClick(e, paneIdx) {
 }
 
 // --- Recent-Files-Menü ------------------------------------------------------
-async function toggleRecentMenu(e) {
-  e.stopPropagation();
-  if (!recentMenu.hidden) { recentMenu.hidden = true; return; }
-  const recents = (await api.getSetting('recentFiles')) || [];
-  recentMenu.innerHTML = '';
-  if (recents.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'dropdown-empty';
-    empty.textContent = t('recent.empty');
-    recentMenu.appendChild(empty);
-  } else {
-    for (const p of recents) {
-      const item = document.createElement('div');
-      item.className = 'dropdown-item';
-      item.textContent = p;
-      item.title = p;
-      item.addEventListener('click', async () => {
-        recentMenu.hidden = true;
-        await openInPane(state.activePaneIndex, [p]);
-      });
-      recentMenu.appendChild(item);
-    }
-  }
-  recentMenu.hidden = false;
-}
-
 // --- View-Modus + Toggles (alle pro Tab) ------------------------------------
 function setViewMode(mode) {
   if (!['source', 'split', 'rendered'].includes(mode)) return;

@@ -1,6 +1,5 @@
 {
   "toolbar.open": "Apri",
-  "toolbar.recent": "Recenti",
   "view.source": "Sorgente",
   "view.split": "Diviso",
   "view.rendered": "Renderizzato",
@@ -8,7 +7,6 @@
   "source.wrapTitle": "A capo automatico nel codice sorgente",
   "source.numbers": "Numeri",
   "source.numbersTitle": "Numeri di riga nel codice sorgente",
-  "settings.restoreSession": "Ripristina sessione",
   "settings.language": "Lingua",
   "tab.close": "Chiudi",
   "tab.moveRight": "Sposta a destra",
@@ -18,8 +16,6 @@
   "empty.title": "Visualizzatore Markdown",
   "empty.hint": "Apri un file o trascinalo qui.",
   "drop.hint": "Rilascia qui il file Markdown",
-  "recent.empty": "Nessun file recente",
-  "about.button": "Informazioni",
   "about.versionLabel": "Versione",
   "about.author": "Creato da Matthias Stumm in collaborazione con Claude Code (Anthropic)",
   "about.icon": "Icona: Markdown Mark (CC0) — dcurtis/markdown-mark",
@@ -51,7 +47,6 @@
   "search.regexHelp.notCharset": "nessuno dei caratteri a, b, c",
   "search.regexHelp.alternation": "a oppure b",
   "search.regexHelp.escape": "carattere speciale letterale (qui: punto)",
-  "help.button": "Aiuto",
   "help.title": "Aiuto",
   "help.featuresTitle": "Funzioni",
   "help.shortcutsTitle": "Scorciatoie da tastiera",
@@ -101,5 +96,6 @@
   "menu.help.title": "&Aiuto",
   "menu.help.help": "Aiuto",
   "menu.help.about": "Informazioni…",
-  "menu.help.restoreSession": "Ripristina sessione"
+  "menu.help.restoreSession": "Ripristina sessione",
+  "statusbar.edit": "Modifica (Ctrl+E)"
 }
