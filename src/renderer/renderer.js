@@ -3,6 +3,43 @@
 'use strict';
 
 import { loadTranslations, applyTranslations, setLanguage, t, normalizeLocale } from './i18n.js';
+import { EditorState, Compartment } from '@codemirror/state';
+import {
+  EditorView,
+  lineNumbers as cmLineNumbers,
+  keymap,
+  drawSelection,
+} from '@codemirror/view';
+import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+import { markdown } from '@codemirror/lang-markdown';
+import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
+import { tags } from '@lezer/highlight';
+
+// Markdown-Syntax-Highlighting mit CSS-Variablen. Farben kommen aus styles.css
+// und folgen automatisch dem Light/Dark-Theme (data-theme-Attribut am <html>).
+const mdHighlightStyle = HighlightStyle.define([
+  { tag: tags.heading1, color: 'var(--syntax-heading)', fontWeight: 'bold' },
+  { tag: tags.heading2, color: 'var(--syntax-heading)', fontWeight: 'bold' },
+  { tag: tags.heading3, color: 'var(--syntax-heading)', fontWeight: 'bold' },
+  { tag: tags.heading4, color: 'var(--syntax-heading)', fontWeight: 'bold' },
+  { tag: tags.heading5, color: 'var(--syntax-heading)', fontWeight: 'bold' },
+  { tag: tags.heading6, color: 'var(--syntax-heading)', fontWeight: 'bold' },
+  { tag: tags.strong, fontWeight: 'bold' },
+  { tag: tags.emphasis, fontStyle: 'italic' },
+  { tag: tags.strikethrough, textDecoration: 'line-through' },
+  { tag: tags.link, color: 'var(--syntax-link)' },
+  { tag: tags.url, color: 'var(--syntax-url)', textDecoration: 'underline' },
+  { tag: tags.monospace, color: 'var(--syntax-code)' },
+  { tag: tags.meta, color: 'var(--syntax-meta)' },
+  { tag: tags.processingInstruction, color: 'var(--syntax-meta)' },
+  { tag: tags.contentSeparator, color: 'var(--syntax-meta)' },
+  { tag: tags.list, color: 'var(--syntax-list)' },
+  { tag: tags.quote, color: 'var(--syntax-quote)', fontStyle: 'italic' },
+  { tag: tags.comment, color: 'var(--syntax-comment)', fontStyle: 'italic' },
+  { tag: tags.keyword, color: 'var(--syntax-keyword)' },
+  { tag: tags.string, color: 'var(--syntax-string)' },
+  { tag: tags.number, color: 'var(--syntax-number)' },
+]);
 
 const api = window.api;
 
@@ -40,6 +77,9 @@ function createTab(path, content, settings = {}) {
     viewMode: settings.viewMode || DEFAULT_VIEW_MODE,
     wrapLines: settings.wrapLines ?? DEFAULT_WRAP_LINES,
     showLineNumbers: settings.showLineNumbers ?? DEFAULT_SHOW_LINE_NUMBERS,
+    // Edit-Modus pro Tab; nicht persistiert ueber Neustarts (kommt mit
+    // Dirty-State und Speichern erst in 4T-0004 ins Settings-Modell).
+    editMode: false,
   };
 }
 
@@ -55,6 +95,7 @@ const outerSplitter = panesContainer.querySelector('.outer-splitter');
 const emptyState = $('#empty-state');
 const dropOverlay = $('#drop-overlay');
 const langSelect = $('#lang-select');
+const btnEdit = $('#btn-edit');
 const contextMenu = $('#context-menu');
 const aboutModal = $('#about-modal');
 const aboutVersionEl = $('#about-version');
@@ -67,8 +108,7 @@ function getPaneEls(paneIdx) {
     tabbar: root.querySelector('.tabbar'),
     content: root.querySelector('.content'),
     sourceEl: root.querySelector('.pane-source'),
-    sourcePre: root.querySelector('.pane-source pre'),
-    sourceCode: root.querySelector('.pane-source-code'),
+    sourceEditor: root.querySelector('.pane-source-editor'),
     renderedEl: root.querySelector('.pane-rendered'),
     renderedHtml: root.querySelector('.markdown-body'),
     innerSplitter: root.querySelector('.splitter.inner-splitter'),
@@ -79,6 +119,122 @@ function activeTab() {
   const pane = state.panes[state.activePaneIndex];
   if (!pane || pane.activeIndex < 0) return null;
   return pane.tabs[pane.activeIndex];
+}
+
+// --- CodeMirror-Editor ------------------------------------------------------
+// Pro Pane eine EditorView, die je nach aktivem Tab das Dokument, den
+// Read-Only-Stand und die Toggle-Compartments (Zeilennummern, Umbruch)
+// aktualisiert. Tab-Wechsel innerhalb derselben Pane resettet das Doc.
+const paneEditors = []; // paneIdx -> EditorView
+const editorCompartments = {
+  readOnly: new Compartment(),
+  lineNumbers: new Compartment(),
+  lineWrap: new Compartment(),
+};
+
+let pendingPreviewUpdate = null;
+
+function createEditorState(opts = {}) {
+  return EditorState.create({
+    doc: opts.content || '',
+    extensions: [
+      editorCompartments.readOnly.of(EditorState.readOnly.of(opts.readOnly !== false)),
+      editorCompartments.lineNumbers.of(opts.lineNumbers ? cmLineNumbers() : []),
+      editorCompartments.lineWrap.of(opts.wrapLines ? EditorView.lineWrapping : []),
+      markdown(),
+      syntaxHighlighting(mdHighlightStyle, { fallback: true }),
+      history(),
+      keymap.of([...defaultKeymap, ...historyKeymap]),
+      drawSelection(),
+      EditorView.updateListener.of((update) => {
+        if (!update.docChanged) return;
+        const pIdx = paneEditors.indexOf(update.view);
+        if (pIdx < 0) return;
+        const pane = state.panes[pIdx];
+        if (!pane || pane.activeIndex < 0) return;
+        const tab = pane.tabs[pane.activeIndex];
+        if (!tab) return;
+        tab.content = update.state.doc.toString();
+        if (tab.viewMode === 'split') schedulePreviewUpdate(pIdx);
+      }),
+    ],
+  });
+}
+
+function ensureEditorForPane(paneIdx) {
+  if (paneEditors[paneIdx]) return paneEditors[paneIdx];
+  const els = getPaneEls(paneIdx);
+  if (!els || !els.sourceEditor) return null;
+  const view = new EditorView({
+    state: createEditorState({ readOnly: true }),
+    parent: els.sourceEditor,
+  });
+  paneEditors[paneIdx] = view;
+  view.scrollDOM.addEventListener('scroll', () => saveScroll(paneIdx));
+  return view;
+}
+
+// Setzt Doc, readOnly, Zeilennummern und Umbruch der EditorView einer Pane
+// passend zum aktiven Tab. Bei reinen Modus-Wechseln (z.B. Zeilennummern an)
+// wird nur das jeweilige Compartment rekonfiguriert, kein Doc-Reset.
+function syncEditorForPane(paneIdx) {
+  const view = ensureEditorForPane(paneIdx);
+  if (!view) return;
+  const pane = state.panes[paneIdx];
+  const els = getPaneEls(paneIdx);
+  if (!pane || pane.activeIndex < 0) {
+    if (view.state.doc.length > 0) {
+      view.dispatch({ changes: { from: 0, to: view.state.doc.length, insert: '' } });
+    }
+    view.dispatch({
+      effects: [
+        editorCompartments.readOnly.reconfigure(EditorState.readOnly.of(true)),
+        editorCompartments.lineNumbers.reconfigure([]),
+        editorCompartments.lineWrap.reconfigure([]),
+      ],
+    });
+    if (els && els.sourceEditor) els.sourceEditor.classList.add('read-only');
+    return;
+  }
+  const tab = pane.tabs[pane.activeIndex];
+  if (!tab) return;
+  const currentDoc = view.state.doc.toString();
+  if (currentDoc !== (tab.content || '')) {
+    view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: tab.content || '' },
+    });
+  }
+  view.dispatch({
+    effects: [
+      editorCompartments.readOnly.reconfigure(EditorState.readOnly.of(!tab.editMode)),
+      editorCompartments.lineNumbers.reconfigure(tab.showLineNumbers ? cmLineNumbers() : []),
+      editorCompartments.lineWrap.reconfigure(tab.wrapLines ? EditorView.lineWrapping : []),
+    ],
+  });
+  if (els && els.sourceEditor) {
+    els.sourceEditor.classList.toggle('read-only', !tab.editMode);
+  }
+}
+
+function schedulePreviewUpdate(paneIdx) {
+  if (pendingPreviewUpdate) clearTimeout(pendingPreviewUpdate.timer);
+  pendingPreviewUpdate = {
+    paneIdx,
+    timer: setTimeout(() => {
+      pendingPreviewUpdate = null;
+      renderPreviewForPane(paneIdx);
+    }, 150),
+  };
+}
+
+function renderPreviewForPane(paneIdx) {
+  const pane = state.panes[paneIdx];
+  if (!pane || pane.activeIndex < 0) return;
+  const tab = pane.tabs[pane.activeIndex];
+  if (!tab) return;
+  const els = getPaneEls(paneIdx);
+  if (!els.renderedHtml) return;
+  els.renderedHtml.innerHTML = api.renderMarkdown(tab.content, tab.path);
 }
 
 // --- Initialer Main-Zustand -------------------------------------------------
@@ -226,6 +382,7 @@ function bindUi() {
 
   $('#btn-wrap').addEventListener('click', toggleWrapLines);
   $('#btn-numbers').addEventListener('click', toggleShowLineNumbers);
+  if (btnEdit) btnEdit.addEventListener('click', toggleEditMode);
 
   langSelect.addEventListener('change', async (e) => {
     const newLang = e.target.value;
@@ -333,6 +490,9 @@ function bindUi() {
         const next = (pane.activeIndex + (e.shiftKey ? -1 : 1) + pane.tabs.length) % pane.tabs.length;
         activateTab(state.activePaneIndex, next);
       }
+    } else if (ctrl && e.key.toLowerCase() === 'e') {
+      e.preventDefault();
+      toggleEditMode();
     } else if (ctrl && e.key.toLowerCase() === 'f') {
       e.preventDefault();
       openSearchBar();
@@ -529,6 +689,10 @@ function syncToolbarToActiveTab() {
   numbersBtn.classList.toggle('active', numbers);
   wrapBtn.disabled = !sourceVisible || !tab;
   numbersBtn.disabled = !sourceVisible || !tab;
+  if (btnEdit) {
+    btnEdit.classList.toggle('active', !!(tab && tab.editMode));
+    btnEdit.disabled = !tab;
+  }
   reportMenuStateNow();
 }
 
@@ -778,32 +942,6 @@ function renderTabbar(paneIdx) {
   });
 }
 
-// Befüllt das <code>-Element mit dem Quellcode — entweder als plain text
-// oder als Liste von <div class="ln-row"> mit Number-Span und Code-Span.
-function renderSourceCode(codeEl, content, withLineNumbers) {
-  if (!withLineNumbers) {
-    codeEl.textContent = content;
-    return;
-  }
-  codeEl.innerHTML = '';
-  const lines = content.split('\n');
-  const frag = document.createDocumentFragment();
-  for (let i = 0; i < lines.length; i++) {
-    const row = document.createElement('div');
-    row.className = 'ln-row';
-    const num = document.createElement('span');
-    num.className = 'ln-num';
-    num.textContent = String(i + 1);
-    const text = document.createElement('span');
-    text.className = 'ln-text';
-    text.textContent = lines[i];
-    row.appendChild(num);
-    row.appendChild(text);
-    frag.appendChild(row);
-  }
-  codeEl.appendChild(frag);
-}
-
 function renderPaneContent(paneIdx) {
   const els = getPaneEls(paneIdx);
   const pane = state.panes[paneIdx];
@@ -812,9 +950,8 @@ function renderPaneContent(paneIdx) {
   suppressScrollSave = true;
 
   if (!pane || pane.activeIndex < 0) {
-    els.sourceCode.textContent = '';
+    syncEditorForPane(paneIdx);
     els.renderedHtml.innerHTML = '';
-    els.sourcePre.classList.remove('with-numbers', 'wrap', 'no-wrap');
     requestAnimationFrame(() => {
       requestAnimationFrame(() => { suppressScrollSave = false; });
     });
@@ -822,10 +959,7 @@ function renderPaneContent(paneIdx) {
   }
 
   const tab = pane.tabs[pane.activeIndex];
-  renderSourceCode(els.sourceCode, tab.content, tab.showLineNumbers);
-  els.sourcePre.classList.toggle('with-numbers', tab.showLineNumbers);
-  els.sourcePre.classList.toggle('wrap', tab.wrapLines);
-  els.sourcePre.classList.toggle('no-wrap', !tab.wrapLines);
+  syncEditorForPane(paneIdx);
   els.renderedHtml.innerHTML = api.renderMarkdown(tab.content, tab.path);
 
   // View-Mode-Klassen auf dem .content-Element setzen.
@@ -834,7 +968,8 @@ function renderPaneContent(paneIdx) {
 
   // Scroll-Position wiederherstellen — und erst danach den Save wieder freigeben.
   requestAnimationFrame(() => {
-    els.sourceEl.scrollTop = tab.scrollSrc || 0;
+    const view = paneEditors[paneIdx];
+    if (view) view.scrollDOM.scrollTop = tab.scrollSrc || 0;
     els.renderedEl.scrollTop = tab.scrollRen || 0;
     requestAnimationFrame(() => {
       suppressScrollSave = false;
@@ -872,7 +1007,8 @@ function saveScroll(paneIdx) {
   const pane = state.panes[paneIdx];
   if (!pane || pane.activeIndex < 0) return;
   const tab = pane.tabs[pane.activeIndex];
-  tab.scrollSrc = els.sourceEl.scrollTop;
+  const view = paneEditors[paneIdx];
+  if (view) tab.scrollSrc = view.scrollDOM.scrollTop;
   tab.scrollRen = els.renderedEl.scrollTop;
 }
 
@@ -944,9 +1080,16 @@ function setViewMode(mode) {
   const tab = activeTab();
   if (!tab) return;
   tab.viewMode = mode;
+  // Edit-Modus ist nur in Source/Split sinnvoll. Beim Wechsel auf "Gerendert"
+  // wird der Edit-Modus automatisch ausgeschaltet, damit der Statusbar-Toggle
+  // konsistent zum sichtbaren View ist.
+  if (mode === 'rendered' && tab.editMode) {
+    tab.editMode = false;
+  }
   const els = getPaneEls(state.activePaneIndex);
   els.content.classList.remove('view-source', 'view-split', 'view-rendered');
   els.content.classList.add(`view-${mode}`);
+  syncEditorForPane(state.activePaneIndex);
   syncToolbarToActiveTab();
   persistState();
   // Modus-Wechsel kann den Such-Scope aendern (Quelltext <-> Vorschau).
@@ -957,9 +1100,7 @@ function toggleWrapLines() {
   const tab = activeTab();
   if (!tab) return;
   tab.wrapLines = !tab.wrapLines;
-  const els = getPaneEls(state.activePaneIndex);
-  els.sourcePre.classList.toggle('wrap', tab.wrapLines);
-  els.sourcePre.classList.toggle('no-wrap', !tab.wrapLines);
+  syncEditorForPane(state.activePaneIndex);
   syncToolbarToActiveTab();
   persistState();
 }
@@ -968,21 +1109,36 @@ function toggleShowLineNumbers() {
   const tab = activeTab();
   if (!tab) return;
   tab.showLineNumbers = !tab.showLineNumbers;
-  const els = getPaneEls(state.activePaneIndex);
-  // Inhalt muss neu gerendert werden (DOM-Struktur ändert sich).
-  suppressScrollSave = true;
-  renderSourceCode(els.sourceCode, tab.content, tab.showLineNumbers);
-  els.sourcePre.classList.toggle('with-numbers', tab.showLineNumbers);
-  // Scroll-Position wiederherstellen.
-  requestAnimationFrame(() => {
-    els.sourceEl.scrollTop = tab.scrollSrc || 0;
-    requestAnimationFrame(() => {
-      suppressScrollSave = false;
-      refreshSearchIfVisible();
-    });
-  });
+  syncEditorForPane(state.activePaneIndex);
   syncToolbarToActiveTab();
   persistState();
+  refreshSearchIfVisible();
+}
+
+// Klick auf den Stift-Toggle in der Statusbar bzw. Strg+E. Im Render-Modus
+// wechselt der Klick zuerst nach „Geteilt", weil Bearbeiten dort sichtbar
+// werden muss; danach (oder im Source/Split-Modus) wird der Edit-Modus
+// umgeschaltet. Nach Aktivierung bekommt der Editor den Tastatur-Fokus.
+function toggleEditMode() {
+  const tab = activeTab();
+  if (!tab) return;
+  if (tab.viewMode === 'rendered') {
+    tab.viewMode = 'split';
+    const els = getPaneEls(state.activePaneIndex);
+    els.content.classList.remove('view-source', 'view-split', 'view-rendered');
+    els.content.classList.add('view-split');
+    tab.editMode = true;
+  } else {
+    tab.editMode = !tab.editMode;
+  }
+  syncEditorForPane(state.activePaneIndex);
+  syncToolbarToActiveTab();
+  persistState();
+  refreshSearchIfVisible();
+  if (tab.editMode) {
+    const view = paneEditors[state.activePaneIndex];
+    if (view) view.focus();
+  }
 }
 
 // --- Empty-State ------------------------------------------------------------
@@ -1321,7 +1477,11 @@ function determineSearchScope() {
 
 function getSearchContainer(scope) {
   const els = getPaneEls(state.activePaneIndex);
-  return scope === 'source' ? els.sourceCode : els.renderedHtml;
+  // Bei scope === 'source' wird das CodeMirror-Editor-DOM zurueckgegeben. Die
+  // bestehende <mark>-basierte Highlight-Logik blinkt dort kurz auf, weil
+  // CodeMirror das eigene DOM laufend re-rendert. Sauber implementiert wird
+  // die Source-Suche in 4T-0007 mit @codemirror/search.
+  return scope === 'source' ? els.sourceEditor : els.renderedHtml;
 }
 
 function getSearchScrollContainer(scope) {

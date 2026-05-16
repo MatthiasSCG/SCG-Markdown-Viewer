@@ -4,12 +4,13 @@
   "description": "Schlanker Markdown-Viewer für Windows 11 mit Tabs, Quellcode-/Render-Ansicht, Auto-Reload und Mehrsprachigkeit.",
   "main": "src/main/main.js",
   "scripts": {
-    "start": "electron .",
-    "dev": "electron . --enable-logging",
+    "start": "npm run build:renderer && electron .",
+    "dev": "npm run build:renderer && electron . --enable-logging",
     "build:icon": "node scripts/build-icon.js",
-    "build": "electron-builder --win",
-    "build:installer": "electron-builder --win nsis",
-    "build:portable": "electron-builder --win portable",
+    "build:renderer": "node scripts/build-renderer.js",
+    "build": "npm run build:renderer && electron-builder --win",
+    "build:installer": "npm run build:renderer && electron-builder --win nsis",
+    "build:portable": "npm run build:renderer && electron-builder --win portable",
     "postbuild": "node scripts/archive-build.js",
     "postbuild:installer": "node scripts/archive-build.js",
     "postbuild:portable": "node scripts/archive-build.js"
@@ -23,10 +24,17 @@
   "devDependencies": {
     "electron": "^33.2.0",
     "electron-builder": "^25.1.8",
+    "esbuild": "^0.28.0",
     "sharp": "^0.33.5",
     "to-ico": "^1.1.5"
   },
   "dependencies": {
+    "@codemirror/commands": "^6.10.3",
+    "@codemirror/lang-markdown": "^6.5.0",
+    "@codemirror/language": "^6.12.3",
+    "@codemirror/search": "^6.7.0",
+    "@codemirror/state": "^6.6.0",
+    "@codemirror/view": "^6.43.0",
     "chokidar": "^4.0.1",
     "electron-store": "^10.0.0",
     "markdown-it": "^14.1.0",
@@ -53,11 +61,15 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },

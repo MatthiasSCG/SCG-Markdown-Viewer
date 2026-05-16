@@ -1,6 +1,10 @@
 # Dependencies
 node_modules/
 
+# Renderer-Bundle (wird vor jedem Electron-Start/Build per esbuild aus
+# renderer.js und seinen Imports erzeugt; siehe scripts/build-renderer.js).
+src/renderer/renderer.bundle.js
+
 # Build-Ergebnisse (Output-Verzeichnisse)
 dist/
 out/

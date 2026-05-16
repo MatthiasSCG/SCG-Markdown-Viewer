@@ -54,7 +54,7 @@ Markdown-Viewer um eine vollwertige **Edit-Komponente** erweitern und die UI-Bed
 
 - [x] [4T-0001 — Native Menüleiste mit Datei/Ansicht/Hilfe einführen](4T-0001-native-menueleiste.md)
 - [x] [4T-0002 — Statusbar unten mit View-Toggles und Such-Overlay](4T-0002-statusbar-layout.md)
-- [ ] [4T-0003 — Editor-Engine: CodeMirror 6 einbauen, readOnly toggelbar](4T-0003-editor-codemirror.md)
+- [x] [4T-0003 — Editor-Engine: CodeMirror 6 einbauen, readOnly toggelbar](4T-0003-editor-codemirror.md)
 - [ ] [4T-0004 — Dirty-State, Speichern, Speichern unter, Schließen-Dialog](4T-0004-dirty-state-speichern.md)
 - [x] [4T-0005 — Recent Files (10 Einträge, persistent, Menü-Integration)](4T-0005-recent-files.md)
 - [ ] [4T-0006 — Datei Neu und Öffnen erzeugen neues Fenster](4T-0006-neu-oeffnen-neues-fenster.md)
