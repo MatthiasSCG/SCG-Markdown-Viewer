@@ -308,16 +308,16 @@ function renderPreviewForPane(paneIdx) {
   els.renderedHtml.innerHTML = api.renderMarkdown(tab.content, tab.path);
 }
 
-// Setzt den Fenstertitel auf "[•] <Dateiname> — Markdown Viewer" passend zum
+// Setzt den Fenstertitel auf "[•] <Dateiname> — SCG Markdown" passend zum
 // aktiven Tab. Wird bei Tab-Wechsel und Dirty-Wechsel aufgerufen.
 function updateWindowTitle() {
   const tab = activeTab();
   if (!tab) {
-    document.title = 'Markdown Viewer';
+    document.title = 'SCG Markdown';
     return;
   }
   const name = tabDisplayName(tab);
-  document.title = `${tab.dirty ? '• ' : ''}${name} — Markdown Viewer`;
+  document.title = `${tab.dirty ? '• ' : ''}${name} — SCG Markdown`;
 }
 
 // --- Initialer Main-Zustand -------------------------------------------------

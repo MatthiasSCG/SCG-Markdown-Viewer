@@ -13,7 +13,7 @@
   "tab.moveLeft": "Mover a la izquierda",
   "tab.moveToNewWindow": "Mover a una nueva ventana",
   "tab.copyToNewWindow": "Copiar a una nueva ventana",
-  "empty.title": "Visor de Markdown",
+  "empty.title": "SCG Markdown",
   "empty.hint": "Abra un archivo o arrastrelo aqui.",
   "drop.hint": "Suelte el archivo Markdown aqui",
   "about.versionLabel": "Version",

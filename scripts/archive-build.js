@@ -14,11 +14,13 @@ const DIST = path.join(ROOT, 'dist');
 const RELEASES = path.join(ROOT, 'releases');
 const CURRENT_VERSION = require(path.join(ROOT, 'package.json')).version;
 
-// Versions-EXEs erkennen — Suffix Setup oder Portable.
-const EXE_PATTERN = /^Markdown Viewer-(\d+\.\d+\.\d+)-(Setup|Portable)\.exe$/;
+// Versions-EXEs erkennen — Suffix Setup oder Portable. Beide Produktnamen
+// werden akzeptiert: „SCG Markdown" (ab 0.6.0) und „Markdown Viewer" (bis
+// 0.5.x; in releases/ liegen noch ältere EXEs unter dem alten Namen).
+const EXE_PATTERN = /^(?:SCG Markdown|Markdown Viewer)-(\d+\.\d+\.\d+)-(Setup|Portable)\.exe$/;
 // Blockmaps werden von electron-builder nur fuer den NSIS-Installer erzeugt
 // (Setup), nicht fuer Portable.
-const BLOCKMAP_PATTERN = /^Markdown Viewer-(\d+\.\d+\.\d+)-Setup\.exe\.blockmap$/;
+const BLOCKMAP_PATTERN = /^(?:SCG Markdown|Markdown Viewer)-(\d+\.\d+\.\d+)-Setup\.exe\.blockmap$/;
 
 function moveExesToReleases(entries) {
   const exes = entries.filter((name) => EXE_PATTERN.test(name));

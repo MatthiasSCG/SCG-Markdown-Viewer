@@ -1,6 +1,6 @@
 # 4T-0011 — Rebranding auf SCG Markdown
 
-**Status**: Offen
+**Status**: Erledigt
 **Epic**: [3E-0001 — Edit-Modus, Menüleiste und Layout-Reorganisation](3E-0001-edit-modus-und-menue.md)
 **Zielversion**: 0.6.0
 
@@ -63,4 +63,37 @@ Mit 0.6.0 entwickelt sich die App vom reinen Viewer zum schlanken Markdown-Edito
 
 ## Lösung
 
-(Wird nach Umsetzung ausgefüllt.)
+App-Name in allen sichtbaren und konfigurativen Stellen auf „SCG Markdown" umgestellt, Settings-Migration aus dem alten `Markdown Viewer`-Pfad implementiert.
+
+**`package.json`**:
+- `name`: `markdown-viewer` → `scg-markdown`
+- `description`: „Viewer" durch „Editor" ersetzt (App ist seit 0.6.0 vollwertiger Editor)
+- `build.productName`: `Markdown Viewer` → `SCG Markdown` (steuert EXE-Dateinamen und `userData`-Pfad)
+- `build.appId`: `net.stumm.markdown-viewer` → `net.stumm.scg-markdown`
+- `build.nsis.shortcutName` und `build.nsis.uninstallDisplayName`: `SCG Markdown`
+
+**`src/main/main.js`** — Settings-Migration:
+- Neue Funktion `migrateSettingsFromPreviousName()`. Sie prüft beim Start, ob `<userData>/config.json` (jetzt unter `%APPDATA%/SCG Markdown/`) bereits existiert. Falls nicht und stattdessen `%APPDATA%/Markdown Viewer/config.json` existiert, wird sie ins neue Verzeichnis kopiert.
+- Wird vor `new Store(...)` in `loadStore()` aufgerufen, also vor dem ersten electron-store-Zugriff.
+- Alter Pfad bleibt defensiv erhalten (kein Delete) — der Nutzer kann ihn manuell entfernen, falls gewünscht.
+- Fehlerfall (z.B. korrupte alte JSON-Datei): Migration scheitert mit `console.warn`, App startet mit Default-Settings statt zu abzustürzen.
+
+**UI-Strings**:
+- `src/renderer/index.html`: `<title>` und Über-Dialog-`<h2>` auf „SCG Markdown".
+- `src/renderer/renderer.js` `updateWindowTitle`: Format `<dateiname> — SCG Markdown` bzw. `• <dateiname> — SCG Markdown` bei Dirty.
+- `src/i18n/{de,en,fr,es,it}.json` `empty.title`: war je nach Sprache „Markdown Viewer" / „Visualiseur Markdown" / „Visor de Markdown" / „Visualizzatore Markdown" — überall auf den Eigennamen „SCG Markdown" vereinheitlicht.
+
+**Build-Infrastruktur**:
+- `scripts/archive-build.js`: Regex-Pattern für EXE-Erkennung erweitert auf `(?:SCG Markdown|Markdown Viewer)-(\d+\.\d+\.\d+)-(Setup|Portable)\.exe`. Damit funktioniert das Postbuild-Archivieren sowohl mit neuen als auch alten EXE-Namen (Letztere für etwaige Übergangs-Builds, eigentlich nicht mehr nötig — aber Robustheit kostet nichts).
+- `build/installer.nsh`: UI-Strings auf „SCG Markdown" angepasst (Header-Text, Custom-Page-Label, Checkbox-Beschriftung). **Registry-Pfade absichtlich nicht geändert**: ProgID `MarkdownViewer.md` und Settings-Key `Software\MarkdownViewer` bleiben. Begründung: bei einer Update-Installation einer bestehenden 0.5.x-Installation würde der neue Installer sonst eine *zweite* ProgID anlegen, die alte bliebe orphan und müsste manuell aufgeräumt werden. Beibehaltung der ProgIDs bedeutet sauberes Überschreiben.
+
+**README.md**:
+- Titel und Untertitel auf „SCG Markdown" (Editor statt Viewer).
+- EXE-Pfade auf `SCG Markdown-0.6.0-Setup.exe` und `-Portable.exe`.
+- Versionsangabe auf 0.6.0.
+- Hinweis ergänzt, dass die Feature-Beschreibungen im Body noch teilweise auf 0.2.0-Stand sind (Toolbar, Read-only, F1-Verhalten). Vollständige Doku-Überarbeitung folgt mit **4T-0010**.
+
+**`CLAUDE.md`** (projekt-lokal): Release-Prozess-Beispiele auf neue EXE-Namen und `v0.6.0`-Tag aktualisiert. Hinweis ergänzt, dass die EXE-Namen vor 4T-0011 anders waren (Konsistenz-Hinweis für historische Kontextlesbarkeit).
+
+**Nicht im Code**:
+- GitHub-Repository-Umbenennung von `SCG-Markdown-Viewer` zu `SCG-Markdown` macht der Nutzer im Web-UI. GitHub legt automatische Redirects an; alte Issue-URLs (z.B. die historischen `#1`/`#2`-Links im CHANGELOG) funktionieren weiterhin.

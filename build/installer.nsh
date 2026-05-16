@@ -1,4 +1,7 @@
-; Custom NSIS-Skript für Markdown Viewer
+; Custom NSIS-Skript für SCG Markdown
+; (Registry-ProgID heißt aus Migrations-Gründen weiterhin „MarkdownViewer.md" —
+; siehe Kommentar bei customInstall: Umbenennen würde Datei-Assoziationen aus
+; einer bestehenden 0.5.x-Installation nicht sauber überschreiben.)
 ; Bietet eine optionale Datei-Assoziation für .md, .markdown, .mdown, .mkd
 ; Wird per electron-builder via nsis.include eingebunden.
 
@@ -23,7 +26,7 @@ Var AssocCheckbox_State
 !macroend
 
 Function AssocPageCreate
-  !insertmacro MUI_HEADER_TEXT "Datei-Assoziation" "Optional: Markdown-Dateien direkt mit Markdown Viewer öffnen"
+  !insertmacro MUI_HEADER_TEXT "Datei-Assoziation" "Optional: Markdown-Dateien direkt mit SCG Markdown öffnen"
 
   nsDialogs::Create 1018
   Pop $AssocDialog
@@ -31,10 +34,10 @@ Function AssocPageCreate
     Abort
   ${EndIf}
 
-  ${NSD_CreateLabel} 0 0 100% 36u "Sie können festlegen, ob Markdown-Dateien (.md, .markdown, .mdown, .mkd) standardmäßig mit Markdown Viewer geöffnet werden sollen.$\r$\n$\r$\nDiese Einstellung kann jederzeit über die Windows-Einstellungen ($\"Standard-Apps$\") wieder geändert werden."
+  ${NSD_CreateLabel} 0 0 100% 36u "Sie können festlegen, ob Markdown-Dateien (.md, .markdown, .mdown, .mkd) standardmäßig mit SCG Markdown geöffnet werden sollen.$\r$\n$\r$\nDiese Einstellung kann jederzeit über die Windows-Einstellungen ($\"Standard-Apps$\") wieder geändert werden."
   Pop $0
 
-  ${NSD_CreateCheckbox} 0 60u 100% 12u "Markdown Viewer für .md-Dateien registrieren"
+  ${NSD_CreateCheckbox} 0 60u 100% 12u "SCG Markdown für .md-Dateien registrieren"
   Pop $AssocCheckbox
   ${If} $AssocCheckbox_State == ${BST_CHECKED}
     ${NSD_Check} $AssocCheckbox

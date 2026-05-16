@@ -1,7 +1,8 @@
-# Markdown Viewer
+# SCG Markdown
 
-Ein schlanker, lokaler Markdown-Viewer für Windows 11 mit Tab-Bedienung,
-umschaltbarer Quellcode-/Render-Ansicht und Auto-Reload.
+Ein schlanker, lokaler Markdown-Editor für Windows 11 mit Tab-Bedienung,
+umschaltbarer Quellcode-/Render-Ansicht, Edit-Modus mit Live-Vorschau,
+Speichern und Auto-Reload.
 
 ## Konzept
 
@@ -196,10 +197,10 @@ npm run build:icon
 
 Build-Ergebnisse landen unter `dist/`:
 
-- `Markdown Viewer-0.2.0-Setup.exe` — klassischer Setup-Assistent (NSIS), Installation pro Benutzer (`%LOCALAPPDATA%\Programs\Markdown Viewer`), Start-Menü- und Desktop-Verknüpfung, sauberer Uninstaller. Eine Setup-Seite bietet die **optionale Datei-Assoziation** für `.md`, `.markdown`, `.mdown`, `.mkd` (Default: aktiviert, abwählbar)
-- `Markdown Viewer-0.2.0-Portable.exe` — läuft ohne Installation, kein Eintrag im System; Datei-Assoziation ist hier technisch nicht möglich
+- `SCG Markdown-0.6.0-Setup.exe` — klassischer Setup-Assistent (NSIS), Installation pro Benutzer (`%LOCALAPPDATA%\Programs\SCG Markdown`), Start-Menü- und Desktop-Verknüpfung, sauberer Uninstaller. Eine Setup-Seite bietet die **optionale Datei-Assoziation** für `.md`, `.markdown`, `.mdown`, `.mkd` (Default: aktiviert, abwählbar)
+- `SCG Markdown-0.6.0-Portable.exe` — läuft ohne Installation, kein Eintrag im System; Datei-Assoziation ist hier technisch nicht möglich
 
-> **Datei-Assoziation deaktivieren oder später ändern:** Windows-Einstellungen → Apps → Standard-Apps → Markdown Viewer (oder Endung `.md` suchen). Beim Deinstallieren werden eigene Registry-Einträge automatisch entfernt.
+> **Datei-Assoziation deaktivieren oder später ändern:** Windows-Einstellungen → Apps → Standard-Apps → SCG Markdown (oder Endung `.md` suchen). Beim Deinstallieren werden eigene Registry-Einträge automatisch entfernt.
 
 ### Tastenkürzel
 
@@ -226,8 +227,15 @@ die Multi-Resolution-`icon.ico` (16/24/32/48/64/128/256 px) und
 
 ## Status
 
-Version `0.2.0` — funktional vollständig für den vereinbarten
-Mindestumfang, inklusive Windows-Build (Installer + Portable).
+Version `0.6.0` — Editor-Funktionalität, native Menüleiste, Statusbar-Layout
+und Rebranding auf „SCG Markdown". Funktional vollständig für den vereinbarten
+Funktionsumfang, inklusive Windows-Build (Installer + Portable).
+
+> **Hinweis**: Die Feature-Beschreibungen in diesem README beschreiben noch
+> teilweise den 0.2.0-Stand (Toolbar-Bedienung, F1 → Über-Dialog, Read-only).
+> Eine vollständige Überarbeitung auf den 0.6.0-Stand (Statusbar, Edit-Modus,
+> Speichern, Auto-Save, Suchen-und-Ersetzen, Menüleiste) folgt mit 4T-0010
+> oder einem nachgelagerten Doku-Sweep.
 
 ## Lizenz
 

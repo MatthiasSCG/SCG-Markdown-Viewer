@@ -1,7 +1,7 @@
 {
-  "name": "markdown-viewer",
+  "name": "scg-markdown",
   "version": "0.6.0",
-  "description": "Schlanker Markdown-Viewer für Windows 11 mit Tabs, Quellcode-/Render-Ansicht, Auto-Reload und Mehrsprachigkeit.",
+  "description": "Schlanker Markdown-Editor für Windows 11 mit Tabs, Quellcode-/Render-Ansicht, Auto-Reload und Mehrsprachigkeit.",
   "main": "src/main/main.js",
   "scripts": {
     "start": "npm run build:renderer && electron .",
@@ -41,8 +41,8 @@
     "markdown-it-task-lists": "^2.1.1"
   },
   "build": {
-    "appId": "net.stumm.markdown-viewer",
-    "productName": "Markdown Viewer",
+    "appId": "net.stumm.scg-markdown",
+    "productName": "SCG Markdown",
     "copyright": "Copyright (c) 2026 Matthias Stumm",
     "directories": {
       "output": "dist"
@@ -79,9 +79,9 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Markdown Viewer",
+      "shortcutName": "SCG Markdown",
       "deleteAppDataOnUninstall": false,
-      "uninstallDisplayName": "Markdown Viewer",
+      "uninstallDisplayName": "SCG Markdown",
       "artifactName": "${productName}-${version}-Setup.${ext}",
       "include": "build/installer.nsh"
     },

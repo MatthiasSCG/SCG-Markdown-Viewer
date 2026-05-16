@@ -59,7 +59,38 @@ const confirmedClosings = new Set();
 
 // --- Settings ----------------------------------------------------------------
 
+// Settings-Migration beim Rebranding (4T-0011): Bei einem App-Update von
+// „Markdown Viewer" auf „SCG Markdown" wechselt der electron-store-Pfad von
+// %APPDATA%/Markdown Viewer/config.json zu %APPDATA%/SCG Markdown/config.json.
+// Wenn unter dem neuen Pfad noch keine Config existiert, aber unter dem alten,
+// kopieren wir sie einmalig, damit Recent Files, Sprache, Sitzungs-Toggle und
+// Auto-Save erhalten bleiben. Der alte Pfad bleibt defensiv erhalten.
+async function migrateSettingsFromPreviousName() {
+  try {
+    const newConfig = path.join(app.getPath('userData'), 'config.json');
+    try {
+      await fs.access(newConfig);
+      return; // Neue Config bereits da — nichts zu tun.
+    } catch {
+      // Keine neue Config — pruefen ob eine alte existiert.
+    }
+    const oldConfig = path.join(app.getPath('appData'), 'Markdown Viewer', 'config.json');
+    try {
+      await fs.access(oldConfig);
+    } catch {
+      return; // Auch keine alte Config — frische Installation.
+    }
+    await fs.mkdir(path.dirname(newConfig), { recursive: true });
+    const data = await fs.readFile(oldConfig, 'utf8');
+    await fs.writeFile(newConfig, data, 'utf8');
+    console.log(`Settings aus Vorgaengerinstallation migriert: ${oldConfig} -> ${newConfig}`);
+  } catch (err) {
+    console.warn('Settings-Migration fehlgeschlagen, frische Defaults werden geladen:', err);
+  }
+}
+
 async function loadStore() {
+  await migrateSettingsFromPreviousName();
   // electron-store v10 ist ESM-only, daher dynamic import.
   const { default: Store } = await import('electron-store');
   store = new Store({

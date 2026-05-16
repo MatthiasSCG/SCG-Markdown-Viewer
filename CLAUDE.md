@@ -20,7 +20,7 @@ Der Nutzer testet ausschließlich mit der frisch gebauten **Portable-EXE** aus `
 
 Konventionen:
 
-- **Portable-EXE** als Standard-Test-Variante (`Markdown Viewer-<version>-Portable.exe`, bzw. nach 4T-0011 `SCG Markdown-<version>-Portable.exe`). Sie braucht keine Installation und überschreibt keine bestehende Installation.
+- **Portable-EXE** als Standard-Test-Variante (`SCG Markdown-<version>-Portable.exe`, vor dem Rebranding mit 4T-0011 hieß sie `Markdown Viewer-<version>-Portable.exe`). Sie braucht keine Installation und überschreibt keine bestehende Installation.
 - Die Setup-EXE wird vom selben Build-Lauf mitgeliefert, ist für Task-Tests aber nicht zwingend.
 - Während der Entwicklung einer Version trägt `package.json` bereits die **Zielversion** der laufenden Entwicklung (z.B. `0.6.0`, sobald die Arbeit an 0.6.0 beginnt). So überschreiben Test-EXEs nicht die offizielle EXE der Vorgängerversion in `releases/` und sind eindeutig der laufenden Entwicklung zuordenbar. Die offizielle Release-Notes-Veröffentlichung der neuen Version bleibt dennoch der letzte Schritt im Versionssprung (siehe Release-Prozess unten).
 - `releases/` ist per `.gitignore` ausgeschlossen, der Build-Output landet nicht im Repo.
@@ -35,7 +35,7 @@ Wenn ein Commit eine neue Version setzt (z.B. `package.json` von `0.4.0` auf `0.
 npm run build
 ```
 
-Erzeugt zunächst die EXEs unter `dist/`. Ein `postbuild`-Hook (`scripts/archive-build.js`) verschiebt anschließend `Markdown Viewer-<version>-Setup.exe` und `Markdown Viewer-<version>-Portable.exe` automatisch in den **Versions-Archiv-Ordner `releases/`**. `dist/` bleibt damit reiner Build-Output und enthält nur das aktuelle Build inklusive Zwischenprodukten (`win-unpacked/`, `*.blockmap`, Uninstaller). Bestehende EXEs älterer Versionen sammeln sich in `releases/`.
+Erzeugt zunächst die EXEs unter `dist/`. Ein `postbuild`-Hook (`scripts/archive-build.js`) verschiebt anschließend `SCG Markdown-<version>-Setup.exe` und `SCG Markdown-<version>-Portable.exe` automatisch in den **Versions-Archiv-Ordner `releases/`** (vor dem Rebranding mit 4T-0011 hießen sie `Markdown Viewer-<version>-*.exe`). `dist/` bleibt damit reiner Build-Output und enthält nur das aktuelle Build inklusive Zwischenprodukten (`win-unpacked/`, `*.blockmap`, Uninstaller). Bestehende EXEs älterer Versionen sammeln sich in `releases/`.
 
 Beide Ordner sind gitignored — die EXEs hängen am GitHub-Release.
 
@@ -51,12 +51,12 @@ Format: immer `v` vorangestellt (z.B. `v0.5.0`).
 ### 3. GitHub-Release anlegen
 
 ```bash
-gh release create v0.5.0 \
-  --title "v0.5.0 — <Schlagwort>" \
+gh release create v0.6.0 \
+  --title "v0.6.0 — <Schlagwort>" \
   --notes-file <notes-tempfile.md> \
   --latest \
-  "releases/Markdown Viewer-0.5.0-Setup.exe" \
-  "releases/Markdown Viewer-0.5.0-Portable.exe"
+  "releases/SCG Markdown-0.6.0-Setup.exe" \
+  "releases/SCG Markdown-0.6.0-Portable.exe"
 ```
 
 - `--latest` setzt die neue Version als „Latest" auf der GitHub-Repo-Seite.
