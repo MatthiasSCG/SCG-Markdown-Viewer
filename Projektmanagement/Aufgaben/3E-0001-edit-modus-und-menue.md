@@ -58,7 +58,7 @@ Markdown-Viewer um eine vollwertige **Edit-Komponente** erweitern und die UI-Bed
 - [x] [4T-0004 — Dirty-State, Speichern, Speichern unter, Schließen-Dialog](4T-0004-dirty-state-speichern.md)
 - [x] [4T-0005 — Recent Files (10 Einträge, persistent, Menü-Integration)](4T-0005-recent-files.md)
 - [x] [4T-0006 — Datei Neu (neuer Tab im aktiven Fenster)](4T-0006-neu-oeffnen-neues-fenster.md)
-- [ ] [4T-0007 — Suchen und Ersetzen (Strg+H) im Edit-Modus](4T-0007-suchen-und-ersetzen.md)
+- [x] [4T-0007 — Suchen und Ersetzen (Strg+H) im Edit-Modus](4T-0007-suchen-und-ersetzen.md)
 - [x] [4T-0008 — Sitzungswiederherstellung als Toggle ins Hilfe-Menü](4T-0008-sitzungswiederherstellung-menue.md)
 - [ ] [4T-0009 — Hilfe-Dialog erweitern (neue Features und Shortcuts, i18n)](4T-0009-hilfe-dialog-erweitern.md)
 - [ ] [4T-0011 — Rebranding auf SCG Markdown (Name, AppId, Settings-Migration)](4T-0011-rebranding-scg-markdown.md)

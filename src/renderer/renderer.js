@@ -3,12 +3,13 @@
 'use strict';
 
 import { loadTranslations, applyTranslations, setLanguage, t, normalizeLocale } from './i18n.js';
-import { EditorState, Compartment } from '@codemirror/state';
+import { EditorState, Compartment, StateField, StateEffect } from '@codemirror/state';
 import {
   EditorView,
   lineNumbers as cmLineNumbers,
   keymap,
   drawSelection,
+  Decoration,
 } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
@@ -40,6 +41,35 @@ const mdHighlightStyle = HighlightStyle.define([
   { tag: tags.string, color: 'var(--syntax-string)' },
   { tag: tags.number, color: 'var(--syntax-number)' },
 ]);
+
+// CodeMirror-Such-Decorations (4T-0007): aktive Such-Treffer im Source-Pane
+// werden ueber ein StateField/Decoration-Set gerendert und ueberleben CM-Re-
+// Renders. setSearchDecorations setzt das Decoration-Set, clearSearchDecorations
+// loescht es. Bei jeder Doc-Aenderung werden alte Decorations verworfen, weil
+// die Indizes ohnehin nicht mehr stimmen.
+const setSearchDecorations = StateEffect.define();
+const clearSearchDecorations = StateEffect.define();
+
+const searchHighlightField = StateField.define({
+  create() { return Decoration.none; },
+  update(deco, tr) {
+    for (const effect of tr.effects) {
+      if (effect.is(setSearchDecorations)) {
+        const { matches, currentIndex } = effect.value;
+        const items = matches.map((m, i) => Decoration.mark({
+          class: i === currentIndex ? 'cm-search-match cm-search-match-current' : 'cm-search-match',
+        }).range(m.from, m.to));
+        return Decoration.set(items, true);
+      }
+      if (effect.is(clearSearchDecorations)) {
+        return Decoration.none;
+      }
+    }
+    if (tr.docChanged) return Decoration.none;
+    return deco;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
 
 const api = window.api;
 
@@ -179,6 +209,7 @@ function createEditorState(opts = {}) {
       history(),
       keymap.of([...defaultKeymap, ...historyKeymap]),
       drawSelection(),
+      searchHighlightField,
       EditorView.updateListener.of((update) => {
         if (!update.docChanged) return;
         const pIdx = paneEditors.indexOf(update.view);
@@ -549,6 +580,11 @@ function bindUi() {
     } else if (ctrl && e.key.toLowerCase() === 'f') {
       e.preventDefault();
       openSearchBar();
+    } else if (ctrl && e.key.toLowerCase() === 'h') {
+      e.preventDefault();
+      // Strg+H ist nur im Edit-Modus aktiv (Source ist editierbar).
+      const tab = activeTab();
+      if (tab && tab.editMode) openSearchBar({ replaceMode: true });
     } else if (e.key === 'F3') {
       if (!search.visible) return;
       e.preventDefault();
@@ -1353,8 +1389,8 @@ function saveCurrentTabAs() {
 
 function showStatusbarHint(messageKey, opts = {}) {
   if (!statusbarHint) return;
-  const { error = false, duration = 1000 } = opts;
-  statusbarHint.textContent = t(messageKey);
+  const { error = false, duration = 1000, text } = opts;
+  statusbarHint.textContent = text != null ? text : t(messageKey);
   statusbarHint.classList.toggle('error', error);
   statusbarHint.classList.add('visible');
   if (hintTimer) clearTimeout(hintTimer);
@@ -1662,10 +1698,14 @@ const SEARCH_DEBOUNCE_MS = 150;
 
 const search = {
   visible: false,
+  replaceMode: false,
   query: '',
+  replacement: '',
   useRegex: false,
   caseSensitive: false,
-  matches: [],      // Array von <mark>-Elementen, in DOM-Order
+  // Bei scope === 'rendered': Array von <mark>-Elementen (DOM-Order).
+  // Bei scope === 'source': Array von { from, to } im CodeMirror-Doc.
+  matches: [],
   currentIndex: -1,
   scope: 'rendered', // 'source' | 'rendered'
   debounceTimer: null,
@@ -1678,6 +1718,9 @@ function getSearchEls() {
     searchEls = {
       bar: $('#search-bar'),
       input: $('#search-input'),
+      replaceInput: $('#search-replace'),
+      btnReplace: $('#btn-search-replace'),
+      btnReplaceAll: $('#btn-search-replace-all'),
       count: $('#search-count'),
       scope: $('#search-scope'),
       btnCase: $('#btn-search-case'),
@@ -1800,7 +1843,7 @@ function buildRegex(query, useRegex, caseSensitive) {
 }
 
 function clearSearchHighlights() {
-  // Suchen unter beiden Panes; alte <mark>-Elemente entfernen und Textknoten zusammenfuehren.
+  // Render-Pane: alte <mark>-Elemente entfernen und Textknoten zusammenfuehren.
   const marks = document.querySelectorAll('.mdv-match');
   const parents = new Set();
   marks.forEach((m) => {
@@ -1811,6 +1854,10 @@ function clearSearchHighlights() {
     parents.add(parent);
   });
   parents.forEach((p) => p.normalize());
+  // Source-Pane: CodeMirror-Decorations in allen EditorViews loeschen.
+  for (const view of paneEditors) {
+    if (view) view.dispatch({ effects: clearSearchDecorations.of(null) });
+  }
   search.matches = [];
   search.currentIndex = -1;
 }
@@ -1882,6 +1929,28 @@ function findFirstVisibleMatchIndex() {
 }
 
 function setCurrentMatch(idx, scroll = true) {
+  if (search.scope === 'source') {
+    // Source-Pane: Decoration-Set aktualisieren, der aktive Treffer bekommt
+    // die zusaetzliche cm-search-match-current-Klasse.
+    search.currentIndex = idx;
+    const view = paneEditors[state.activePaneIndex];
+    if (view) {
+      view.dispatch({
+        effects: setSearchDecorations.of({
+          matches: search.matches,
+          currentIndex: idx,
+        }),
+      });
+      if (scroll && idx >= 0 && search.matches[idx]) {
+        view.dispatch({
+          effects: EditorView.scrollIntoView(search.matches[idx].from, { y: 'center' }),
+        });
+      }
+    }
+    updateSearchCounter();
+    return;
+  }
+  // Render-Pane: DOM-<mark>-Pfad wie bisher.
   if (search.currentIndex >= 0 && search.matches[search.currentIndex]) {
     search.matches[search.currentIndex].classList.remove('mdv-match-current');
   }
@@ -1928,6 +1997,7 @@ function setInvalidRegex(invalid) {
 
 function performSearch(opts = {}) {
   const { keepCurrent = false } = opts;
+  const prevIdx = keepCurrent ? search.currentIndex : -1;
   clearSearchHighlights();
   search.scope = determineSearchScope();
   updateSearchScopeLabel();
@@ -1947,6 +2017,12 @@ function performSearch(opts = {}) {
   }
   setInvalidRegex(false);
 
+  if (search.scope === 'source') {
+    performSourceSearch(regex, prevIdx);
+    return;
+  }
+
+  // Render-Pane: bisheriger DOM-Pfad.
   const container = getSearchContainer(search.scope);
   if (!container) {
     updateSearchCounter();
@@ -1960,9 +2036,59 @@ function performSearch(opts = {}) {
     return;
   }
 
-  const startIdx = keepCurrent && search.currentIndex >= 0 && search.currentIndex < search.matches.length
-    ? search.currentIndex
+  const startIdx = prevIdx >= 0 && prevIdx < search.matches.length
+    ? prevIdx
     : findFirstVisibleMatchIndex();
+  setCurrentMatch(startIdx);
+}
+
+// Source-Pane-Suche ueber CodeMirror-State. Treffer werden als Decorations
+// in der EditorView gerendert, ueberleben CM-Re-Renders. Aktiver Treffer
+// bekommt eine zusaetzliche orange Klasse.
+function performSourceSearch(regex, prevIdx) {
+  const view = paneEditors[state.activePaneIndex];
+  if (!view) {
+    search.matches = [];
+    search.currentIndex = -1;
+    updateSearchCounter();
+    return;
+  }
+  const doc = view.state.doc.toString();
+  const matches = [];
+  regex.lastIndex = 0;
+  let m;
+  while ((m = regex.exec(doc)) !== null) {
+    if (m[0].length === 0) {
+      regex.lastIndex += 1;
+      continue;
+    }
+    matches.push({ from: m.index, to: m.index + m[0].length });
+    if (matches.length >= MAX_MATCHES) break;
+  }
+  search.matches = matches;
+
+  if (matches.length === 0) {
+    search.currentIndex = -1;
+    view.dispatch({ effects: clearSearchDecorations.of(null) });
+    updateSearchCounter();
+    return;
+  }
+
+  // Aktiven Index bestimmen: zuvor genutzter falls noch gueltig, sonst erster
+  // sichtbarer Treffer (ab aktueller Scroll-Position).
+  let startIdx = 0;
+  if (prevIdx >= 0 && prevIdx < matches.length) {
+    startIdx = prevIdx;
+  } else {
+    const top = view.scrollDOM.scrollTop;
+    for (let i = 0; i < matches.length; i++) {
+      const block = view.lineBlockAt(matches[i].from);
+      if (block && block.bottom >= top) {
+        startIdx = i;
+        break;
+      }
+    }
+  }
   setCurrentMatch(startIdx);
 }
 
@@ -1986,9 +2112,12 @@ function prevMatch() {
   setCurrentMatch(n);
 }
 
-function openSearchBar() {
+function openSearchBar(opts = {}) {
+  const { replaceMode = false } = opts;
   const els = getSearchEls();
   search.visible = true;
+  search.replaceMode = !!replaceMode;
+  els.bar.classList.toggle('replace-mode', !!replaceMode);
   els.bar.hidden = false;
   els.input.focus();
   els.input.select();
@@ -2000,6 +2129,8 @@ function openSearchBar() {
 function closeSearchBar() {
   const els = getSearchEls();
   search.visible = false;
+  search.replaceMode = false;
+  els.bar.classList.remove('replace-mode');
   els.bar.hidden = true;
   closeRegexHelp();
   clearSearchHighlights();
@@ -2007,14 +2138,66 @@ function closeSearchBar() {
   updateSearchCounter();
 }
 
+// --- Ersetzen (4T-0007) -----------------------------------------------------
+// Ersetzt den aktiven Treffer durch search.replacement. Bei Regex-Modus werden
+// Backreferences ($1, $2 …) im Ersetzungstext ausgewertet. Voraussetzung:
+// scope === 'source' und aktiver Tab im Edit-Modus (Source ist editierbar).
+function replaceCurrentMatch() {
+  if (search.scope !== 'source') return;
+  if (search.currentIndex < 0 || search.currentIndex >= search.matches.length) return;
+  const tab = activeTab();
+  if (!tab || !tab.editMode) return;
+  const view = paneEditors[state.activePaneIndex];
+  if (!view) return;
+  const m = search.matches[search.currentIndex];
+  const matchText = view.state.doc.sliceString(m.from, m.to);
+  const replaceText = computeReplacement(matchText);
+  view.dispatch({ changes: { from: m.from, to: m.to, insert: replaceText } });
+  // Doc geaendert -> Suche neu, der naechste Treffer wird automatisch aktiv
+  // (matches wurde durch docChanged zurueckgesetzt; performSearch ohne
+  // keepCurrent waehlt den ersten sichtbaren Treffer).
+  performSearch();
+}
+
+// Alle Treffer in einer einzigen CodeMirror-Transaktion ersetzen (Strg+Z macht
+// die Operation als Ganzes rueckgaengig). Iteriert in Reverse-Order, damit die
+// Indizes konsistent bleiben.
+function replaceAllMatches() {
+  if (search.scope !== 'source') return;
+  const tab = activeTab();
+  if (!tab || !tab.editMode) return;
+  const view = paneEditors[state.activePaneIndex];
+  if (!view || search.matches.length === 0) return;
+  const changes = search.matches.slice().reverse().map((m) => {
+    const matchText = view.state.doc.sliceString(m.from, m.to);
+    return { from: m.from, to: m.to, insert: computeReplacement(matchText) };
+  });
+  const count = changes.length;
+  view.dispatch({ changes });
+  // Counter im Statusbar-Hinweis (1.5 s)
+  const text = count === 1
+    ? t('search.replaceCountOne')
+    : t('search.replaceCountMany').replace('{n}', String(count));
+  showStatusbarHint('', { text, duration: 1500 });
+  performSearch();
+}
+
+function computeReplacement(matchText) {
+  if (!search.useRegex) return search.replacement;
+  try {
+    const regex = buildRegex(search.query, true, search.caseSensitive);
+    return matchText.replace(regex, search.replacement);
+  } catch {
+    return search.replacement;
+  }
+}
+
 function refreshSearchIfVisible() {
   if (!search.visible) return;
   // Nach DOM-Wechsel (Tab-/View-Wechsel, Reload) sind alte Mark-Refs detached.
-  // Versuche, den aktuellen Treffer-Index zu erhalten.
-  const prevIdx = search.currentIndex;
-  search.matches = [];
-  search.currentIndex = -1;
-  performSearch({ keepCurrent: prevIdx >= 0 });
+  // currentIndex bleibt erhalten und wird in performSearch als prevIdx genutzt;
+  // matches wird per clearSearchHighlights zurueckgesetzt.
+  performSearch({ keepCurrent: true });
 }
 
 function bindSearchUi() {
@@ -2056,6 +2239,29 @@ function bindSearchUi() {
     els.btnRegex.classList.toggle('active', search.useRegex);
     await api.setSetting('searchUseRegex', search.useRegex);
     performSearch({ keepCurrent: true });
+    els.input.focus();
+  });
+
+  // Ersetzen-Block: Eingabe + Enter + Buttons.
+  els.replaceInput.addEventListener('input', (e) => {
+    search.replacement = e.target.value;
+  });
+  els.replaceInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (e.shiftKey || e.altKey) replaceAllMatches();
+      else replaceCurrentMatch();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      closeSearchBar();
+    }
+  });
+  els.btnReplace.addEventListener('click', () => {
+    replaceCurrentMatch();
+    els.input.focus();
+  });
+  els.btnReplaceAll.addEventListener('click', () => {
+    replaceAllMatches();
     els.input.focus();
   });
 }

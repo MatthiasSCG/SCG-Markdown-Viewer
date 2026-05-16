@@ -1,6 +1,6 @@
 # 4T-0007 — Suchen und Ersetzen (Strg+H) im Edit-Modus
 
-**Status**: Offen
+**Status**: Erledigt
 **Epic**: [3E-0001 — Edit-Modus, Menüleiste und Layout-Reorganisation](3E-0001-edit-modus-und-menue.md)
 **Zielversion**: 0.6.0
 
@@ -43,4 +43,45 @@ Die bestehende Suche (`Strg+F`, seit 0.3.0) ist auf reines Auffinden ausgelegt. 
 
 ## Lösung
 
-(Wird nach Umsetzung ausgefüllt.)
+Such-Architektur in zwei Pfade aufgeteilt: Render-Pane wie bisher mit DOM-`<mark>`-Wraps; Source-Pane neu über CodeMirror-Decorations via StateField. Plus Ersetzen-Block in der Suchleiste, der nur im Edit-Modus über Strg+H aktiviert wird.
+
+**CodeMirror-Such-Decorations (`src/renderer/renderer.js`)**:
+- Neue Imports: `StateField`, `StateEffect` aus `@codemirror/state`; `Decoration` aus `@codemirror/view`.
+- `setSearchDecorations` und `clearSearchDecorations` als `StateEffect`s.
+- `searchHighlightField` als `StateField` mit eigener `update`-Logik: bei `setSearchDecorations`-Effect wird ein `Decoration.set` mit allen Treffern (Klasse `cm-search-match`, aktiver mit zusätzlicher `cm-search-match-current`) gerendert; bei `clearSearchDecorations` oder `tr.docChanged` werden die Decorations verworfen. Als `provide: EditorView.decorations.from(f)` in die EditorView eingehängt.
+- In `createEditorState` als Extension neben den anderen aufgenommen — gilt für alle EditorViews aller Panes.
+
+**Source-Suche (`performSourceSearch`)**:
+- Iteriert das Doc per regex, sammelt `{from, to}`-Treffer (max `MAX_MATCHES` = 5000).
+- Bestimmt aktiven Index: behalten falls noch gültig (per `keepCurrent`), sonst erster Treffer ab aktueller Scroll-Position (über `view.lineBlockAt`).
+- Dispatcht `setSearchDecorations`-Effect mit Treffer-Array und aktivem Index. CodeMirror rendert die Markierungen stabil, auch über Re-Renders hinweg.
+- `setCurrentMatch` ist polymorph: bei `scope === 'source'` Effect-Dispatch + `EditorView.scrollIntoView`, sonst DOM-`<mark>`-Pfad wie zuvor.
+
+**`performSearch`** entscheidet anhand `search.scope`: Render-Scope → DOM-Pfad mit `highlightInContainer` (unverändert), Source-Scope → `performSourceSearch`. `clearSearchHighlights` säubert beide Pfade (DOM + alle EditorViews).
+
+**Such-Leiste-Refactor (`src/renderer/index.html`)**:
+- `<div id="search-bar">` wickelt zwei `<div class="search-row">` ein:
+  - `search-row-find`: Scope-Label, Eingabe, Counter, Toggles, Navigation, Schließen-Button (alle bisherigen Elemente).
+  - `search-row-replace`: zweiter Eingabe-Feld `<input id="search-replace">`, zwei Buttons (`btn-search-replace` „↪", `btn-search-replace-all` „↪↪").
+- CSS: `.search-bar` ist `flex-direction: column`; Replace-Row ist `display: none` ohne `.replace-mode`-Klasse. Bei Strg+H setzt `openSearchBar({replaceMode: true})` die Klasse, beide Rows werden sichtbar.
+
+**Ersetzen-Logik**:
+- `replaceCurrentMatch()`: dispatcht eine Change-Transaktion vom aktiven Treffer durch `computeReplacement(matchText)`. Nach docChange wird das Decoration-Set automatisch geleert (StateField-Logik), `performSearch()` läuft neu, der nächste Treffer wird aktiv. Nur im Source-Scope und Edit-Modus.
+- `replaceAllMatches()`: alle Treffer in **einer** Transaktion (Reverse-Order, damit Indizes konsistent). Strg+Z macht die Aktion als Ganzes rückgängig. Statusbar-Hinweis mit Count („1 Ersetzung" / „N Ersetzungen", lokalisiert) für 1.5 s.
+- `computeReplacement(matchText)`: bei Nicht-Regex einfach `search.replacement`, bei Regex `matchText.replace(regex, search.replacement)` — damit funktionieren Backreferences `$1`, `$2`, …
+
+**Strg+H** im keydown-Handler: prüft `tab && tab.editMode`. Im Read-Only-Modus wird Strg+H still ignoriert. Strg+F bleibt unverändert (Suche ohne Ersetzen).
+
+**`bindSearchUi`** erweitert: Replace-Input-Handler (`input`, `keydown` mit Enter und Esc), Button-Klick-Handler. Enter im Replace-Feld ersetzt einen Treffer; Umschalt+Enter / Alt+Enter ersetzt alle.
+
+**`openSearchBar({replaceMode})` und `closeSearchBar`**: replaceMode-Klasse setzen/entfernen, search.replaceMode-Flag pflegen.
+
+**`refreshSearchIfVisible` vereinfacht**: ruft `performSearch({ keepCurrent: true })`. Der `prevIdx`-Lookup wird jetzt in `performSearch` selbst gemacht — Helper-Code für die alte Bug-Konstellation entfernt.
+
+**i18n (5 Sprachen)** — 5 neue Keys: `search.replacePlaceholder`, `search.btnReplaceTitle`, `search.btnReplaceAllTitle`, `search.replaceCountOne`, `search.replaceCountMany`. Plural-Form sauber getrennt, damit „1 Ersetzung" / „N Ersetzungen" korrekt steht.
+
+**CSS** (`src/renderer/styles.css`):
+- `.search-row` als Flex-Container; `.search-row-replace` per `.search-bar:not(.replace-mode)`-Selector versteckt.
+- `.cm-search-match` mit gelbem Hintergrund (Light: rgba 255,235,59 / 0.4; Dark 0.25), `.cm-search-match-current` orange (Light 0.55; Dark 0.45) — analog zu den Render-Pane-Highlights.
+
+**`showStatusbarHint`** erhielt eine `text`-Option, um statt eines i18n-Keys direkt einen vorbereiteten String zu zeigen (für den N-Ersetzungen-Counter).
