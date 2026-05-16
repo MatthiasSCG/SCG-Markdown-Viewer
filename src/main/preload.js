@@ -145,6 +145,7 @@ contextBridge.exposeInMainWorld('api', {
   onInitialState: (cb) => ipcRenderer.once('window:initialState', (_e, payload) => cb(payload)),
 
   // Menue-Events vom Main an den Renderer
+  onMenuNew: (cb) => ipcRenderer.on('menu:new', () => cb()),
   onMenuOpenFile: (cb) => ipcRenderer.on('menu:openFile', () => cb()),
   onMenuViewChange: (cb) => ipcRenderer.on('menu:viewChange', (_e, mode) => cb(mode)),
   onMenuToggleLineNumbers: (cb) => ipcRenderer.on('menu:toggleLineNumbers', () => cb()),

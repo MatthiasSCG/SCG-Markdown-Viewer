@@ -98,8 +98,7 @@ function buildMenu(win, state, actions) {
         {
           label: t('menu.file.new'),
           accelerator: 'CmdOrCtrl+N',
-          // Aktivierung in 4T-0006.
-          enabled: false,
+          click: () => { if (actions && actions.newTab) actions.newTab(); },
         },
         {
           label: t('menu.file.open'),

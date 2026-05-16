@@ -100,7 +100,7 @@
   "save.conflictReload": "Recargar desde el disco",
   "save.conflictKeepOurs": "Mantener mi versión",
   "save.saveAsTitle": "Guardar archivo como",
-  "save.untitled": "Sin título.md",
+  "save.untitled": "Sin título",
   "save.errorTitle": "Error al guardar",
   "save.errorMessage": "No se pudo guardar el archivo.",
   "menu.file.save": "Guardar",

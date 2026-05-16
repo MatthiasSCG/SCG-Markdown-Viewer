@@ -311,6 +311,9 @@ function applyMenuToWindow(win) {
     toggleAutoSave: () => {
       if (!win.isDestroyed()) win.webContents.send('menu:toggleAutoSave');
     },
+    newTab: () => {
+      if (!win.isDestroyed()) win.webContents.send('menu:new');
+    },
   };
   const menu = buildMenu(win, state, actions);
   win.setMenu(menu);
@@ -583,7 +586,9 @@ function registerIpc() {
   // oder null, wenn der Nutzer abgebrochen hat.
   ipcMain.handle('file:saveAs', async (event, suggestedPath, content) => {
     const owner = senderWindow(event);
-    const defaultPath = suggestedPath || tForWindow(owner, 'save.untitled');
+    // Wenn der Tab keinen Pfad hat, lokalisierten "Unbenannt"-Stamm plus .md
+    // als Default vorschlagen (z.B. "Unbenannt.md" auf Deutsch).
+    const defaultPath = suggestedPath || `${tForWindow(owner, 'save.untitled')}.md`;
     const dlgResult = await dialog.showSaveDialog(owner || undefined, {
       title: tForWindow(owner, 'save.saveAsTitle'),
       defaultPath,

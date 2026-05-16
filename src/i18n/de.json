@@ -100,7 +100,7 @@
   "save.conflictReload": "Vom Datenträger neu laden",
   "save.conflictKeepOurs": "Eigene Version behalten",
   "save.saveAsTitle": "Datei speichern unter",
-  "save.untitled": "Unbenannt.md",
+  "save.untitled": "Unbenannt",
   "save.errorTitle": "Schreibfehler",
   "save.errorMessage": "Die Datei konnte nicht gespeichert werden.",
   "menu.file.save": "Speichern",

@@ -33,7 +33,7 @@ Markdown-Viewer um eine vollwertige **Edit-Komponente** erweitern und die UI-Bed
 - Dirty-State mit `•`-Markierung in Fenster- und Tab-Titel
 - Speichern (Strg+S), Speichern unter (Strg+Umschalt+S), Schließen-Dialog bei ungespeicherten Änderungen mit drei Optionen (Speichern / Verwerfen / Abbrechen)
 - Recent Files (10 Einträge, persistent in `userData`)
-- „Neu" und „Öffnen…" erzeugen jeweils ein **neues Fenster**, nicht Ersatz des aktuellen Inhalts
+- „Neu" und „Öffnen…" erzeugen jeweils einen **neuen Tab im aktiven Fenster** (Spec-Revision während Umsetzung von 4T-0006; ursprünglich „neues Fenster" geplant, jetzt konsistent mit Recent-Klick aus 4T-0005)
 - Suchen und Ersetzen (`Strg+H`) im Edit-Modus, nur dort aktivierbar
 - Sitzungswiederherstellung als Toggle-Menüeintrag mit Häkchen im Hilfe-Menü, Toolbar-Checkbox entfernt
 - **Auto-Save als optionales Feature** (opt-in): Toggle im Datei-Menü, speichert 2 s nach Inaktivität oder bei Fenster-Fokusverlust, nur für Buffer mit Pfad, 1-Sekunden-Statusbar-Hinweis nach jedem Save
@@ -57,7 +57,7 @@ Markdown-Viewer um eine vollwertige **Edit-Komponente** erweitern und die UI-Bed
 - [x] [4T-0003 — Editor-Engine: CodeMirror 6 einbauen, readOnly toggelbar](4T-0003-editor-codemirror.md)
 - [x] [4T-0004 — Dirty-State, Speichern, Speichern unter, Schließen-Dialog](4T-0004-dirty-state-speichern.md)
 - [x] [4T-0005 — Recent Files (10 Einträge, persistent, Menü-Integration)](4T-0005-recent-files.md)
-- [ ] [4T-0006 — Datei Neu und Öffnen erzeugen neues Fenster](4T-0006-neu-oeffnen-neues-fenster.md)
+- [x] [4T-0006 — Datei Neu (neuer Tab im aktiven Fenster)](4T-0006-neu-oeffnen-neues-fenster.md)
 - [ ] [4T-0007 — Suchen und Ersetzen (Strg+H) im Edit-Modus](4T-0007-suchen-und-ersetzen.md)
 - [x] [4T-0008 — Sitzungswiederherstellung als Toggle ins Hilfe-Menü](4T-0008-sitzungswiederherstellung-menue.md)
 - [ ] [4T-0009 — Hilfe-Dialog erweitern (neue Features und Shortcuts, i18n)](4T-0009-hilfe-dialog-erweitern.md)
@@ -70,7 +70,7 @@ Markdown-Viewer um eine vollwertige **Edit-Komponente** erweitern und die UI-Bed
 - **CodeMirror 6** als Editor-Engine, keine Eigenentwicklung, kein Monaco. Begründung: leichtgewichtig (~150 KB statt mehrere MB), modulare Imports, gutes Markdown-Sprachpaket, MIT-Lizenz, aktiv gepflegt. Monaco wäre Overkill für eine Reader-orientierte App.
 - **UTF-8/LF, kein BOM** als festes Speicherformat. Begründung: Markdown-Standard, keine Konfigurations-Last für den Nutzer, kompatibel mit Git-Konfiguration des Projekts (`.gitattributes` erzwingt ohnehin LF).
 - **Edit nur in Quellcode- oder geteilter Ansicht.** Klick auf den Edit-Toggle in der Render-Ansicht wechselt automatisch zu „Geteilt" und aktiviert dann Edit. Begründung: Bearbeitung der Render-Vorschau wäre WYSIWYG und ist nicht im Umfang. Auto-Wechsel statt Disabled-Button spart einen Klick.
-- **Neu und Öffnen erzeugen neues Fenster**, niemals Ersatz des aktuellen Inhalts. Begründung: Konsistent mit dem Multi-Window-Modell seit 0.5.0, kein Risiko, ungespeicherte Änderungen zu verlieren.
+- **Neu und Öffnen erzeugen neuen Tab im aktiven Fenster**, niemals Ersatz des aktuellen Inhalts. Begründung: konsistent zum Recent-Klick und zu „Öffnen mit" im Explorer; keine ungespeicherten Buffer-Übergänge zwischen Fenstern. (Ursprünglich war „neues Fenster" geplant; während der Klärung mit dem Nutzer auf „neuer Tab" revidiert.)
 - **Dirty-Marker** als führendes `•` im Fenster- und Tab-Titel (z.B. `• README.md — Markdown Viewer`). Begründung: platzsparender als `*`, in vielen modernen Editoren etabliert, kein Plattform-Problem (App ist Windows-only).
 - **Auto-Save bewusst opt-in, kein Default.** Begründung: Auto-Save kann zu unerwartetem Überschreiben führen, gerade bei Markdown-Dateien, die unter Git-Versionskontrolle stehen und bewusst commit-fertig sein sollen. Der Nutzer aktiviert es bewusst über das Datei-Menü und akzeptiert damit das Verhalten.
 - **Rebranding auf „SCG Markdown" mit Settings-Migration.** Begründung: „Viewer" passt nicht mehr zu einer App mit Editor-Funktion. Beim ersten Start unter dem neuen `productName` migriert die App Settings aus dem alten Pfad (`<userData>/Markdown Viewer/config.json`), damit Recent Files, Sprache, Sitzungs-Toggle und View-Einstellungen erhalten bleiben. Alter Pfad wird defensiv nicht gelöscht.

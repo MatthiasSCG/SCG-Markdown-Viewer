@@ -100,7 +100,7 @@
   "save.conflictReload": "Reload from disk",
   "save.conflictKeepOurs": "Keep my version",
   "save.saveAsTitle": "Save file as",
-  "save.untitled": "Untitled.md",
+  "save.untitled": "Untitled",
   "save.errorTitle": "Write error",
   "save.errorMessage": "The file could not be saved.",
   "menu.file.save": "Save",

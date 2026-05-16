@@ -62,6 +62,9 @@ const state = {
   language: 'en',
   restoreSession: true,
   autoSave: false,
+  // Hochzählender Zaehler fuer "Datei → Neu"-Tabs in diesem Fenster
+  // (pro Fenster lokal, pro App-Lebenszyklus). Wird nicht persistiert.
+  untitledCounter: 1,
 };
 
 // Dialog-Tracking fuer Auto-Save: solange ein modaler Dialog (Schliessen-
@@ -98,6 +101,9 @@ function createTab(path, content, settings = {}) {
     editMode: false,
     // Dirty-Flag: true sobald content vom originalContent abweicht.
     dirty: false,
+    // Bei "Datei → Neu" der lokale Nummern-Index (Unbenannt 1, 2, …).
+    // Null fuer Tabs mit Pfad.
+    untitledIndex: settings.untitledIndex || null,
   };
 }
 
@@ -138,6 +144,14 @@ function activeTab() {
   const pane = state.panes[state.activePaneIndex];
   if (!pane || pane.activeIndex < 0) return null;
   return pane.tabs[pane.activeIndex];
+}
+
+// Anzeigename eines Tabs: Dateiname bei Tabs mit Pfad, sonst lokalisierter
+// Unbenannt-Stamm plus Index (z.B. "Unbenannt 1").
+function tabDisplayName(tab) {
+  if (!tab) return '';
+  if (tab.path) return api.basename(tab.path);
+  return `${t('save.untitled')}${tab.untitledIndex ? ' ' + tab.untitledIndex : ''}`;
 }
 
 // --- CodeMirror-Editor ------------------------------------------------------
@@ -271,7 +285,7 @@ function updateWindowTitle() {
     document.title = 'Markdown Viewer';
     return;
   }
-  const name = tab.path ? api.basename(tab.path) : t('save.untitled');
+  const name = tabDisplayName(tab);
   document.title = `${tab.dirty ? '• ' : ''}${name} — Markdown Viewer`;
 }
 
@@ -547,6 +561,7 @@ function bindUi() {
   // IPC an den Renderer geschickt, der dieselben Funktionen aufruft, die auch
   // an die alten Toolbar-Buttons gebunden sind. Damit funktionieren Menue und
   // Toolbar parallel; die Toolbar entfaellt erst in 4T-0002.
+  api.onMenuNew(() => newUntitledTab());
   api.onMenuOpenFile(() => openDialog());
   api.onMenuViewChange((mode) => setViewMode(mode));
   api.onMenuToggleLineNumbers(() => toggleShowLineNumbers());
@@ -581,7 +596,7 @@ function bindUi() {
       for (const d of dirty) {
         activatePane(d.paneIdx);
         activateTab(d.paneIdx, d.tabIdx);
-        const detail = d.tab.path || t('save.untitled');
+        const detail = d.tab.path || tabDisplayName(d.tab);
         const result = await api.confirmCloseDirty({ detail });
         if (result === 'cancel') return; // Schliessen abgebrochen
         if (result === 'save') {
@@ -816,7 +831,7 @@ async function closeTab(paneIdx, tabIdx, opts = {}) {
   if (tab.dirty && !opts.skipDirtyCheck) {
     activatePane(paneIdx);
     activateTab(paneIdx, tabIdx);
-    const detail = tab.path || t('save.untitled');
+    const detail = tab.path || tabDisplayName(tab);
     const result = await withDialog(() => api.confirmCloseDirty({ detail }));
     if (result === 'cancel') return;
     if (result === 'save') {
@@ -972,7 +987,7 @@ function renderTabbar(paneIdx) {
   pane.tabs.forEach((tab, idx) => {
     const el = document.createElement('div');
     el.className = 'tab' + (idx === pane.activeIndex ? ' active' : '') + (tab.missing ? ' tab-missing' : '') + (tab.dirty ? ' dirty' : '');
-    const baseName = tab.path ? api.basename(tab.path) : t('save.untitled');
+    const baseName = tabDisplayName(tab);
     el.title = tab.path || baseName;
     el.draggable = true;
 
@@ -1238,6 +1253,26 @@ function toggleShowLineNumbers() {
   refreshSearchIfVisible();
 }
 
+// Erzeugt einen leeren "Unbenannt"-Tab im aktiven Pane (Datei → Neu / Strg+N).
+// Edit-Modus aktiv, View "Geteilt", damit der Nutzer sofort tippen und die
+// Vorschau live sehen kann. Nicht persistiert ueber App-Neustart, weil Tabs
+// ohne Pfad in buildPanesSnapshot herausgefiltert werden.
+function newUntitledTab() {
+  const targetPane = state.activePaneIndex;
+  const tab = createTab(null, '', {
+    viewMode: 'split',
+    untitledIndex: state.untitledCounter++,
+  });
+  tab.editMode = true;
+  state.panes[targetPane].tabs.push(tab);
+  activatePane(targetPane);
+  activateTab(targetPane, state.panes[targetPane].tabs.length - 1);
+  applyAllLayouts();
+  persistState();
+  const view = paneEditors[targetPane];
+  if (view) setTimeout(() => view.focus(), 0);
+}
+
 // --- Speichern --------------------------------------------------------------
 // Speichert einen bestimmten Tab. Wenn kein Pfad vorhanden, leitet in
 // saveTabAs weiter. Aktualisiert originalContent + dirty + UI bei Erfolg.
@@ -1414,15 +1449,28 @@ function persistState() {
 }
 
 function buildPanesSnapshot() {
-  return state.panes.map((p) => ({
-    paths: p.tabs.map((t) => t.path),
-    activeIndex: p.activeIndex,
-    tabSettings: p.tabs.map((t) => ({
-      viewMode: t.viewMode,
-      wrapLines: t.wrapLines,
-      showLineNumbers: t.showLineNumbers,
-    })),
-  }));
+  // Unbenannt-Tabs (ohne Pfad) gehen NICHT in die persistierte Sitzung.
+  // Dirty-Unbenannt werden vorher vom Schliessen-Dialog abgefangen
+  // (Speichern → Pfad bekommen oder Verwerfen). Hier herausfiltern und
+  // activeIndex auf die verbleibenden Tabs umrechnen.
+  return state.panes.map((p) => {
+    const indices = [];
+    p.tabs.forEach((tab, i) => { if (tab.path) indices.push(i); });
+    let activeIndex = -1;
+    if (indices.length > 0) {
+      const pos = indices.indexOf(p.activeIndex);
+      activeIndex = pos >= 0 ? pos : 0;
+    }
+    return {
+      paths: indices.map((i) => p.tabs[i].path),
+      activeIndex,
+      tabSettings: indices.map((i) => ({
+        viewMode: p.tabs[i].viewMode,
+        wrapLines: p.tabs[i].wrapLines,
+        showLineNumbers: p.tabs[i].showLineNumbers,
+      })),
+    };
+  });
 }
 
 // --- Kontextmenü ------------------------------------------------------------

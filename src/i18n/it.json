@@ -100,7 +100,7 @@
   "save.conflictReload": "Ricarica dal disco",
   "save.conflictKeepOurs": "Mantieni la mia versione",
   "save.saveAsTitle": "Salva file con nome",
-  "save.untitled": "Senza titolo.md",
+  "save.untitled": "Senza titolo",
   "save.errorTitle": "Errore di scrittura",
   "save.errorMessage": "Impossibile salvare il file.",
   "menu.file.save": "Salva",

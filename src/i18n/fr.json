@@ -100,7 +100,7 @@
   "save.conflictReload": "Recharger depuis le disque",
   "save.conflictKeepOurs": "Conserver ma version",
   "save.saveAsTitle": "Enregistrer le fichier sous",
-  "save.untitled": "Sans titre.md",
+  "save.untitled": "Sans titre",
   "save.errorTitle": "Erreur d'écriture",
   "save.errorMessage": "Le fichier n'a pas pu être enregistré.",
   "menu.file.save": "Enregistrer",
