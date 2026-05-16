@@ -7,11 +7,48 @@ Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-16 — Edit-Modus, Statusbar-Layout und SCG-Markdown-Branding
+
+Das größte Update seit dem ersten Release: Der bisherige reine Reader bekommt einen vollwertigen Editor, eine native Menüleiste, eine Statusbar-Bedienung am unteren Rand und einen neuen Namen. Umgesetzt als Epic [3E-0001](Projektmanagement/Aufgaben/3E-0001-edit-modus-und-menue.md) mit 11 Tasks im neuen lokalen PM-System.
+
+### Neu
+
+- **Native Menüleiste mit Datei / Ansicht / Hilfe** ([4T-0001](Projektmanagement/Aufgaben/4T-0001-native-menueleiste.md)): Pro Fenster eine eigene Menüleiste, ALT-Mnemonics, Akzeleratoren rechts neben den Einträgen. Strg+N, Strg+O, Strg+S, Strg+Umschalt+S, Strg+1/2/3, F1. Multi-Window-Synchronisation für Toggle-Einträge.
+- **CodeMirror-Editor mit Markdown-Syntax-Highlighting** ([4T-0003](Projektmanagement/Aufgaben/4T-0003-editor-codemirror.md)): CodeMirror 6 ersetzt die bisherige `<pre><code>`-Anzeige. Themes für Light und Dark (GitHub-Palette), Zeilennummern und Umbruch als CodeMirror-Compartments. Edit-Modus pro Tab über den Stift in der Statusbar (Strg+E); Klick im Render-Modus wechselt automatisch in Geteilt und aktiviert den Editor.
+- **Speichern und Speichern unter** ([4T-0004](Projektmanagement/Aufgaben/4T-0004-dirty-state-speichern.md) Phase 1): Strg+S und Strg+Umschalt+S schreiben den Editor-Inhalt nach UTF-8/LF ohne BOM. Ungespeicherte Änderungen markiert ein `•` im Tab- und Fenstertitel. Schließen-Dialog mit Speichern / Verwerfen / Abbrechen pro Tab und beim Fenster-Schluss. Konflikt-Dialog bei externer Änderung mit Dirty-Buffer (Reload vs. eigene Version behalten). File-Watcher wird beim Eigen-Schreiben kurz stummgeschaltet, um Reload-Loops zu vermeiden.
+- **Auto-Save** (4T-0004 Phase 2): Opt-in im Datei-Menü. Speichert 2 Sekunden nach der letzten Eingabe oder bei Fenster-Fokusverlust. Tabs ohne Pfad („Unbenannt") werden nicht automatisch gespeichert. 1-Sekunden-Statusbar-Hinweis „Gespeichert" rechts neben dem Edit-Toggle, Schreibfehler werden 3 Sekunden in Rot angezeigt.
+- **Recent Files** ([4T-0005](Projektmanagement/Aufgaben/4T-0005-recent-files.md)): Submenü `Datei → Zuletzt` mit 10 Einträgen (vorher Toolbar-Dropdown). Dateiname als Label, voller Pfad als Tooltip, Disambiguator `(Ordner)` bei gleichnamigen Dateien. Klick öffnet die Datei als neuer Tab im aktiven Fenster (analog zu „Öffnen mit" im Explorer). Verwaiste Pfade werden beim Klick aus der Liste entfernt. Eintrag „Liste löschen" mit Bestätigungsdialog.
+- **Datei → Neu** ([4T-0006](Projektmanagement/Aufgaben/4T-0006-neu-oeffnen-neues-fenster.md)): Strg+N öffnet einen leeren „Unbenannt N"-Tab im aktiven Fenster (View „Geteilt", Edit-Modus aktiv). Counter zählt pro Fenster hoch. Beim ersten Speichern öffnet sich Speichern unter.
+- **Suchen und Ersetzen im Edit-Modus** ([4T-0007](Projektmanagement/Aufgaben/4T-0007-suchen-und-ersetzen.md)): Strg+H im Edit-Modus öffnet einen zweiten Eingabebereich „Ersetzen durch…" mit zwei Buttons (einzelner Treffer / alle Treffer). Backreferences `$1`, `$2`, … im Regex-Modus. „Alle ersetzen" als einzelne CodeMirror-Transaktion, sodass Strg+Z die Aktion als Ganzes rückgängig macht.
+- **Stabile Source-Suche** (4T-0007): Die Suche im Quellcode-Pane nutzt jetzt CodeMirror-Decorations via StateField; Treffer-Highlights überleben CM-Re-Renders. Vorher flackerten sie kurz, weil die `<mark>`-DOM-Manipulation vom CM-Editor überschrieben wurde.
+
+### Geändert
+
+- **Statusbar statt Toolbar** ([4T-0002](Projektmanagement/Aufgaben/4T-0002-statusbar-layout.md)): Die Toolbar oben ist komplett entfernt. Quick-Toggles (Nummern, Umbruch, Quellcode, Geteilt, Gerendert) sitzen jetzt in einer Statusbar am unteren Rand. Rechts in der Statusbar: Edit-Toggle (Stift) und Sprach-Selektor. Die Suchleiste blendet sich weiter über die Statusbar ein, mit zusätzlicher Replace-Zeile im Edit-Modus.
+- **Sitzungswiederherstellung als Menü-Toggle** ([4T-0008](Projektmanagement/Aufgaben/4T-0008-sitzungswiederherstellung-menue.md)): Die Toolbar-Checkbox „Sitzung wiederherstellen" wandert in das Hilfe-Menü als Toggle-Eintrag mit Häkchen. Multi-Window-synchron via `applyMenuToAllWindows` bei jedem `settings:set` mit Key `restoreSession`.
+- **Rebranding auf „SCG Markdown"** ([4T-0011](Projektmanagement/Aufgaben/4T-0011-rebranding-scg-markdown.md)): App-Name, `productName`, `appId`, NSIS-Display-Strings, Fenster-Titel, Über-Dialog, Empty-State und Dokumentation überall einheitlich auf „SCG Markdown" / `scg-markdown` / `net.stumm.scg-markdown`. Settings-Migration aus `%APPDATA%/Markdown Viewer/config.json` ins neue `%APPDATA%/SCG Markdown/config.json` läuft einmalig beim ersten Start unter neuem Namen. EXE-Dateinamen sind jetzt `SCG Markdown-<version>-Setup.exe` und `-Portable.exe`. Registry-ProgIDs (`MarkdownViewer.md`) bleiben absichtlich gleich, damit Updates aus 0.5.x-Installationen die Datei-Assoziation sauber überschreiben statt eine zweite ProgID anzulegen.
+- **Datei → Neu, Öffnen und Recent-Klick** öffnen jetzt einheitlich einen Tab im aktiven Fenster. Die ursprüngliche Konzept-Idee „Neu/Öffnen erzeugen ein neues Fenster" wurde während der Klärung mit dem Nutzer verworfen, weil sie zu Buffer-Verlust und inkonsistentem Verhalten zu „Öffnen mit" im Explorer geführt hätte.
+- **Hilfe-Dialog erweitert** ([4T-0009](Projektmanagement/Aufgaben/4T-0009-hilfe-dialog-erweitern.md)): 6 neue Features (Datei-Neu, Edit-Modus, Speichern, Auto-Save, Suchen-Ersetzen, Menüleiste) und 7 neue Tastenkürzel (Strg+N, Strg+S, Strg+Umschalt+S, Strg+E, Strg+1/2/3, Strg+H, Alt). F1 öffnet jetzt das Hilfe-Modal statt den Über-Dialog. Veraltete Wording-Stellen („in der Toolbar") korrigiert auf den neuen Stand.
+
 ### Build & Tooling
 
-- **`releases/`-Ordner als Versions-Archiv** (vorher `dist/`): `dist/` ist jetzt reiner Build-Output von electron-builder und enthält nur das aktuelle Build samt Zwischenprodukten (`win-unpacked/`, `builder-debug.yml`, `latest.yml`, aktuelle `*.blockmap`). Die fertigen EXEs werden per `postbuild`-Hook (`scripts/archive-build.js`) automatisch nach `releases/` verschoben, wo sich das Versions-Archiv über die Releases hinweg sammelt. Beide Ordner sind weiter gitignored. Ältere EXEs (v0.1.0 bis v0.5.1) wurden in einem Schritt mit migriert.
-- **Alte `.blockmap`-Dateien werden automatisch aufgeräumt**: Das `postbuild`-Script entfernt jetzt zusätzlich `.blockmap`-Dateien aus früheren Builds, die nicht mehr zur aktuellen Version gehören. Hintergrund: Blockmaps sind für den electron-updater-Auto-Update-Mechanismus gedacht, der im Projekt nicht konfiguriert ist; sie sind also reine Build-Output-Artefakte ohne Nutzen für uns. Bis 0.5.1 hatten sich fünf solche Dateien zu insgesamt 425 KB angesammelt.
-- **`gh release create`**-Aufrufe verweisen ab jetzt auf `releases/Markdown Viewer-<version>-*.exe` statt auf `dist/...`. CLAUDE.md im Projekt-Root entsprechend aktualisiert.
+- **`releases/`-Ordner als Versions-Archiv** (vorher `dist/`): `dist/` ist reiner Build-Output von electron-builder und enthält nur das aktuelle Build samt Zwischenprodukten (`win-unpacked/`, `builder-debug.yml`, `latest.yml`, aktuelle `*.blockmap`). Die fertigen EXEs werden per `postbuild`-Hook (`scripts/archive-build.js`) automatisch nach `releases/` verschoben, wo sich das Versions-Archiv über die Releases hinweg sammelt. Beide Ordner sind weiter gitignored. Ältere EXEs (v0.1.0 bis v0.5.1) wurden migriert.
+- **Alte `.blockmap`-Dateien werden automatisch aufgeräumt**: Das `postbuild`-Script entfernt `.blockmap`-Dateien aus früheren Builds, die nicht mehr zur aktuellen Version gehören.
+- **esbuild als Renderer-Bundler** (4T-0003): CodeMirror 6 verlangt einen Bundler, weil bare-imports (`@codemirror/state` etc.) nicht direkt im Renderer auflösbar sind. `scripts/build-renderer.js` bundelt `renderer.js` plus alle Imports zu `renderer.bundle.js`. npm-Scripts `start`, `dev`, `build` und die Build-Targets rufen den Bundler vorab.
+- **Lokales PM-System**: Epics und Tasks für 0.6.0 wurden in `Projektmanagement/Aufgaben/` als Markdown-Dateien geführt statt als GitHub-Issues. Begründung und Konventionen in der projekt-lokalen `CLAUDE.md` und `Projektmanagement/README.md`. Die bisherigen GitHub-Issues #1 und #2 bleiben als historische Spur erhalten.
+
+### i18n
+
+- **Insgesamt rund 90 neue i18n-Keys** über alle fünf Sprachen (Deutsch, Englisch, Französisch, Spanisch, Italienisch): Menüleisten-Beschriftungen (`menu.*`), Save-Dialog-Texte (`save.*`), Konflikt-Dialog, Recent-Files-Dialoge (`recent.missingFile*`), Hilfe-Modal-Erweiterungen, Replace-Block in der Suchleiste, Statusbar-Hinweise.
+- **Tote Keys entfernt**: `toolbar.recent`, `settings.restoreSession`, `recent.empty`, `about.button`, `help.button`, `help.shortcut.about`.
+- **Wert-Korrekturen** für `help.feature.restoreSession` und `help.feature.languages`: Wording angepasst auf den neuen Menü- bzw. Statusbar-Stand.
+
+### Hinweise zur Migration
+
+- **Sitzungswiederherstellung, Recent Files, Sprache und Auto-Save-Toggle** aus einer bestehenden 0.5.x-Installation werden beim ersten Start unter dem neuen Namen automatisch übernommen (Settings-Migration in `migrateSettingsFromPreviousName`). Falls die Migration scheitert (z.B. korrupte JSON-Datei), startet die App mit Default-Settings, der alte Pfad bleibt unangetastet.
+- **Datei-Assoziation** aus einer 0.5.x-Setup-Installation muss beim Update der Setup-EXE nicht neu konfiguriert werden, weil die Registry-ProgID gleich bleibt.
+- **Ungespeicherte „Unbenannt"-Tabs** werden nicht in der Sitzung persistiert. Beim Quit greift der Schließen-Dialog (Speichern / Verwerfen / Abbrechen).
+- **GitHub-Repo umbenannt** von `SCG-Markdown-Viewer` zu `SCG-Markdown`. Bestehende Klone und Issue-Links funktionieren über GitHub-Redirects weiter; eine Neusetzung der Origin-URL über `git remote set-url` ist optional, aber sauberer.
 
 ## [0.5.1] - 2026-05-14
 

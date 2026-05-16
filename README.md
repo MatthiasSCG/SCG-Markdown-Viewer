@@ -6,52 +6,125 @@ Speichern und Auto-Reload.
 
 ## Konzept
 
-Diese Datei dokumentiert das vereinbarte Konzept und den Funktionsumfang.
-Änderungen am Code werden in der [CHANGELOG.md](./CHANGELOG.md) festgehalten.
+Diese Datei dokumentiert den aktuellen Funktionsumfang. Änderungen am Code
+sind in der [CHANGELOG.md](./CHANGELOG.md) festgehalten. Aufgaben werden
+seit 0.6.0 lokal im Ordner [`Projektmanagement/Aufgaben/`](./Projektmanagement/)
+geführt.
 
 ## Funktionsumfang
 
-### Anzeige
+### Ansichten und Edit-Modus
 
-- **Quellcode-Ansicht**: zeigt das rohe Markdown
-- **Render-Ansicht**: zeigt die formatierte Darstellung
-- **Geteilte Ansicht (Split)**: beide nebeneinander, per Maus verschiebbar
-- Umschaltbar über die Toolbar; die zuletzt gewählte Ansicht wird gespeichert
+- **Quellcode-Ansicht**: zeigt das rohe Markdown im CodeMirror-Editor mit
+  Syntax-Highlighting (Light- und Dark-Theme).
+- **Render-Ansicht**: zeigt die formatierte Darstellung.
+- **Geteilte Ansicht (Split)**: beide nebeneinander, per Maus-Splitter
+  verschiebbar.
+- Umschaltbar über die Statusbar unten oder per Tastatur (`Strg+1`,
+  `Strg+2`, `Strg+3`); der gewählte Modus wird pro Tab gespeichert.
+- **Edit-Modus**: aktivierbar über das Stift-Symbol in der Statusbar oder
+  `Strg+E`. Funktioniert nur in Quellcode- oder geteilter Ansicht; ein
+  Klick auf den Stift im Render-Modus wechselt automatisch zu „Geteilt"
+  und aktiviert den Editor. Im Edit-Modus aktualisiert sich die Render-
+  Vorschau live mit 150 ms Debounce.
+- **Optionale Anzeigeoptionen pro Tab**: Zeilennummern und Wortumbruch,
+  beide in der Statusbar umschaltbar.
 
-### Tabs
+### Speichern und Dirty-State
 
-- Beliebig viele Markdown-Dateien können gleichzeitig geöffnet sein
-- Jede Datei läuft in einem eigenen Tab; Tabs lassen sich schließen
-- Tabs können **per Drag & Drop** umsortiert oder zwischen den Spalten verschoben werden
-- **Rechtsklick** auf einen Tab öffnet ein Kontextmenü mit "Nach links/rechts verschieben" und "Schließen"
-- Klick auf einen `[Text](datei.md)`-Link öffnet die Zieldatei in einem neuen Tab
-- Ist die Zieldatei in **irgendeiner** Spalte bereits offen, wird dorthin gesprungen (kein Duplikat)
-- Pro Tab werden Scroll-Positionen (Quellcode und Render) separat gemerkt
+- **Speichern (Strg+S)** schreibt den aktuellen Tab nach UTF-8/LF, kein
+  BOM.
+- **Speichern unter (Strg+Umschalt+S)** zeigt den OS-Speichern-Dialog;
+  bei „Unbenannt"-Tabs ohne Pfad ist das automatisch der nächste Schritt
+  beim ersten Strg+S.
+- **Ungespeicherte Änderungen** sind mit einem `•` im Tab- und
+  Fenstertitel markiert.
+- **Schließen-Dialog**: Beim Schließen eines Tabs oder Fensters mit
+  ungespeicherten Änderungen erscheint ein Bestätigungsdialog mit
+  Speichern / Verwerfen / Abbrechen.
+- **Konflikt-Dialog** bei externer Änderung mit Dirty-Buffer: Reload vs.
+  eigene Version behalten.
+- **Auto-Save** (Opt-in im Datei-Menü): speichert 2 Sekunden nach der
+  letzten Eingabe oder bei Fenster-Fokusverlust. „Unbenannt"-Tabs werden
+  nicht automatisch gespeichert. 1-Sekunden-Hinweis in der Statusbar bei
+  Erfolg, 3-Sekunden-Hinweis in Rot bei Schreibfehler.
 
-### Zwei-Spalten-Layout
+### Tabs und Spalten
 
-- Tabs können in eine **zweite Spalte** rechts daneben verschoben werden — beide Spalten haben eigene Tab-Leisten und unabhängige Inhalte
-- Die Aktivierung erfolgt automatisch, sobald ein Tab nach rechts verschoben wird (per Drag, Kontextmenü oder `Strg + Alt + →`)
-- Jede Spalte hat ihren **eigenen View-Modus** (Quellcode/Geteilt/Gerendert); die Toolbar wirkt auf die zuletzt angeklickte Spalte
-- Wenn die letzte Datei einer Spalte geschlossen wird, klappt das Layout automatisch auf eine Spalte zusammen
-- Die Splitter-Position zwischen den Spalten ist mit der Maus verschiebbar
+- Beliebig viele Markdown-Dateien parallel in Tabs.
+- Tabs lassen sich **per Drag & Drop** umsortieren oder zwischen zwei
+  Spalten verschieben.
+- **Rechtsklick** auf einen Tab öffnet ein Kontextmenü mit „Nach
+  links/rechts verschieben", „In neues Fenster verschieben/kopieren"
+  und „Schließen".
+- Klick auf einen `[Text](datei.md)`-Link öffnet die Zieldatei in einem
+  neuen Tab. Ist die Zieldatei in irgendeiner Spalte bereits offen, wird
+  dorthin gesprungen (kein Duplikat).
+- **Zwei-Spalten-Layout**: Tabs können in eine zweite Spalte rechts
+  daneben verschoben werden; beide Spalten haben eigene Tab-Leisten und
+  unabhängige Inhalte. Aktivierung per Drag, Kontextmenü oder
+  `Strg + Alt + →`. Wenn die letzte Datei einer Spalte geschlossen wird,
+  klappt das Layout automatisch auf eine Spalte zusammen. Die Splitter-
+  Position zwischen den Spalten ist mit der Maus verschiebbar.
+
+### Suchen und Ersetzen
+
+- **Suchen (Strg+F)** mit Live-Treffern, regulären Ausdrücken (`.*`-
+  Schalter) und Groß-/Kleinschreibung (`Aa`-Schalter). Das Fragezeichen
+  in der Suchleiste zeigt eine Regex-Kurzreferenz.
+- Treffer-Hervorhebung im Render-Pane als `<mark>`-Markierung, im
+  Quellcode über CodeMirror-Decorations. Aktiver Treffer in Orange, alle
+  anderen Treffer in Gelb.
+- **Suchen und Ersetzen (Strg+H)** im Edit-Modus: zweiter Eingabebereich
+  unter der Suchleiste mit zwei Buttons (Treffer ersetzen / alle
+  Treffer ersetzen). Regex-Backreferences `$1`, `$2`, … im
+  Ersetzungstext. „Alle ersetzen" als einzelne Transaktion (Strg+Z
+  macht es als Ganzes rückgängig).
+- Navigation per `F3` / `Umschalt+F3` oder `Enter` / `Umschalt+Enter`
+  im Suchfeld.
+
+### Native Menüleiste
+
+Pro Fenster eine eigene Menüleiste mit drei Menüs:
+
+- **Datei**: Neu, Öffnen…, Zuletzt (10 Einträge), Automatisch
+  speichern (Toggle), Speichern, Speichern unter…, Beenden
+- **Ansicht**: Gerendert, Geteilt, Quellcode, Zeilennummern (Toggle),
+  Zeilenumbruch (Toggle)
+- **Hilfe**: Hilfe (F1), Über…, Sitzung wiederherstellen (Toggle)
+
+`Alt` aktiviert die Tastatursteuerung; Mnemonics (z.B. `Alt+D` für
+Datei) springen direkt in das jeweilige Menü.
+
+### Statusbar
+
+Am unteren Fensterrand:
+
+- Links: Toggle-Buttons für Zeilennummern, Wortumbruch, View-Modus
+  (Quellcode/Geteilt/Gerendert).
+- Mitte: Auto-Save-Hinweis (1 Sekunde nach erfolgreichem Auto-Save).
+- Rechts: Edit-Toggle (Stift) und Sprach-Selektor.
+
+Die Suchleiste blendet sich beim Aufruf über die Statusbar ein
+(mit Replace-Zeile im Edit-Modus).
 
 ### Datei öffnen
 
-Drei Wege:
+Vier Wege:
 
-1. **Datei-Dialog** über den Button "Öffnen"
+1. **Datei → Öffnen…** (Strg+O) im Menü
 2. **Drag & Drop** einer oder mehrerer Dateien ins Fenster
-3. **"Öffnen mit"** im Datei-Explorer (Datei-Assoziation, beim Build aktivierbar)
-
-Zusätzlich speichert die Anwendung eine Liste der **zuletzt geöffneten Dateien**
-(maximal 15), erreichbar über den Button "Zuletzt".
+3. **„Öffnen mit"** im Datei-Explorer (Datei-Assoziation, beim Setup
+   aktivierbar)
+4. **Datei → Zuletzt** im Menü (10 zuletzt geöffnete Dateien)
 
 ### Auto-Reload
 
-Geöffnete Dateien werden überwacht. Ändert sich eine Datei extern (z. B.
-durch einen Editor), wird der Tab-Inhalt automatisch aktualisiert. Wird die
-Datei gelöscht, wird der Tab-Titel durchgestrichen markiert.
+Geöffnete Dateien werden überwacht. Ändert sich eine Datei extern (z.B.
+durch einen anderen Editor), wird der Tab-Inhalt automatisch aktualisiert.
+Bei aktivem Edit-Modus mit ungespeicherten Bearbeitungen erscheint
+stattdessen ein Konflikt-Dialog. Wird die Datei gelöscht, wird der Tab-
+Titel durchgestrichen markiert.
 
 ### Bilder
 
@@ -66,7 +139,8 @@ Pfad des aktuellen Dokuments aufgelöst und als Base64-Data-URI eingebettet.
 | `mailto:...`                | im Standard-Mail-Programm öffnen       |
 | `#anker`                    | im Dokument scrollen                   |
 | `relative/datei.md`         | in neuem Tab öffnen                    |
-| Andere relative Dateien     | werden ignoriert (vorerst)             |
+| `[[Datei]]` (Wiki-Link)     | `Datei.md` in neuem Tab öffnen         |
+| Andere relative Dateien     | werden ignoriert                       |
 
 ### Sprachen
 
@@ -79,23 +153,31 @@ Die Oberfläche ist in fünf Sprachen verfügbar:
 - Italiano
 
 Beim ersten Start wird die Sprache aus der Windows-Locale erkannt
-(Fallback: Englisch). Sie kann jederzeit über die Toolbar gewechselt werden.
+(Fallback: Englisch). Sie kann jederzeit über den Sprach-Selektor in der
+Statusbar gewechselt werden.
 
 ### Theme
 
-Light/Dark folgt dem Windows-System-Theme automatisch und wechselt mit, wenn
-das System-Theme zur Laufzeit umgestellt wird.
+Light/Dark folgt dem Windows-System-Theme automatisch und wechselt mit,
+wenn das System-Theme zur Laufzeit umgestellt wird.
 
-### Sitzung
+### Multi-Window und Sitzung
 
-Die Einstellung **"Sitzung wiederherstellen"** (Toolbar) entscheidet, ob beim
-nächsten Start die zuletzt geöffneten Tabs erneut geöffnet werden.
+- Tab per Rechtsklick → **„In neues Fenster verschieben"** oder
+  **„In neues Fenster kopieren"** öffnet ein eigenes Fenster.
+- Fensterposition, -größe und Maximiert-Status werden gemerkt und beim
+  nächsten Start wiederhergestellt.
+- **Sitzung wiederherstellen** (Toggle im Hilfe-Menü, persistent):
+  Beim Beenden gespeicherte Sitzung (alle offenen Fenster mit Tabs,
+  Spalten und Ansichten) wird beim nächsten Start wiederhergestellt.
+- „Unbenannt"-Tabs ohne Pfad werden nicht persistiert; bei Quit greift
+  der Schließen-Dialog.
 
-### Über-Dialog
+### Hilfe-Dialog
 
-Toolbar-Button **"Über"** (ganz rechts) oder Tastenkürzel **F1** öffnet
-einen kleinen Dialog mit App-Name, Versionsnummer (dynamisch aus
-`package.json`) und Credits. Schließen via Esc, Klick außerhalb oder OK.
+Über `Hilfe → Hilfe` oder `F1`: Modal mit zwei Sektionen — Funktionen
+(18 Bullets) und Tastenkürzel (17 Zeilen). Schließbar per `Esc`,
+OK-Button oder Klick auf den Hintergrund.
 
 ### Markdown-Umfang
 
@@ -105,28 +187,28 @@ GitHub Flavored Markdown (GFM):
 - Task-Listen (`- [ ]` / `- [x]`)
 - Strikethrough (`~~Text~~`)
 - Auto-Links
-- Code-Blöcke mit Sprachangabe (Syntax-Highlighting folgt später)
+- Code-Blöcke mit Sprachangabe (Render-seitig ohne Syntax-Highlighting)
 
 Zusätzlich:
 
 - **Wiki-Links** im Stil von Obsidian/Logseq:
   - `[[Datei]]` — Link zu `Datei.md` im selben Verzeichnis
   - `[[Datei|Anzeigetext]]` — Link mit eigenem Text
-  - Hat das Ziel bereits eine Endung (z. B. `[[bild.png]]`), wird sie nicht durch `.md` ersetzt
+  - Hat das Ziel bereits eine Endung (z.B. `[[bild.png]]`), wird sie
+    nicht durch `.md` ersetzt
 
-Mermaid-Diagramme, KaTeX-Mathe und Syntax-Highlighting sind **für eine
-spätere Phase** vorgesehen.
-
-### Read-only
-
-Der Viewer bearbeitet keine Dateien. Es gibt keine Speichern-Funktion.
+Mermaid-Diagramme, KaTeX-Mathe und Syntax-Highlighting in der Render-
+Vorschau sind für eine spätere Phase vorgesehen.
 
 ## Technik-Stack
 
 - **Electron** als Anwendungsrahmen
+- **CodeMirror 6** als Editor-Engine (Markdown-Sprachpaket, eigenes
+  Highlighting-Style, Such-Decorations)
 - **markdown-it** + **markdown-it-task-lists** für GFM-Rendering
 - **chokidar** für File-Watching
 - **electron-store** für persistente Einstellungen
+- **esbuild** als Renderer-Bundler
 
 ## Projektstruktur
 
@@ -134,19 +216,29 @@ Der Viewer bearbeitet keine Dateien. Es gibt keine Speichern-Funktion.
 0012_Markdown-Viewer/
 ├── README.md            (diese Datei)
 ├── CHANGELOG.md         (Änderungs-Historie)
+├── CLAUDE.md            (Projekt-Konventionen für Claude Code)
 ├── package.json
+├── Projektmanagement/
+│   ├── README.md        (PM-Konventionen)
+│   └── Aufgaben/        (Epic- und Task-Markdowns)
 ├── build/
-│   └── installer.nsh    (NSIS Custom-Hooks: Datei-Assoziations-Seite)
+│   └── installer.nsh    (NSIS-Custom-Hooks: Datei-Assoziations-Seite)
 ├── scripts/
-│   └── build-icon.js    (SVG -> ICO/PNG-Konverter)
+│   ├── build-icon.js    (SVG → ICO/PNG-Konverter)
+│   ├── build-renderer.js (esbuild-Bundle des Renderers)
+│   └── archive-build.js (Verschiebt fertige EXEs nach releases/)
+├── docs/
+│   └── release-notes-template.md
 └── src/
     ├── main/
-    │   ├── main.js      (Electron Main-Prozess)
+    │   ├── main.js      (Electron Main-Prozess, Fenster, IPC, Watcher, Menü)
+    │   ├── menu.js      (Menü-Factory für die native Menüleiste)
     │   └── preload.js   (Brücke + Markdown-Rendering)
     ├── renderer/
     │   ├── index.html
     │   ├── styles.css
-    │   ├── renderer.js  (UI-Logik, Tabs, Drag&Drop)
+    │   ├── renderer.js  (UI-Logik, Tabs, Drag&Drop, CodeMirror, Suche)
+    │   ├── renderer.bundle.js (Build-Output, gitignored)
     │   └── i18n.js
     ├── i18n/
     │   ├── de.json
@@ -179,6 +271,8 @@ npm install
 npm start
 ```
 
+Bundelt zuerst den Renderer via esbuild und startet dann Electron.
+
 ### Build (Windows)
 
 ```bash
@@ -193,28 +287,49 @@ npm run build:portable
 
 # Icon aus SVG neu erzeugen (selten nötig)
 npm run build:icon
+
+# Nur Renderer-Bundle erzeugen (für Bundler-Debug)
+npm run build:renderer
 ```
 
-Build-Ergebnisse landen unter `dist/`:
+Die EXEs landen zunächst unter `dist/`, der `postbuild`-Hook verschiebt
+sie in den Versions-Archiv-Ordner `releases/`:
 
-- `SCG Markdown-0.6.0-Setup.exe` — klassischer Setup-Assistent (NSIS), Installation pro Benutzer (`%LOCALAPPDATA%\Programs\SCG Markdown`), Start-Menü- und Desktop-Verknüpfung, sauberer Uninstaller. Eine Setup-Seite bietet die **optionale Datei-Assoziation** für `.md`, `.markdown`, `.mdown`, `.mkd` (Default: aktiviert, abwählbar)
-- `SCG Markdown-0.6.0-Portable.exe` — läuft ohne Installation, kein Eintrag im System; Datei-Assoziation ist hier technisch nicht möglich
+- `SCG Markdown-0.6.0-Setup.exe` — Setup-Assistent (NSIS), Installation
+  pro Benutzer (`%LOCALAPPDATA%\Programs\SCG Markdown`), Start-Menü- und
+  Desktop-Verknüpfung, sauberer Uninstaller. Eine Setup-Seite bietet die
+  optionale Datei-Assoziation für `.md`, `.markdown`, `.mdown`, `.mkd`
+  (Default: aktiviert, abwählbar).
+- `SCG Markdown-0.6.0-Portable.exe` — läuft ohne Installation, kein
+  Eintrag im System; Datei-Assoziation ist hier technisch nicht möglich.
 
-> **Datei-Assoziation deaktivieren oder später ändern:** Windows-Einstellungen → Apps → Standard-Apps → SCG Markdown (oder Endung `.md` suchen). Beim Deinstallieren werden eigene Registry-Einträge automatisch entfernt.
+> **Datei-Assoziation deaktivieren oder später ändern:**
+> Windows-Einstellungen → Apps → Standard-Apps → SCG Markdown (oder
+> Endung `.md` suchen). Beim Deinstallieren werden eigene Registry-
+> Einträge automatisch entfernt.
 
 ### Tastenkürzel
 
-| Tastenkombination     | Aktion                                       |
-|-----------------------|----------------------------------------------|
-| `Strg + O`            | Datei öffnen                                 |
-| `Strg + W`            | Aktiven Tab schließen                        |
-| `Strg + Tab`          | Nächster Tab in aktiver Spalte               |
-| `Strg + Shift + Tab`  | Vorheriger Tab in aktiver Spalte             |
-| `Strg + Alt + →`      | Aktiven Tab in die rechte Spalte verschieben |
-| `Strg + Alt + ←`      | Aktiven Tab in die linke Spalte verschieben  |
-| Mittlere Maustaste    | Tab schließen                                |
-| `F1`                  | Über-Dialog öffnen                           |
-| `Esc`                 | Offene Menüs / About-Dialog schließen        |
+| Tastenkombination              | Aktion                                          |
+|--------------------------------|-------------------------------------------------|
+| `Strg + N`                     | Neuer „Unbenannt"-Tab                           |
+| `Strg + O`                     | Datei öffnen                                    |
+| `Strg + S`                     | Aktiven Tab speichern                           |
+| `Strg + Umschalt + S`          | Speichern unter…                                |
+| `Strg + W`                     | Aktiven Tab schließen                           |
+| `Strg + Tab`                   | Nächster Tab in aktiver Spalte                  |
+| `Strg + Umschalt + Tab`        | Vorheriger Tab in aktiver Spalte                |
+| `Strg + Alt + →` / `Strg + Alt + ←` | Aktiven Tab in andere Spalte verschieben   |
+| Mittlere Maustaste             | Tab schließen                                   |
+| `Strg + 1` / `Strg + 2` / `Strg + 3` | Ansicht umschalten (Gerendert/Geteilt/Quellcode) |
+| `Strg + E`                     | Edit-Modus umschalten                           |
+| `Strg + F`                     | Suche öffnen                                    |
+| `Strg + H`                     | Suchen und Ersetzen (im Edit-Modus)             |
+| `F3` / `Umschalt + F3`         | Nächster / vorheriger Treffer                   |
+| `Enter` / `Umschalt + Enter`   | Nächster / vorheriger Treffer (in der Suchleiste) |
+| `Alt`                          | Menüleiste aktivieren                           |
+| `F1`                           | Hilfe-Dialog öffnen                             |
+| `Esc`                          | Offene Menüs / Dialoge schließen                |
 
 ## Icon
 
@@ -227,15 +342,10 @@ die Multi-Resolution-`icon.ico` (16/24/32/48/64/128/256 px) und
 
 ## Status
 
-Version `0.6.0` — Editor-Funktionalität, native Menüleiste, Statusbar-Layout
-und Rebranding auf „SCG Markdown". Funktional vollständig für den vereinbarten
+Version `0.6.0` — Editor-Funktionalität, native Menüleiste, Statusbar-
+Layout, Speichern mit Dirty-State und Auto-Save, Suchen und Ersetzen,
+Rebranding auf „SCG Markdown". Funktional vollständig für den aktuellen
 Funktionsumfang, inklusive Windows-Build (Installer + Portable).
-
-> **Hinweis**: Die Feature-Beschreibungen in diesem README beschreiben noch
-> teilweise den 0.2.0-Stand (Toolbar-Bedienung, F1 → Über-Dialog, Read-only).
-> Eine vollständige Überarbeitung auf den 0.6.0-Stand (Statusbar, Edit-Modus,
-> Speichern, Auto-Save, Suchen-und-Ersetzen, Menüleiste) folgt mit 4T-0010
-> oder einem nachgelagerten Doku-Sweep.
 
 ## Lizenz
 

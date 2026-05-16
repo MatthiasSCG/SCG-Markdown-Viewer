@@ -1,6 +1,6 @@
 # 3E-0001 — Edit-Modus, Menüleiste und Layout-Reorganisation
 
-**Status**: Offen
+**Status**: Erledigt
 **Zielversion**: 0.6.0
 **Vorgängerversion**: 0.5.1
 
@@ -62,7 +62,7 @@ Markdown-Viewer um eine vollwertige **Edit-Komponente** erweitern und die UI-Bed
 - [x] [4T-0008 — Sitzungswiederherstellung als Toggle ins Hilfe-Menü](4T-0008-sitzungswiederherstellung-menue.md)
 - [x] [4T-0009 — Hilfe-Dialog erweitern (neue Features und Shortcuts, i18n)](4T-0009-hilfe-dialog-erweitern.md)
 - [x] [4T-0011 — Rebranding auf SCG Markdown (Name, AppId, Settings-Migration)](4T-0011-rebranding-scg-markdown.md)
-- [ ] [4T-0010 — CHANGELOG, Release-Notes, Version-Bump auf 0.6.0](4T-0010-changelog-release-060.md)
+- [x] [4T-0010 — CHANGELOG, Release-Notes, Version-Bump auf 0.6.0](4T-0010-changelog-release-060.md)
 
 ## Architekturentscheidungen
 
