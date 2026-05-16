@@ -1,6 +1,6 @@
 {
   "name": "markdown-viewer",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Schlanker Markdown-Viewer für Windows 11 mit Tabs, Quellcode-/Render-Ansicht, Auto-Reload und Mehrsprachigkeit.",
   "main": "src/main/main.js",
   "scripts": {

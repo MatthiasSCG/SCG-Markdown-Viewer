@@ -8,6 +8,23 @@ Diese Datei dokumentiert verbindliche Arbeitsabläufe für das Projekt. Sie erg�
 
 ID-Konventionen, Datei-Struktur, Status-Werte und Workflow stehen in [Projektmanagement/README.md](Projektmanagement/README.md).
 
+## Test-Phase: EXE-Build vor jeder Test-Aufforderung
+
+Vor jeder Aufforderung an den Nutzer, einen Task manuell zu testen, wird ein vollständiger EXE-Build durchgeführt:
+
+```bash
+npm run build
+```
+
+Der Nutzer testet ausschließlich mit der frisch gebauten **Portable-EXE** aus `releases/`, nicht mit `npm start`. Grund: Im Dev-Modus und im gepackten Build verhalten sich Pfade, Asar-Bundling und `asarUnpack`-Konfiguration unterschiedlich. Nur die EXE entspricht dem späteren Auslieferungszustand und deckt diese Diskrepanzen ab.
+
+Konventionen:
+
+- **Portable-EXE** als Standard-Test-Variante (`Markdown Viewer-<version>-Portable.exe`, bzw. nach 4T-0011 `SCG Markdown-<version>-Portable.exe`). Sie braucht keine Installation und überschreibt keine bestehende Installation.
+- Die Setup-EXE wird vom selben Build-Lauf mitgeliefert, ist für Task-Tests aber nicht zwingend.
+- Während der Entwicklung einer Version trägt `package.json` bereits die **Zielversion** der laufenden Entwicklung (z.B. `0.6.0`, sobald die Arbeit an 0.6.0 beginnt). So überschreiben Test-EXEs nicht die offizielle EXE der Vorgängerversion in `releases/` und sind eindeutig der laufenden Entwicklung zuordenbar. Die offizielle Release-Notes-Veröffentlichung der neuen Version bleibt dennoch der letzte Schritt im Versionssprung (siehe Release-Prozess unten).
+- `releases/` ist per `.gitignore` ausgeschlossen, der Build-Output landet nicht im Repo.
+
 ## Release-Prozess: Tag + GitHub-Release bei jedem Versionssprung
 
 Wenn ein Commit eine neue Version setzt (z.B. `package.json` von `0.4.0` auf `0.5.0`), nach `git push` **immer zusätzlich** folgendes durchführen — sonst ist die neue Version nur als Commit, aber nicht als Release auf GitHub sichtbar (und der Hauptmonitor unter „Releases" zeigt weiter die alte Version als „Latest").
