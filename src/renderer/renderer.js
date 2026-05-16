@@ -61,7 +61,21 @@ const state = {
   activePaneIndex: 0,
   language: 'en',
   restoreSession: true,
+  autoSave: false,
 };
+
+// Dialog-Tracking fuer Auto-Save: solange ein modaler Dialog (Schliessen-
+// Dialog, Konflikt-Dialog, Save-As-Dialog) laeuft, soll Auto-Save nicht
+// triggern. withDialog kapselt asynchrone Dialog-Calls.
+let dialogActive = false;
+async function withDialog(fn) {
+  dialogActive = true;
+  try { return await fn(); }
+  finally { dialogActive = false; }
+}
+
+let autoSaveTimer = null;
+let hintTimer = null;
 
 function createEmptyPane() {
   return { tabs: [], activeIndex: -1 };
@@ -100,6 +114,7 @@ const emptyState = $('#empty-state');
 const dropOverlay = $('#drop-overlay');
 const langSelect = $('#lang-select');
 const btnEdit = $('#btn-edit');
+const statusbarHint = $('#statusbar-hint');
 const contextMenu = $('#context-menu');
 const aboutModal = $('#about-modal');
 const aboutVersionEl = $('#about-version');
@@ -166,6 +181,7 @@ function createEditorState(opts = {}) {
           updateWindowTitle();
         }
         if (tab.viewMode === 'split') schedulePreviewUpdate(pIdx);
+        scheduleAutoSave();
       }),
     ],
   });
@@ -311,6 +327,7 @@ async function init() {
   // die eigentliche Restore-Entscheidung trifft der Main-Prozess vor dem
   // Fenster-Aufbau).
   state.restoreSession = await api.getSetting('restoreSession');
+  state.autoSave = !!(await api.getSetting('autoSave'));
 
   // Bindings
   bindUi();
@@ -536,6 +553,11 @@ function bindUi() {
   api.onMenuToggleWordWrap(() => toggleWrapLines());
   api.onMenuSave(() => saveCurrentTab());
   api.onMenuSaveAs(() => saveCurrentTabAs());
+  api.onMenuToggleAutoSave(async () => {
+    state.autoSave = !state.autoSave;
+    await api.setSetting('autoSave', state.autoSave);
+    if (state.autoSave) performAutoSave();
+  });
   api.onMenuOpenHelp(() => showHelp());
   api.onMenuOpenAbout(() => showAbout());
   api.onMenuToggleRestoreSession(async () => {
@@ -548,26 +570,33 @@ function bindUi() {
   // Wenn der Nutzer "Abbrechen" waehlt, wird das Schliessen abgebrochen,
   // sonst confirmClose() an Main melden.
   api.onWindowRequestClose(async () => {
-    const dirty = [];
-    for (let p = 0; p < state.panes.length; p++) {
-      for (let i = 0; i < state.panes[p].tabs.length; i++) {
-        const tb = state.panes[p].tabs[i];
-        if (tb.dirty) dirty.push({ paneIdx: p, tabIdx: i, tab: tb });
+    await withDialog(async () => {
+      const dirty = [];
+      for (let p = 0; p < state.panes.length; p++) {
+        for (let i = 0; i < state.panes[p].tabs.length; i++) {
+          const tb = state.panes[p].tabs[i];
+          if (tb.dirty) dirty.push({ paneIdx: p, tabIdx: i, tab: tb });
+        }
       }
-    }
-    for (const d of dirty) {
-      activatePane(d.paneIdx);
-      activateTab(d.paneIdx, d.tabIdx);
-      const detail = d.tab.path || t('save.untitled');
-      const result = await api.confirmCloseDirty({ detail });
-      if (result === 'cancel') return; // Schliessen abgebrochen
-      if (result === 'save') {
-        const ok = await saveTab(d.paneIdx, d.tabIdx);
-        if (!ok) return; // Speichern abgebrochen/gescheitert
+      for (const d of dirty) {
+        activatePane(d.paneIdx);
+        activateTab(d.paneIdx, d.tabIdx);
+        const detail = d.tab.path || t('save.untitled');
+        const result = await api.confirmCloseDirty({ detail });
+        if (result === 'cancel') return; // Schliessen abgebrochen
+        if (result === 'save') {
+          const ok = await saveTab(d.paneIdx, d.tabIdx);
+          if (!ok) return; // Speichern abgebrochen/gescheitert
+        }
+        // 'discard': fortfahren ohne Speichern
       }
-      // 'discard': fortfahren ohne Speichern
-    }
-    api.confirmClose();
+      api.confirmClose();
+    });
+  });
+
+  // Auto-Save bei Fenster-Fokusverlust (Wechsel in andere App oder Fenster).
+  window.addEventListener('blur', () => {
+    if (state.autoSave) performAutoSave();
   });
 
   initOuterSplitter();
@@ -788,7 +817,7 @@ async function closeTab(paneIdx, tabIdx, opts = {}) {
     activatePane(paneIdx);
     activateTab(paneIdx, tabIdx);
     const detail = tab.path || t('save.untitled');
-    const result = await api.confirmCloseDirty({ detail });
+    const result = await withDialog(() => api.confirmCloseDirty({ detail }));
     if (result === 'cancel') return;
     if (result === 'save') {
       const ok = await saveTab(paneIdx, tabIdx);
@@ -1096,7 +1125,7 @@ async function reloadFile(filePath) {
 
     // Dirty-Buffer: nicht stillschweigend ueberschreiben, sondern Nutzer fragen.
     if (tab.dirty) {
-      const choice = await api.confirmConflict({ detail: filePath });
+      const choice = await withDialog(() => api.confirmConflict({ detail: filePath }));
       if (choice !== 'reload') {
         // 'keepOurs': Buffer behalten. Beim naechsten Save wird der externe
         // Stand ueberschrieben — der originalContent bleibt jetzt aus
@@ -1279,6 +1308,63 @@ function saveCurrentTabAs() {
   const pane = state.panes[state.activePaneIndex];
   if (!pane || pane.activeIndex < 0) return Promise.resolve(false);
   return saveTabAs(state.activePaneIndex, pane.activeIndex);
+}
+
+// --- Auto-Save (opt-in) ----------------------------------------------------
+// Aktiviert per Toggle im Datei-Menue. Speichert nach 2 s Inaktivitaet (per
+// scheduleAutoSave aus dem EditorView-Update-Listener) und bei Fenster-
+// Fokusverlust alle dirtigen Tabs, die einen Pfad haben. Tabs ohne Pfad
+// ("Unbenannt") werden nicht automatisch gespeichert.
+
+function showStatusbarHint(messageKey, opts = {}) {
+  if (!statusbarHint) return;
+  const { error = false, duration = 1000 } = opts;
+  statusbarHint.textContent = t(messageKey);
+  statusbarHint.classList.toggle('error', error);
+  statusbarHint.classList.add('visible');
+  if (hintTimer) clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => {
+    statusbarHint.classList.remove('visible');
+    hintTimer = null;
+  }, duration);
+}
+
+function scheduleAutoSave() {
+  if (!state.autoSave) return;
+  if (autoSaveTimer) clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => {
+    autoSaveTimer = null;
+    performAutoSave();
+  }, 2000);
+}
+
+async function performAutoSave() {
+  if (!state.autoSave) return;
+  if (dialogActive) return;
+  let savedAny = false;
+  let failed = false;
+  for (let p = 0; p < state.panes.length; p++) {
+    for (let i = 0; i < state.panes[p].tabs.length; i++) {
+      const tab = state.panes[p].tabs[i];
+      if (!tab.dirty || !tab.path) continue;
+      try {
+        await api.saveFile(tab.path, tab.content);
+        tab.originalContent = tab.content;
+        tab.dirty = false;
+        renderTabbar(p);
+        savedAny = true;
+      } catch (err) {
+        console.error('Auto-Save fehlgeschlagen:', tab.path, err);
+        failed = true;
+      }
+    }
+  }
+  if (savedAny) updateWindowTitle();
+  if (failed) {
+    showStatusbarHint('statusbar.saveFailed', { error: true, duration: 3000 });
+  } else if (savedAny) {
+    showStatusbarHint('statusbar.saved', { duration: 1000 });
+  }
 }
 
 // Klick auf den Stift-Toggle in der Statusbar bzw. Strg+E. Im Render-Modus

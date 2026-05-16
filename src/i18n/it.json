@@ -116,5 +116,8 @@
   "menu.help.help": "Aiuto",
   "menu.help.about": "Informazioni…",
   "menu.help.restoreSession": "Ripristina sessione",
+  "menu.file.autoSave": "Salvataggio automatico",
+  "statusbar.saved": "Salvato",
+  "statusbar.saveFailed": "Salvataggio non riuscito",
   "statusbar.edit": "Modifica (Ctrl+E)"
 }

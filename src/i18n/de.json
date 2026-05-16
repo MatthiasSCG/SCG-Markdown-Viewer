@@ -116,5 +116,8 @@
   "menu.help.help": "Hilfe",
   "menu.help.about": "Über…",
   "menu.help.restoreSession": "Sitzung wiederherstellen",
+  "menu.file.autoSave": "Automatisch speichern",
+  "statusbar.saved": "Gespeichert",
+  "statusbar.saveFailed": "Speichern fehlgeschlagen",
   "statusbar.edit": "Bearbeiten (Strg+E)"
 }

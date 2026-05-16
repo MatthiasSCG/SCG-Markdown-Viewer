@@ -177,6 +177,27 @@ body {
 }
 .btn-edit svg { display: block; }
 
+/* Statusbar-Hinweis fuer Auto-Save ("Gespeichert" / "Speichern fehlgeschlagen").
+   Wird vom Renderer mit Klasse .visible eingeblendet, faden nach Ablauf
+   automatisch wieder aus. */
+.statusbar-hint {
+  font-size: 12px;
+  color: var(--fg-muted);
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.statusbar-hint.visible {
+  opacity: 1;
+}
+.statusbar-hint.error {
+  color: #c0392b;
+}
+[data-theme="dark"] .statusbar-hint.error {
+  color: #ff7b72;
+}
+
 select {
   background: var(--bg-alt);
   color: var(--fg);

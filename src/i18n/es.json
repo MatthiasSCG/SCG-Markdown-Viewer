@@ -116,5 +116,8 @@
   "menu.help.help": "Ayuda",
   "menu.help.about": "Acerca de…",
   "menu.help.restoreSession": "Restaurar sesión",
+  "menu.file.autoSave": "Guardado automático",
+  "statusbar.saved": "Guardado",
+  "statusbar.saveFailed": "Error al guardar",
   "statusbar.edit": "Editar (Ctrl+E)"
 }

@@ -151,6 +151,7 @@ contextBridge.exposeInMainWorld('api', {
   onMenuToggleWordWrap: (cb) => ipcRenderer.on('menu:toggleWordWrap', () => cb()),
   onMenuSave: (cb) => ipcRenderer.on('menu:save', () => cb()),
   onMenuSaveAs: (cb) => ipcRenderer.on('menu:saveAs', () => cb()),
+  onMenuToggleAutoSave: (cb) => ipcRenderer.on('menu:toggleAutoSave', () => cb()),
   onMenuOpenHelp: (cb) => ipcRenderer.on('menu:openHelp', () => cb()),
   onMenuOpenAbout: (cb) => ipcRenderer.on('menu:openAbout', () => cb()),
   onMenuToggleRestoreSession: (cb) => ipcRenderer.on('menu:toggleRestoreSession', () => cb()),

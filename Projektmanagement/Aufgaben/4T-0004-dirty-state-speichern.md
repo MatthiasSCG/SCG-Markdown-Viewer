@@ -1,6 +1,6 @@
 # 4T-0004 — Dirty-State, Speichern, Speichern unter, Schließen-Dialog
 
-**Status**: In Umsetzung
+**Status**: Erledigt
 **Epic**: [3E-0001 — Edit-Modus, Menüleiste und Layout-Reorganisation](3E-0001-edit-modus-und-menue.md)
 **Zielversion**: 0.6.0
 
@@ -102,7 +102,30 @@ Umsetzung in zwei Phasen — Phase 1 (Dirty-State, Speichern, Konflikt-Dialog, S
 
 **i18n (5 Sprachen)** — 13 neue Keys: `save.unsavedTitle`, `save.unsavedMessage`, `save.btnSave`, `save.btnDiscard`, `save.btnCancel`, `save.conflictTitle`, `save.conflictMessage`, `save.conflictReload`, `save.conflictKeepOurs`, `save.saveAsTitle`, `save.untitled`, `save.errorTitle`, `save.errorMessage`.
 
-### Phase 2 — offen
+### Phase 2 — erledigt
 
-- Auto-Save (opt-in): Toggle im Datei-Menü oberhalb von „Speichern" mit Häkchen, persistent als `autoSave: boolean`. Trigger 2 s Inaktivität **oder** Fenster-Fokusverlust. Voraussetzung: Buffer hat Datei-Pfad. UI-Feedback: 1-Sek-Statusbar-Hinweis „Gespeichert", Schreibfehler 3-Sek-Hinweis „Speichern fehlgeschlagen".
-- App-weiter Pre-Quit-Check für saubere Quit-UX (aktuell läuft Window-Close pro Fenster, was die meisten Fälle abdeckt, aber bei „Datei → Beenden" mit mehreren Fenstern unschöne Zwischenstände erzeugt). Optional — eventuell erst 0.7.
+Auto-Save als opt-in-Feature umgesetzt.
+
+**Menü und IPC**:
+- `src/main/menu.js`: neuer Toggle-Eintrag „Automatisch speichern" oberhalb von „Speichern", `type: 'checkbox'`, gebunden an `state.autoSave` aus den Settings.
+- `src/main/main.js`: `getMenuState` liefert `autoSave`; `settings:set` triggert `applyMenuToAllWindows` auch bei `autoSave`-Wechsel. Neue Action `actions.toggleAutoSave` schickt `menu:toggleAutoSave` per IPC.
+- `src/main/preload.js`: `onMenuToggleAutoSave`-Listener.
+
+**Auto-Save-Logik (`src/renderer/renderer.js`)**:
+- `state.autoSave` wird in `init()` aus den Settings gelesen.
+- `scheduleAutoSave()` (2 s Debounce) wird im `EditorView.updateListener` bei jedem Doc-Change angestoßen.
+- `window.addEventListener('blur', ...)` triggert `performAutoSave` zusätzlich bei Fenster-Fokusverlust (Wechsel in andere App oder anderes Fenster).
+- `performAutoSave()` iteriert alle Panes/Tabs und schreibt jeden dirty-Tab mit Pfad via `api.saveFile`. Tabs ohne Pfad („Unbenannt", kommt in 4T-0006) werden nicht automatisch gespeichert.
+- Dialog-Suppression: globale Flag `dialogActive` plus `withDialog`-Wrapper um Schließen-Dialog, Konflikt-Dialog und Window-Close-Schleife. Während ein Dialog läuft, springt `performAutoSave` wirkungsfrei ab.
+
+**UI-Feedback**:
+- `src/renderer/index.html`: `<span id="statusbar-hint">` in der Statusbar rechts vom Edit-Toggle, `aria-live="polite"`.
+- `src/renderer/styles.css`: `.statusbar-hint` mit fade-in/out (opacity 0.2 s); `.statusbar-hint.error` in Rot (Light `#c0392b`, Dark `#ff7b72`).
+- `showStatusbarHint(messageKey, opts)` zeigt 1 s „Gespeichert" bei Erfolg, 3 s „Speichern fehlgeschlagen" in Rot bei Fehler.
+
+**i18n (5 Sprachen)** — 3 neue Keys: `menu.file.autoSave`, `statusbar.saved`, `statusbar.saveFailed`.
+
+### Weiterhin offen (eventuell erst 0.7)
+
+- App-weiter Pre-Quit-Check für saubere Quit-UX bei mehreren Fenstern. Aktuell läuft Window-Close pro Fenster, was die meisten Fälle abdeckt; bei „Datei → Beenden" mit mehreren offenen Fenstern kann ein Zwischenstand entstehen, in dem ein Fenster bereits zu ist, ein anderes (Abbrechen) noch offen. Sauberes Pre-Quit auf 0.7-Roadmap.
+- Sauberer Transfer dirtiger Buffer bei „Tab in neues Fenster verschieben" (heute geht der Buffer-Inhalt verloren, weil das neue Fenster die Datei vom Disk lädt). Ebenfalls 0.7-Kandidat.

@@ -112,6 +112,12 @@ function buildMenu(win, state, actions) {
         },
         { type: 'separator' },
         {
+          label: t('menu.file.autoSave'),
+          type: 'checkbox',
+          checked: !!(state && state.autoSave),
+          click: () => { if (actions && actions.toggleAutoSave) actions.toggleAutoSave(); },
+        },
+        {
           label: t('menu.file.save'),
           accelerator: 'CmdOrCtrl+S',
           enabled: !!(state && state.hasActiveTab),

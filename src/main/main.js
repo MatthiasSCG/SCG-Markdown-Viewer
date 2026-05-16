@@ -291,6 +291,7 @@ function getMenuState(id) {
     togglesEnabled: !!base.togglesEnabled,
     hasActiveTab: !!base.hasActiveTab,
     restoreSession: !!(store && store.get('restoreSession')),
+    autoSave: !!(store && store.get('autoSave')),
     recentFiles: (store && store.get('recentFiles')) || [],
   };
 }
@@ -306,6 +307,9 @@ function applyMenuToWindow(win) {
     },
     saveAs: () => {
       if (!win.isDestroyed()) win.webContents.send('menu:saveAs');
+    },
+    toggleAutoSave: () => {
+      if (!win.isDestroyed()) win.webContents.send('menu:toggleAutoSave');
     },
   };
   const menu = buildMenu(win, state, actions);
@@ -554,7 +558,7 @@ function registerIpc() {
     store?.set(key, value);
     // Menue-relevante Settings spiegeln sich in den Haekchen wider. Bei einem
     // Wechsel in einem Fenster muessen alle Fenster-Menues angepasst werden.
-    if (key === 'restoreSession') applyMenuToAllWindows();
+    if (key === 'restoreSession' || key === 'autoSave') applyMenuToAllWindows();
   });
 
   // Renderer meldet ein aktives Datei-Oeffnen, damit der Pfad in die Recent-
