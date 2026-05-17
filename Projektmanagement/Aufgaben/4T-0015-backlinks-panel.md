@@ -91,11 +91,16 @@ Datei-Anzeigename der aktiven Datei plus kleines Info-Symbol. Hover-Tooltip am I
 
 #### Klick-Verhalten
 
-- Klick auf einen Treffer-Eintrag oder einen Quelldatei-Header:
-  - **Wenn die Quelldatei in irgendeiner Spalte oder Pane des aktiven Fensters bereits offen ist**: bestehender Tab wird aktiviert (analog zur Wiki-Link-Klick-Logik, siehe `findTabAcrossPanes` in [src/renderer/renderer.js](src/renderer/renderer.js)).
-  - **Wenn nicht offen**: neuer Tab in der aktiven Spalte des aktiven Fensters.
-  - **In beiden Fällen** wird der Cursor auf die Treffer-Zeile gesetzt und die Zeile in den sichtbaren Bereich gescrollt.
-- Klick auf den Quelldatei-Gruppen-Header verhält sich wie Klick auf den ersten Treffer in der Gruppe.
+Eine neue Renderer-interne Helper-Funktion `openOrJumpToPath(path, line)` kapselt die Logik:
+
+1. Tab finden über das bestehende `findTabAcrossPanes(path)` in [src/renderer/renderer.js:820](src/renderer/renderer.js:820) (Signatur `(path) → {paneIdx, tabIdx} | null`).
+2. **Wenn gefunden**: zugehörige Pane aktivieren (`activatePane`), Tab aktivieren (`activateTab`), Cursor auf `line` setzen und Zeile in den sichtbaren Bereich scrollen.
+3. **Wenn nicht gefunden**: neuen Tab in der aktiven Spalte anlegen (analog zum heutigen `openInPane`), Cursor nach dem Laden auf `line` setzen.
+
+Diese Helper-Funktion wird vom Backlinks-Panel beim Klick auf Treffer-Einträge und Quelldatei-Gruppen-Header aufgerufen. Sie kapselt den Cursor-Sprung, den das heutige `findTabAcrossPanes` allein nicht bietet, und ist damit auch eine kleine Vorarbeit für künftige Sprung-Aufrufer.
+
+- **Klick auf einen Treffer-Eintrag**: `openOrJumpToPath(quelldatei, treffer.zeile)`.
+- **Klick auf einen Quelldatei-Gruppen-Header**: wie Klick auf den ersten Treffer in der Gruppe.
 
 ### Live-Updates
 
@@ -161,18 +166,18 @@ Datei-Anzeigename der aktiven Datei plus kleines Info-Symbol. Hover-Tooltip am I
 
 - `src/main/main.js` — Index-Aufbau und -Verwaltung pro Wurzel; chokidar-Watcher mit `depth: 2`; Reference-Counting mit 60-s-Soft-Timer; Hard-Cap-Prüfung; IPC-Handler `backlinks:requestFor`; Broadcasts `backlinks:resultsFor` und `backlinks:invalidated`.
 - `src/main/preload.js` — neue API-Methoden für Backlinks-Anfrage und Live-Update-Listener.
-- `src/renderer/renderer.js` — Backlinks-Panel-Logik, Status-abhängige UI (`indexing`/`ready`/`oversized`/`unavailable`), Render der Ergebnisliste gruppiert pro Quelldatei, Klick-Handler mit Tab-Wiederverwendung via `findTabAcrossPanes`, Live-Update-Listener, Request-Tagging für Tab-Wechsel-Races.
+- `src/renderer/renderer.js` — Backlinks-Panel-Logik, Status-abhängige UI (`indexing`/`ready`/`oversized`/`unavailable`), Render der Ergebnisliste gruppiert pro Quelldatei, neue Helper-Funktion `openOrJumpToPath(path, line)` (Tab-Wiederverwendung via `findTabAcrossPanes` plus Cursor-Sprung), Klick-Handler, Live-Update-Listener, Request-Tagging für Tab-Wechsel-Races.
 - `src/renderer/index.html` — Container für das Backlinks-Panel im Sidebar, Statusbar-Toggle-Button.
 - `src/renderer/styles.css` — Layout, Liste, Gruppen-Header, Empty-State, Snippet-Style, Indexier-Spinner, Theme-Anpassungen.
 - `src/main/menu.js` — neuer Menüpunkt `Ansicht → Backlinks` als Toggle mit Häkchen, Tastenkürzel `Strg+Umschalt+B` registriert.
 - `src/i18n/{de,en,fr,es,it}.json` — Keys: Panel-Titel, drei Empty-States (`keine Treffer`, `zu groß`, `Unbenannt`), Suchpfad-Tooltip mit Tiefen-Erklärung, Indexier-Hinweis, Treffer-Format-Texte. Etwa acht bis zehn neue Keys pro Sprache.
 - `package.json` — keine neuen Dependencies (chokidar ist bereits drin seit 0.3.x).
 
-## Implementierungs-Recherche (vor Umsetzungsbeginn)
+## Implementierungs-Recherche (teilweise geklärt vor Umsetzungsbeginn)
 
-- `chokidar` mit `depth: 2` und Markdown-Filter auf Windows: Update-Performance und mögliche Plattform-Spezifika verifizieren (Symlinks, Netzwerk-Laufwerke, fs-event-Konsolidierung).
-- Markdown-Link-Erkennung: eigene Regex (schnell, simpel) versus markdown-it-Parsing (genauer, aber teurer). Vorschlag Regex, weil performance-kritisch und Markdown-Link-Syntax eindeutig genug.
-- Konkreter Wert für die Snippet-Breite (Zeichen-Limit für Ellipsen): während der Umsetzung festlegen, abhängig von der gewählten Sidebar-Breite. Vorschlag ca. 80 Zeichen bei 260 px Sidebar-Default.
-- Existenz und Signatur von `findTabAcrossPanes` in `src/renderer/renderer.js` validieren und ggf. um Cursor-Positionierungs-Parameter erweitern, falls die Funktion das heute nicht unterstützt.
+- **`chokidar` 4.0.3 mit `depth: 2`**: bereits als Dependency vorhanden ([node_modules/chokidar/package.json](node_modules/chokidar/package.json)). Die Option `depth` ist in chokidar 4 voll unterstützt: limitiert die Rekursionstiefe ausgehend von der Wurzel; `depth: 2` ergibt Wurzel + 2 zusätzliche Ebenen wie spezifiziert. Plattform-Spezifika auf Windows (Symlinks, Netzwerk-Laufwerke, fs-event-Konsolidierung) bleiben Detail-Punkte für die Umsetzung, kein Show-Stopper.
+- **`findTabAcrossPanes`**: existiert in [src/renderer/renderer.js:820](src/renderer/renderer.js:820) mit Signatur `(path) → {paneIdx, tabIdx} | null`. Cursor-Positionierung ist heute nicht Teil der Signatur und wird über die neue Helper-Funktion `openOrJumpToPath(path, line)` ergänzt (siehe Klick-Verhalten oben).
+- **Markdown-Link-Erkennung im Index**: bleibt offen, ob eigene Regex oder markdown-it-Parsing. Vorschlag eigene Regex, weil performance-kritisch und Markdown-Link-Syntax eindeutig genug. Endgültige Entscheidung beim Umsetzungsstart.
+- **Snippet-Breite** (Zeichen-Limit für Ellipsen): während der Umsetzung festlegen, abhängig von der gewählten Sidebar-Breite. Vorschlag ca. 80 Zeichen bei 260 px Sidebar-Default.
 
 ## Lösung

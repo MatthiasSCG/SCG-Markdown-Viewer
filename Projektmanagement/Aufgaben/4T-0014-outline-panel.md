@@ -55,9 +55,13 @@ Das Outline-Panel nimmt keinen Tastatur-Fokus. Pfeiltasten, Enter und Leertaste 
 
 - **Klick auf den Heading-Text** (Sprung-Klick):
   - Im Quellcode- oder Geteilt-Modus: Cursor in die entsprechende Heading-Zeile setzen, Zeile in den sichtbaren Bereich scrollen. **Falls die zugehörige Region im Editor zugeklappt ist, wird sie vorher automatisch entfaltet** (Aufruf `unfoldHeadingRegion(line)` aus 4T-0013).
-  - Im Render-Modus: Render-Pane scrollt zum entsprechenden `<h*>`-Anker. Dazu wird die bestehende Anker-Logik aus den `#anker`-Links im Markdown-Renderer wiederverwendet (Anker-Slug aus dem Heading-Text, wie heute schon im Render-Pane berechnet).
+  - Im Render-Modus: Render-Pane scrollt zum entsprechenden `<h*>`-Anker. Dazu wird die markdown-it-Pipeline in [src/main/preload.js](src/main/preload.js) um das Plugin **`markdown-it-anchor`** erweitert, das auf allen Headings ID-Attribute mit GitHub-kompatiblen Slugs setzt. Der Sprung erfolgt anschließend über den heute schon vorhandenen `#anker`-Handler in `handleRenderedClick` ([src/renderer/renderer.js:1374](src/renderer/renderer.js:1374)), der `target.scrollIntoView` aufruft.
 - **Klick auf den Falt-Indikator** (reiner Folding-Toggle):
   - Toggelt die Editor-Region per `foldHeadingRegion(line)` bzw. `unfoldHeadingRegion(line)` aus 4T-0013, ohne den Cursor zu bewegen und ohne im Render-Pane zu scrollen.
+
+### Seiteneffekt: `#anker`-Links generell funktionsfähig
+
+Die Einbindung von `markdown-it-anchor` ist im Kern eine Voraussetzung für den Outline-Sprung im Render-Modus. Sie repariert aber als Seiteneffekt ein bisher latentes Problem: Der `#anker`-Zweig in `handleRenderedClick` ([src/renderer/renderer.js:1374](src/renderer/renderer.js:1374)) hat seit dem ersten Release Markdown-Anker-Links wie `[Link](#mein-heading)` zwar entgegengenommen, aber wegen fehlender Heading-IDs nichts gefunden und damit stillschweigend nicht gescrollt. Mit `markdown-it-anchor` setzen Headings ab 0.8.0 reguläre IDs, und Anker-Links innerhalb eines Dokuments funktionieren erstmals erwartungsgemäß. Im CHANGELOG-Eintrag von 0.8.0 ist das als „Behoben" festzuhalten.
 
 ### Synchronisation Outline ↔ Editor/Render
 
@@ -128,6 +132,12 @@ Bei einer Datei ohne Headings erscheint ein lokalisierter Hinweistext:
 
 - Bei Datei ohne Headings erscheint der lokalisierte Hinweistext „Keine Überschriften in diesem Dokument" (in den anderen vier Sprachen sinngemäß).
 
+**Render-Modus-Sprung und `#anker`-Links:**
+
+- Heading-Elemente im Render-Pane tragen ab 0.8.0 ID-Attribute mit GitHub-kompatiblen Slugs (z.B. „Mein Heading" → `id="mein-heading"`), erzeugt durch `markdown-it-anchor`.
+- Outline-Klick im Render-Modus scrollt zum entsprechenden Heading.
+- Dokument-interne Anker-Links der Form `[Text](#slug)` funktionieren ab 0.8.0 ebenfalls (vorher latent kaputt).
+
 **Sonstiges:**
 
 - Sprachwechsel aktualisiert die UI-Texte (Toggle-Label, Empty-State, Tooltips) live in allen offenen Fenstern.
@@ -138,13 +148,14 @@ Bei einer Datei ohne Headings erscheint ein lokalisierter Hinweistext:
 - `src/renderer/renderer.js` — Heading-Extraktion aus `syntaxTree`, Render des Baums, zwei getrennte Klick-Bereiche pro Eintrag, Cursor- und Scroll-Listener für Aktiv-Sektion, Sichtbarkeits-Toggle, Splitter-Logik, Folding-Sync-Listener.
 - `src/renderer/styles.css` — Sidebar-Layout, Baum-Einrückung, Falt-Indikator-Icons, Aktiv-Hervorhebung, Splitter, Theme-Anpassungen.
 - `src/main/main.js` — Settings-Erweiterung (`outline.visible`, `sidebar.width`), Synchronisation des Menü-Häkchens mit dem Renderer-Zustand der aktiven Spalte.
-- `src/main/preload.js` — IPC für Sichtbarkeits-Persistenz und Menü-Häkchen-Sync.
+- `src/main/preload.js` — Integration von `markdown-it-anchor` in die markdown-it-Pipeline; IPC für Sichtbarkeits-Persistenz und Menü-Häkchen-Sync.
 - `src/main/menu.js` — neuer Menüpunkt `Ansicht → Inhaltsverzeichnis` als Toggle mit Häkchen, Tastenkürzel `Strg+Umschalt+O` registriert.
 - `src/i18n/{de,en,fr,es,it}.json` — Keys: Panel-Titel, Toggle-Label (Statusbar und Menü), Empty-State, Tooltips. Konkret etwa fünf bis sieben neue Keys pro Sprache.
+- `package.json` — neue Dependency `markdown-it-anchor`.
 
-## Implementierungs-Recherche (vor Umsetzungsbeginn)
+## Implementierungs-Recherche (geklärt vor Umsetzungsbeginn)
 
-- Bestehende Anker-Slug-Berechnung im Markdown-Renderer für `#anker`-Links (`preload.js`) im Detail prüfen, damit der Render-Pane-Sprung exakt dieselbe Slug-Regel nutzt.
-- Settings-Schema-Design: ob `outline.visible.column0/1` direkt im Settings-Schema landet oder über einen verschachtelten `sidebar`-Bereich aufgebaut wird. Mit dem Backlinks-Panel aus 4T-0015 abstimmen.
+- **Anker-Slug-Berechnung im Render-Pane**: heute nicht vorhanden, weil markdown-it ohne entsprechendes Plugin keine IDs auf Headings setzt. Lösung: `markdown-it-anchor` als neue Dependency, GitHub-kompatible Slug-Regel als Default. Repariert dabei den seit Release 0.1 latenten `#anker`-Bug.
+- **Settings-Schema-Design**: bleibt als Detail-Design-Punkt während der Umsetzung offen, ob `outline.visible.column0/1` direkt im Settings-Schema landet oder über einen verschachtelten `sidebar`-Bereich aufgebaut wird. Mit dem Backlinks-Panel aus 4T-0015 abstimmen.
 
 ## Lösung

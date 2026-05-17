@@ -12,13 +12,13 @@ Längere Markdown-Dokumente sind im Quellcode-Pane heute nur durch Scrollen oder
 
 ### Folding-Engine
 
-CodeMirror 6 bietet ein `foldGutter` und einen `foldService`-Mechanismus, der pro Sprachpaket Folding-Regions definieren kann. Für Markdown wird der `foldService` so erweitert, dass jeder Heading-Knoten im `syntaxTree` eine klappbare Region eröffnet.
+Heading-Folding ist im Sprachpaket `@codemirror/lang-markdown` (Version 6.5) **bereits eingebaut**. Die Bibliothek registriert per `foldService.of(...)` einen Service, der jeden Heading-Knoten (ATX und Setext) im `syntaxTree` erkennt und über die interne `findSectionEnd`-Logik die Region bis zum Beginn des nächsten Headings mit Stufe `<= N` bzw. zum Datei-Ende auflöst. Verschachtelung wird mitbedient.
 
-- **Region-Definition**: Ein Heading der Stufe `N` (ATX oder Setext) eröffnet eine Region, die bis zum Beginn des nächsten Headings mit Stufe `<= N` oder zum Datei-Ende reicht.
-  - **ATX**: `#` bis `######` am Zeilenanfang.
-  - **Setext**: `Heading\n====` (Stufe 1) und `Heading\n----` (Stufe 2). Werden mitberücksichtigt, weil das Markdown-Sprachpaket sie als reguläre Heading-Knoten liefert.
-- **Verschachtelung**: Regions können beliebig tief verschachtelt sein. Ein `##`-Heading innerhalb eines `#`-Bereichs eröffnet eine innere Region, die unabhängig von der äußeren ein- und ausklappbar ist.
-- **Quelle der Heading-Knoten**: `syntaxTree` der CodeMirror-Markdown-Sprachpaket-Instanz. Falls das Sprachpaket bereits eine `foldNodeProp`-Definition für Headings mitbringt (siehe Implementierungs-Recherche), wird sie genutzt; andernfalls eigene Implementierung über `syntaxTree`-Traversal.
+- **Konsequenz für 4T-0013**: Die Region-Definition muss **nicht selbst implementiert** werden. Es reicht:
+  - In den CodeMirror-Extensions `foldGutter()` (aus `@codemirror/language`) ergänzen.
+  - Das bereits genutzte `markdownLanguage`-Sprachpaket bleibt unverändert; der `foldService` wirkt automatisch.
+- **ATX-** (`#` bis `######`) und **Setext-Headings** (`Heading\n====`, `Heading\n----`) werden gleichermaßen erfasst, weil das Sprachpaket beide als Heading-Knoten markiert.
+- **Verschachtelung**: Regions können beliebig tief verschachtelt sein, ein `##`-Heading innerhalb eines `#`-Bereichs eröffnet eine innere Region, die unabhängig von der äußeren ein- und ausklappbar ist.
 
 ### Falt-Indikatoren am Gutter
 
@@ -91,9 +91,9 @@ Konkret:
 - `src/renderer/styles.css` — Gutter-Styles für Falt-Indikatoren (Light und Dark).
 - `src/i18n/{de,en,fr,es,it}.json` — Hilfe-Dialog-Texte (im Sammeltask am Epic-Ende, nicht in 4T-0013 selbst).
 
-## Implementierungs-Recherche (vor Umsetzungsbeginn)
+## Implementierungs-Recherche (geklärt vor Umsetzungsbeginn)
 
-- Prüfen, ob `@codemirror/lang-markdown` bereits eine `foldNodeProp`-Definition für ATX- und Setext-Heading-Knoten mitbringt. Falls ja, kann die eigene Region-Definition entfallen; falls nein, eigene Implementierung über `syntaxTree`-Traversal.
-- Konkrete CodeMirror-6-API für externen Read-/Write-Zugriff auf den `foldState`: `foldedRanges`, `foldEffect`, `unfoldEffect` im Detail prüfen und in einem kurzen Spike-Snippet validieren.
+- **Heading-Folding im Sprachpaket**: in `@codemirror/lang-markdown` 6.5 bereits enthalten (siehe `node_modules/@codemirror/lang-markdown/dist/index.cjs`, `foldService.of(...)` mit `findSectionEnd`-Logik). Keine eigene Implementierung der Region-Definition nötig.
+- **Read-/Write-API für externen Zugriff auf den `foldState`**: `foldedRanges(state)` für Read, `foldEffect`/`unfoldEffect` für Write, alle aus `@codemirror/language`. Change-Notification über einen eigenen `ViewPlugin` mit `update()`-Callback, der `transaction.effects` auf diese Effect-Typen filtert und ein DOM-Custom-Event auslöst.
 
 ## Lösung
