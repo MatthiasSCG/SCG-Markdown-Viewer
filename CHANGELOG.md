@@ -7,6 +7,16 @@ Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+### Neu
+
+- **Tab in bestehendes Fenster verschieben oder kopieren** ([4T-0012](Projektmanagement/Aufgaben/4T-0012-tab-in-bestehendes-fenster.md)): Rechtsklick auf einen Tab bietet bei mehreren offenen Fenstern jetzt die Untermenüs „Verschieben in" und „Kopieren in" mit den Einträgen „Neues Fenster" und jeweils einem Eintrag pro anderem offenen Fenster (Label `Fenster N`, Tooltip mit Dateinamen des dortigen aktiven Tabs). Bei nur einem Fenster bleibt die heutige flache Bedienung erhalten. Verschieben übergibt den Tab inklusive ungespeichertem Buffer ans Ziel-Fenster und schließt ihn im Quell-Fenster ohne weiteren Speichern-Dialog; Kopieren lässt den Quell-Tab unverändert.
+- **Fenstertitel mit `(Fenster N)`-Suffix im Mehr-Fenster-Fall** (4T-0012): Sobald mehr als ein Fenster offen ist, hängt jedes Fenster den Suffix `(Fenster N)` an seinen Titel. Die Nummerierung 1..N folgt der Erzeugungsreihenfolge, rückt beim Schließen lückenlos nach und entfällt komplett, sobald nur noch ein Fenster offen ist. Damit sind Quell- und Zielfenster im Tab-Kontextmenü und in der Windows-Taskleiste eindeutig benennbar.
+- **Hilfe-Dialog erweitert** (4T-0012): Beschreibung der Multi-Window-Funktion in allen fünf Sprachen ergänzt um den Bezug auf bestehende Fenster als Ziel und den Titel-Suffix.
+
+### i18n
+
+- **9 neue Keys** in allen fünf Sprachen (Deutsch, Englisch, Französisch, Spanisch, Italienisch): `window.title.suffix`, `tab.menu.moveToSubmenu`, `tab.menu.copyToSubmenu`, `tab.menu.targetNewWindow`, `tab.menu.targetWindowLabel`, `tab.menu.tooltipMoreTabsSuffix`, `statusbar.targetWindowGone`, `statusbar.targetFileMissing`. Plus aktualisierter Wert für `help.feature.multiWindow`.
+
 ## [0.6.0] - 2026-05-16 — Edit-Modus, Statusbar-Layout und SCG-Markdown-Branding
 
 Das größte Update seit dem ersten Release: Der bisherige reine Reader bekommt einen vollwertigen Editor, eine native Menüleiste, eine Statusbar-Bedienung am unteren Rand und einen neuen Namen. Umgesetzt als Epic [3E-0001](Projektmanagement/Aufgaben/3E-0001-edit-modus-und-menue.md) mit 11 Tasks im neuen lokalen PM-System.

@@ -66,7 +66,7 @@
   "help.feature.theme": "Helles und dunkles Theme — automatisch gekoppelt an das Windows-Systemtheme.",
   "help.feature.languages": "Oberfläche in Deutsch, Englisch, Französisch, Spanisch und Italienisch — über den Sprach-Selektor in der Statusbar umschaltbar.",
   "help.feature.windowState": "Fensterposition, -größe und Maximiert-Status werden beim Beenden gemerkt und beim nächsten Start wiederhergestellt.",
-  "help.feature.multiWindow": "Tabs in ein neues Fenster auslagern: Rechtsklick auf den Tab und „In neues Fenster verschieben“ oder „In neues Fenster kopieren“. Mehrere Fenster lassen sich z.B. auf verschiedene Monitore verteilen; bei aktivierter Sitzungs-Wiederherstellung werden alle offenen Fenster beim nächsten Start wieder geöffnet.",
+  "help.feature.multiWindow": "Tabs in ein neues oder bestehendes Fenster auslagern: Rechtsklick auf den Tab und „Verschieben in“ oder „Kopieren in“; bei mehreren offenen Fenstern erscheint ein Untermenü mit allen anderen Fenstern als Ziel. Der Fenstertitel zeigt im Mehr-Fenster-Fall den Suffix „(Fenster N)“, damit Quell- und Zielfenster eindeutig benennbar sind. Mehrere Fenster lassen sich z.B. auf verschiedene Monitore verteilen; bei aktivierter Sitzungs-Wiederherstellung werden alle offenen Fenster beim nächsten Start wieder geöffnet.",
   "help.feature.editMode": "Markdown-Inhalt im Quellcode-Bereich bearbeiten (Stift in der Statusbar oder Strg+E). Edit-Modus ist nur in Quellcode- oder Geteilt-Ansicht möglich; ein Klick auf den Stift im Render-Modus wechselt automatisch in Geteilt und aktiviert den Editor.",
   "help.feature.save": "Speichern (Strg+S) und Speichern unter (Strg+Umschalt+S). Ungespeicherte Änderungen sind mit • im Tab- und Fenstertitel markiert; beim Schließen eines geänderten Tabs erscheint ein Bestätigungsdialog. Bei externer Änderung mit Dirty-Buffer wird gefragt, ob neu geladen oder die eigene Version behalten wird.",
   "help.feature.autoSave": "Optional: automatisches Speichern (Datei → Automatisch speichern). Speichert 2 Sekunden nach der letzten Eingabe oder bei Fenster-Fokusverlust. Tabs ohne Pfad („Unbenannt“) werden nicht automatisch gespeichert.",
@@ -137,5 +137,13 @@
   "menu.file.autoSave": "Automatisch speichern",
   "statusbar.saved": "Gespeichert",
   "statusbar.saveFailed": "Speichern fehlgeschlagen",
-  "statusbar.edit": "Bearbeiten (Strg+E)"
+  "statusbar.edit": "Bearbeiten (Strg+E)",
+  "statusbar.targetWindowGone": "Zielfenster nicht mehr verfügbar",
+  "statusbar.targetFileMissing": "Datei kann nicht gelesen werden",
+  "window.title.suffix": "Fenster {n}",
+  "tab.menu.moveToSubmenu": "Verschieben in",
+  "tab.menu.copyToSubmenu": "Kopieren in",
+  "tab.menu.targetNewWindow": "Neues Fenster",
+  "tab.menu.targetWindowLabel": "Fenster {n}",
+  "tab.menu.tooltipMoreTabsSuffix": "(+{n} weitere)"
 }

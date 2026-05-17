@@ -424,6 +424,29 @@ select {
   background: var(--border);
   margin: 4px 0;
 }
+/* Submenu-Eintrag (4T-0012): Eltern-Item mit ▸ rechts, Submenu absolut rechts
+   daneben verankert. left: 100% setzt das Submenu nahtlos an die rechte Kante,
+   margin-left: -1px ueberbrueckt die 1px-Border, damit beim Mausweg kein Gap
+   entsteht und der Hover-Wechsel ins Submenu zuverlaessig funktioniert. */
+.context-menu-item-submenu {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-right: 10px;
+}
+.context-menu-submenu-arrow {
+  font-size: 10px;
+  color: var(--fg-muted);
+}
+.context-menu-submenu {
+  position: absolute;
+  left: 100%;
+  top: -5px;
+  margin-left: -1px;
+}
+.context-menu-submenu[hidden] { display: none; }
 
 /* === Markdown-Body (Render-Bereich) ====================================== */
 .markdown-body {

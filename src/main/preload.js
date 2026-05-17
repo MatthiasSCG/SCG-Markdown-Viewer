@@ -136,6 +136,10 @@ contextBridge.exposeInMainWorld('api', {
   openNewWindow: (initialTabs) => ipcRenderer.invoke('window:openNew', initialTabs),
   reportPanes: (panes) => ipcRenderer.invoke('window:reportPanes', panes),
   reportMenuState: (state) => ipcRenderer.invoke('window:reportMenuState', state),
+  // 4T-0012: Tab in bestehendes Fenster verschieben/kopieren und Titel-Suffix
+  notifyWindowMeta: (meta) => ipcRenderer.invoke('window:metaChanged', meta),
+  listWindows: () => ipcRenderer.invoke('window:list'),
+  appendTabToWindow: (targetWindowId, payload) => ipcRenderer.invoke('tab:appendToWindow', { targetWindowId, payload }),
 
   // Events vom Main-Prozess
   onFileChanged: (cb) => ipcRenderer.on('file:changed', (_e, p) => cb(p)),
@@ -160,4 +164,12 @@ contextBridge.exposeInMainWorld('api', {
   // Window-Close-Anfrage: Main fragt nach Bestaetigung; Renderer prueft
   // Dirty-Tabs und ruft confirmClose() zurueck.
   onWindowRequestClose: (cb) => ipcRenderer.on('window:requestClose', () => cb()),
+
+  // 4T-0012: Display-Nummer und Gesamtzahl der Fenster — wird bei jedem
+  // Open/Close vom Main gepusht, bestimmt den `(Fenster N)`-Suffix im Titel.
+  onWindowDisplayInfo: (cb) => ipcRenderer.on('window:displayInfo', (_e, info) => cb(info)),
+  // 4T-0012: Tab-Append-Event vom Main, ausgeloest durch Verschieben/Kopieren
+  // aus einem anderen Fenster. Payload = { path, content, dirty, settings,
+  // untitledIndex }.
+  onAppendTabFromOtherWindow: (cb) => ipcRenderer.on('tab:appendFromOtherWindow', (_e, payload) => cb(payload)),
 });

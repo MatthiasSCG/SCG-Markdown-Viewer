@@ -66,7 +66,7 @@
   "help.feature.theme": "Thème clair et sombre — synchronisé automatiquement avec le thème système Windows.",
   "help.feature.languages": "Interface en allemand, anglais, français, espagnol et italien — basculable via le sélecteur de langue dans la barre d'état.",
   "help.feature.windowState": "Position, taille et état maximisé de la fenêtre sont mémorisés à la fermeture et restaurés au prochain lancement.",
-  "help.feature.multiWindow": "Détacher un onglet dans une nouvelle fenêtre : clic droit sur l'onglet puis « Déplacer vers une nouvelle fenêtre » ou « Copier vers une nouvelle fenêtre ». Plusieurs fenêtres peuvent être placées sur différents écrans ; avec la restauration de session activée, toutes les fenêtres ouvertes sont rouvertes au prochain lancement.",
+  "help.feature.multiWindow": "Déplacer un onglet vers une fenêtre nouvelle ou existante : clic droit sur l'onglet puis « Déplacer vers » ou « Copier vers » ; si plusieurs fenêtres sont ouvertes, un sous-menu liste toutes les autres fenêtres comme destinations. Le titre de la fenêtre affiche le suffixe « (Fenêtre N) » lorsque plusieurs fenêtres sont ouvertes, afin de distinguer sans ambiguïté la source et la cible. Plusieurs fenêtres peuvent être placées sur différents écrans ; avec la restauration de session activée, toutes les fenêtres ouvertes sont rouvertes au prochain lancement.",
   "help.feature.editMode": "Modifier le contenu Markdown dans la zone de code source (crayon dans la barre d'état ou Ctrl+E). Le mode édition n'est disponible qu'en vue Source ou Partagée ; un clic sur le crayon en vue Rendu bascule automatiquement en Partagé et active l'éditeur.",
   "help.feature.save": "Enregistrer (Ctrl+S) et Enregistrer sous (Ctrl+Maj+S). Les modifications non enregistrées sont marquées par un • dans le titre de l'onglet et de la fenêtre ; la fermeture d'un onglet modifié affiche une boîte de dialogue de confirmation. En cas de modification externe avec un tampon modifié, l'application demande s'il faut recharger ou conserver la version locale.",
   "help.feature.autoSave": "Optionnel : enregistrement automatique (Fichier → Enregistrement automatique). Enregistre 2 secondes après la dernière modification ou à la perte de focus de la fenêtre. Les onglets sans chemin (« Sans titre ») ne sont pas enregistrés automatiquement.",
@@ -137,5 +137,13 @@
   "menu.file.autoSave": "Enregistrement automatique",
   "statusbar.saved": "Enregistré",
   "statusbar.saveFailed": "Échec de l'enregistrement",
-  "statusbar.edit": "Modifier (Ctrl+E)"
+  "statusbar.edit": "Modifier (Ctrl+E)",
+  "statusbar.targetWindowGone": "Fenêtre cible non disponible",
+  "statusbar.targetFileMissing": "Impossible de lire le fichier",
+  "window.title.suffix": "Fenêtre {n}",
+  "tab.menu.moveToSubmenu": "Déplacer vers",
+  "tab.menu.copyToSubmenu": "Copier vers",
+  "tab.menu.targetNewWindow": "Nouvelle fenêtre",
+  "tab.menu.targetWindowLabel": "Fenêtre {n}",
+  "tab.menu.tooltipMoreTabsSuffix": "(+{n} autre(s))"
 }

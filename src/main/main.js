@@ -312,6 +312,27 @@ const lastReportedPanes = new Map(); // ownerId -> panes-Array
 // neu gebaut und gesetzt, damit Haekchen synchron bleiben.
 const menuStates = new Map(); // ownerId -> { locale, viewMode, lineNumbers, wordWrap, togglesEnabled }
 
+// Pro Fenster vom Renderer gemeldete Anzeige-Infos fuer die Fenster-Liste
+// und das Titel-Suffix (4T-0012): aktiver Dateiname und Tab-Anzahl. Wird in
+// window:list ausgeliefert, damit das Tab-Kontextmenue eines anderen Fensters
+// Tooltips ohne Renderer-Round-Trip aufbauen kann.
+const windowMeta = new Map(); // ownerId -> { activeTabName, tabCount }
+
+// Verteilt an jedes registrierte Fenster seine aktuelle Display-Nummer
+// (1..n in Map-Reihenfolge = Erzeugungsreihenfolge) und die Gesamtzahl. Wird
+// nach jedem Open- und Close-Event aufgerufen. Beim Open landet der Aufruf im
+// did-finish-load-Handler, damit auch das neu erzeugte Fenster den Push erhaelt.
+function broadcastDisplayInfo() {
+  const totalCount = windows.size;
+  let idx = 0;
+  for (const win of windows.values()) {
+    idx += 1;
+    if (!win.isDestroyed()) {
+      win.webContents.send('window:displayInfo', { displayNumber: idx, totalCount });
+    }
+  }
+}
+
 function getMenuState(id) {
   const base = menuStates.get(id) || {};
   return {
@@ -469,6 +490,11 @@ function createWindow(opts = {}) {
     const panes = pendingInitPanes.get(id) || [];
     win.webContents.send('window:initialState', { panes });
     pendingInitPanes.delete(id);
+    // Erst NACH initialState die Display-Infos verteilen, damit das brandneue
+    // Fenster bereits den Renderer-State (panes, Titel) aufbauen konnte und
+    // direkt im Anschluss seine Nummer kennt. Alle anderen Fenster bekommen
+    // die aktualisierte totalCount.
+    broadcastDisplayInfo();
   });
 
   // Fokus tracken (fuer second-instance-Routing).
@@ -502,13 +528,19 @@ function createWindow(opts = {}) {
     lastReportedPanes.delete(id);
     pendingInitPanes.delete(id);
     menuStates.delete(id);
+    windowMeta.delete(id);
     if (lastFocusedId === id) {
       lastFocusedId = null;
       const first = windows.keys().next();
       if (!first.done) lastFocusedId = first.value;
     }
     await unwatchAllForOwner(id);
-    if (!isQuitting) persistAllWindows();
+    if (!isQuitting) {
+      persistAllWindows();
+      // Display-Nummern der verbliebenen Fenster ruecken nach; sinkt die Zahl
+      // auf 1, wird der `(Fenster N)`-Suffix beim verbleibenden ausgeblendet.
+      broadcastDisplayInfo();
+    }
   });
 
   // Externe Links im Standardbrowser.
@@ -716,6 +748,56 @@ function registerIpc() {
     menuStates.set(id, state || {});
     const win = windows.get(id);
     if (win) applyMenuToWindow(win);
+  });
+
+  // Renderer meldet aktiven Tab-Namen und Tab-Anzahl seines Fensters, damit
+  // andere Fenster diese Infos im Tab-Kontextmenue als Tooltip anzeigen koennen
+  // (4T-0012). Wird vom Renderer bei jedem updateWindowTitle gesendet.
+  ipcMain.handle('window:metaChanged', (event, payload) => {
+    const data = payload || {};
+    windowMeta.set(event.sender.id, {
+      activeTabName: typeof data.activeTabName === 'string' ? data.activeTabName : '',
+      tabCount: typeof data.tabCount === 'number' ? data.tabCount : 0,
+    });
+  });
+
+  // Liefert die Liste ALLER offenen Fenster (inkl. Aufrufer; der Renderer
+  // filtert sich selbst heraus). Reihenfolge nach Display-Nummer = Map-Insertion-
+  // Order = Erzeugungsreihenfolge. Wird vom Tab-Kontextmenue beim Aufklappen
+  // synchron abgefragt (4T-0012).
+  ipcMain.handle('window:list', () => {
+    const totalCount = windows.size;
+    const list = [];
+    let idx = 0;
+    for (const [id] of windows) {
+      idx += 1;
+      const meta = windowMeta.get(id) || {};
+      list.push({
+        id,
+        displayNumber: idx,
+        totalCount,
+        activeTabName: meta.activeTabName || '',
+        tabCount: meta.tabCount || 0,
+      });
+    }
+    return list;
+  });
+
+  // Fuegt einen vom Quell-Fenster uebergebenen Tab im Ziel-Fenster als neuen
+  // Tab in der aktiven Pane hinzu (4T-0012). payload = { path, content, dirty,
+  // settings: { viewMode, wrapLines, showLineNumbers }, untitledIndex }.
+  // Returnt { ok: true } bei Erfolg, sonst { ok: false, reason }.
+  ipcMain.handle('tab:appendToWindow', (_event, params) => {
+    const targetId = params && params.targetWindowId;
+    const payload = params && params.payload;
+    const target = (typeof targetId === 'number') ? windows.get(targetId) : null;
+    if (!target || target.isDestroyed()) {
+      return { ok: false, reason: 'window-gone' };
+    }
+    target.webContents.send('tab:appendFromOtherWindow', payload || {});
+    if (target.isMinimized()) target.restore();
+    target.focus();
+    return { ok: true };
   });
 
   // Renderer fordert ein neues Fenster mit initialen Panes/Tabs an.

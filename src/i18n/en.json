@@ -66,7 +66,7 @@
   "help.feature.theme": "Light and dark theme — automatically follows the Windows system theme.",
   "help.feature.languages": "Interface in German, English, French, Spanish, and Italian — switch via the language selector in the status bar.",
   "help.feature.windowState": "Window position, size, and maximized state are remembered on exit and restored on next launch.",
-  "help.feature.multiWindow": "Move tabs to a new window: right-click a tab and choose “Move to new window” or “Copy to new window”. Multiple windows can be placed on different monitors; with session restore enabled, all open windows are reopened on the next launch.",
+  "help.feature.multiWindow": "Move tabs to a new or existing window: right-click a tab and choose “Move to” or “Copy to”; with multiple windows open, a submenu lists all other windows as targets. The window title shows the suffix “(Window N)” when multiple windows are open, so source and target windows are unambiguous. Multiple windows can be placed on different monitors; with session restore enabled, all open windows are reopened on the next launch.",
   "help.feature.editMode": "Edit Markdown content in the source pane (pencil in the status bar or Ctrl+E). Edit mode is only available in source or split view; clicking the pencil in render view automatically switches to split and activates the editor.",
   "help.feature.save": "Save (Ctrl+S) and Save As (Ctrl+Shift+S). Unsaved changes are marked with • in the tab and window title; closing a modified tab shows a confirmation dialog. On external change with a dirty buffer, the app asks whether to reload or keep the local version.",
   "help.feature.autoSave": "Optional: auto-save (File → Auto Save). Saves 2 seconds after the last edit or on window focus loss. Tabs without a path (“Untitled”) are not auto-saved.",
@@ -137,5 +137,13 @@
   "menu.file.autoSave": "Auto Save",
   "statusbar.saved": "Saved",
   "statusbar.saveFailed": "Save failed",
-  "statusbar.edit": "Edit (Ctrl+E)"
+  "statusbar.edit": "Edit (Ctrl+E)",
+  "statusbar.targetWindowGone": "Target window no longer available",
+  "statusbar.targetFileMissing": "Cannot read file",
+  "window.title.suffix": "Window {n}",
+  "tab.menu.moveToSubmenu": "Move to",
+  "tab.menu.copyToSubmenu": "Copy to",
+  "tab.menu.targetNewWindow": "New window",
+  "tab.menu.targetWindowLabel": "Window {n}",
+  "tab.menu.tooltipMoreTabsSuffix": "(+{n} more)"
 }

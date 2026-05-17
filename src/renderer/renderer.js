@@ -95,6 +95,11 @@ const state = {
   // Hochzählender Zaehler fuer "Datei → Neu"-Tabs in diesem Fenster
   // (pro Fenster lokal, pro App-Lebenszyklus). Wird nicht persistiert.
   untitledCounter: 1,
+  // 4T-0012: Anzeige-Nummer dieses Fensters und Gesamtzahl der offenen Fenster.
+  // Vom Main bei jedem Open/Close gepusht; bestimmt den `(Fenster N)`-Suffix
+  // im Titel und steuert Solo-vs-Multi-Modus im Tab-Kontextmenue.
+  displayNumber: 1,
+  totalWindowCount: 1,
 };
 
 // Dialog-Tracking fuer Auto-Save: solange ein modaler Dialog (Schliessen-
@@ -309,15 +314,25 @@ function renderPreviewForPane(paneIdx) {
 }
 
 // Setzt den Fenstertitel auf "[•] <Dateiname> — SCG Markdown" passend zum
-// aktiven Tab. Wird bei Tab-Wechsel und Dirty-Wechsel aufgerufen.
+// aktiven Tab. Bei mehreren offenen Fenstern wird zusaetzlich der Suffix
+// "(Fenster N)" angehaengt, lokalisiert (4T-0012). Sendet ausserdem den
+// aktiven Tab-Namen und die Tab-Anzahl an den Main, damit andere Fenster die
+// Info im Tab-Kontextmenue als Tooltip nutzen koennen.
 function updateWindowTitle() {
   const tab = activeTab();
-  if (!tab) {
-    document.title = 'SCG Markdown';
-    return;
+  const name = tab ? tabDisplayName(tab) : '';
+  const base = tab ? `${tab.dirty ? '• ' : ''}${name} — SCG Markdown` : 'SCG Markdown';
+  const suffix = state.totalWindowCount > 1
+    ? ` (${t('window.title.suffix').replace('{n}', String(state.displayNumber))})`
+    : '';
+  document.title = base + suffix;
+
+  // Aktive Tab-Anzahl ueber alle Panes hinweg.
+  let tabCount = 0;
+  for (const pane of state.panes) tabCount += pane.tabs.length;
+  if (api && typeof api.notifyWindowMeta === 'function') {
+    api.notifyWindowMeta({ activeTabName: name, tabCount });
   }
-  const name = tabDisplayName(tab);
-  document.title = `${tab.dirty ? '• ' : ''}${name} — SCG Markdown`;
 }
 
 // --- Initialer Main-Zustand -------------------------------------------------
@@ -329,6 +344,16 @@ const initialStatePromise = new Promise((resolve) => {
   api.onInitialState((payload) => resolve(payload || { panes: [] }));
 });
 
+// 4T-0012: Display-Info-Push vom Main. Synchron registrieren, weil der erste
+// Push direkt nach initialState feuert. Wenn der State sich aendert, Titel neu
+// rendern, damit der `(Fenster N)`-Suffix sofort sichtbar wird.
+api.onWindowDisplayInfo((info) => {
+  if (!info) return;
+  state.displayNumber = info.displayNumber || 1;
+  state.totalWindowCount = info.totalCount || 1;
+  updateWindowTitle();
+});
+
 // Externe Datei-Argumente (kalter Start mit "Öffnen mit" oder Doppelklick auf
 // .md) werden vom Main per 'file:openExternal' geschickt — zeitlich direkt
 // nach 'window:initialState'. Dieser Listener MUSS deshalb auch synchron beim
@@ -337,6 +362,19 @@ const initialStatePromise = new Promise((resolve) => {
 // sammeln wir die Files; danach werden sie geoeffnet.
 let initDone = false;
 const pendingExternalFiles = [];
+
+// 4T-0012: Append-Tab-Event aus einem anderen Fenster. Synchron registrieren,
+// damit kein Event verloren geht. Solange init() nicht durch ist, sammeln; im
+// Anschluss abarbeiten.
+const pendingAppendPayloads = [];
+api.onAppendTabFromOtherWindow((payload) => {
+  if (!payload) return;
+  if (!initDone) {
+    pendingAppendPayloads.push(payload);
+    return;
+  }
+  handleAppendTabFromOtherWindow(payload);
+});
 api.onOpenExternal((files) => {
   if (!Array.isArray(files) || files.length === 0) return;
   if (!initDone) {
@@ -403,6 +441,11 @@ async function init() {
   if (pendingExternalFiles.length > 0) {
     const files = pendingExternalFiles.splice(0);
     await openInPane(state.activePaneIndex, files);
+  }
+  // 4T-0012: ggf. gepufferte Tab-Appends aus anderen Fenstern abarbeiten.
+  if (pendingAppendPayloads.length > 0) {
+    const payloads = pendingAppendPayloads.splice(0);
+    for (const p of payloads) await handleAppendTabFromOtherWindow(p);
   }
 }
 
@@ -1013,6 +1056,108 @@ async function moveTabToNewWindow(paneIdx, tabIdx) {
   await closeTab(paneIdx, tabIdx, { skipDirtyCheck: true });
 }
 
+// 4T-0012: Tab-Payload fuer den Transfer in ein bestehendes Fenster. Im
+// Gegensatz zu singlePaneSnapshotFromTab traegt dieser Snapshot auch den
+// aktuellen (ggf. dirty) Buffer-Inhalt sowie editMode mit, damit die Bearbeitung
+// im Zielfenster nahtlos weitergeht.
+function buildTabPayload(tab) {
+  return {
+    path: tab.path || null,
+    content: tab.content || '',
+    dirty: !!tab.dirty,
+    settings: {
+      viewMode: tab.viewMode,
+      wrapLines: tab.wrapLines,
+      showLineNumbers: tab.showLineNumbers,
+      editMode: !!tab.editMode,
+    },
+    untitledIndex: tab.untitledIndex || null,
+  };
+}
+
+// 4T-0012: Tab in ein bereits offenes Zielfenster kopieren. Der Quell-Tab
+// bleibt unveraendert offen.
+async function copyTabToWindow(targetWindowId, paneIdx, tabIdx) {
+  const pane = state.panes[paneIdx];
+  if (!pane) return;
+  const tab = pane.tabs[tabIdx];
+  if (!tab) return;
+  const result = await api.appendTabToWindow(targetWindowId, buildTabPayload(tab));
+  if (!result || !result.ok) {
+    showStatusbarHint('statusbar.targetWindowGone', { duration: 2500, error: true });
+  }
+}
+
+// 4T-0012: Tab in ein bereits offenes Zielfenster verschieben. Erst kopieren,
+// und nur bei Erfolg den Quell-Tab schliessen (skipDirtyCheck, weil der Inhalt
+// inkl. dirty Buffer mitwandert).
+async function moveTabToWindow(targetWindowId, paneIdx, tabIdx) {
+  const pane = state.panes[paneIdx];
+  if (!pane) return;
+  const tab = pane.tabs[tabIdx];
+  if (!tab) return;
+  const result = await api.appendTabToWindow(targetWindowId, buildTabPayload(tab));
+  if (!result || !result.ok) {
+    showStatusbarHint('statusbar.targetWindowGone', { duration: 2500, error: true });
+    return;
+  }
+  await closeTab(paneIdx, tabIdx, { skipDirtyCheck: true });
+}
+
+// 4T-0012: Vom Main empfangenes Append-Event verarbeiten. Fuegt den Tab in der
+// aktiven Pane an und aktiviert ihn. Wenn der Pfad in irgendeiner Pane schon
+// offen ist, wird der bestehende Tab aktiviert (kein Duplikat); ein eventuell
+// dirty Buffer aus dem Quell-Fenster wird in diesem Fall in den bestehenden
+// Editor uebernommen, damit die Bearbeitung nicht verloren geht.
+async function handleAppendTabFromOtherWindow(payload) {
+  const targetPane = state.activePaneIndex;
+  if (targetPane < 0 || targetPane >= state.panes.length) return;
+  const settings = payload.settings || {};
+
+  if (payload.path) {
+    const existing = findTabAcrossPanes(payload.path);
+    if (existing) {
+      const target = state.panes[existing.paneIdx].tabs[existing.tabIdx];
+      if (payload.dirty && typeof payload.content === 'string' && target.content !== payload.content) {
+        target.content = payload.content;
+        target.dirty = target.content !== target.originalContent;
+        const view = paneEditors[existing.paneIdx];
+        if (view) {
+          view.dispatch({
+            changes: { from: 0, to: view.state.doc.length, insert: payload.content },
+          });
+        }
+      }
+      activatePane(existing.paneIdx);
+      activateTab(existing.paneIdx, existing.tabIdx);
+      return;
+    }
+    try {
+      const data = await api.readFile(payload.path);
+      const tab = createTab(data.path, data.content, settings);
+      tab.editMode = !!settings.editMode;
+      if (payload.dirty && typeof payload.content === 'string') {
+        tab.content = payload.content;
+        tab.dirty = tab.content !== tab.originalContent;
+      }
+      state.panes[targetPane].tabs.push(tab);
+      activateTab(targetPane, state.panes[targetPane].tabs.length - 1);
+    } catch {
+      showStatusbarHint('statusbar.targetFileMissing', { duration: 2500, error: true });
+    }
+    return;
+  }
+
+  // Unbenannt-Tab: lokalen Counter fortzaehlen, damit die Nummer im Zielfenster
+  // konsistent zu dessen anderen Unbenannt-Tabs ist.
+  const tab = createTab(null, payload.content || '', settings);
+  tab.editMode = settings.editMode !== undefined ? !!settings.editMode : true;
+  tab.untitledIndex = state.untitledCounter++;
+  tab.dirty = (tab.content || '') !== '';
+  state.panes[targetPane].tabs.push(tab);
+  activateTab(targetPane, state.panes[targetPane].tabs.length - 1);
+}
+
 // --- Rendering --------------------------------------------------------------
 function renderTabbar(paneIdx) {
   const els = getPaneEls(paneIdx);
@@ -1510,8 +1655,21 @@ function buildPanesSnapshot() {
 }
 
 // --- Kontextmenü ------------------------------------------------------------
-function showTabContextMenu(event, paneIdx, tabIdx) {
+async function showTabContextMenu(event, paneIdx, tabIdx) {
   contextMenu.innerHTML = '';
+
+  // 4T-0012: Fensterliste abrufen, um zu entscheiden, ob das Tab-Verschieben/
+  // Kopieren als flache Eintraege (Solo) oder als Submenues (Multi) angezeigt
+  // wird. Bei Fehler fallen wir auf Solo zurueck — kein Blocker.
+  let otherWindows = [];
+  try {
+    const list = await api.listWindows();
+    otherWindows = (Array.isArray(list) ? list : [])
+      .filter((w) => w.displayNumber !== state.displayNumber);
+  } catch {
+    otherWindows = [];
+  }
+
   const items = [];
 
   if (paneIdx === 0) {
@@ -1520,27 +1678,39 @@ function showTabContextMenu(event, paneIdx, tabIdx) {
     items.push({ key: 'tab.moveLeft', action: () => moveTabBetweenPanes(paneIdx, tabIdx, 0, state.panes[0].tabs.length) });
   }
   items.push({ separator: true });
-  items.push({ key: 'tab.moveToNewWindow', action: () => moveTabToNewWindow(paneIdx, tabIdx) });
-  items.push({ key: 'tab.copyToNewWindow', action: () => copyTabToNewWindow(paneIdx, tabIdx) });
+
+  if (otherWindows.length === 0) {
+    // Solo-Fall: flache Eintraege wie bisher.
+    items.push({ key: 'tab.moveToNewWindow', action: () => moveTabToNewWindow(paneIdx, tabIdx) });
+    items.push({ key: 'tab.copyToNewWindow', action: () => copyTabToNewWindow(paneIdx, tabIdx) });
+  } else {
+    // Multi-Fall: Submenues mit "Neues Fenster" + einem Eintrag pro anderem Fenster.
+    const moveSubmenu = [
+      { key: 'tab.menu.targetNewWindow', action: () => moveTabToNewWindow(paneIdx, tabIdx) },
+      { separator: true },
+      ...otherWindows.map((w) => ({
+        label: t('tab.menu.targetWindowLabel').replace('{n}', String(w.displayNumber)),
+        tooltip: buildWindowTooltip(w),
+        action: () => moveTabToWindow(w.id, paneIdx, tabIdx),
+      })),
+    ];
+    const copySubmenu = [
+      { key: 'tab.menu.targetNewWindow', action: () => copyTabToNewWindow(paneIdx, tabIdx) },
+      { separator: true },
+      ...otherWindows.map((w) => ({
+        label: t('tab.menu.targetWindowLabel').replace('{n}', String(w.displayNumber)),
+        tooltip: buildWindowTooltip(w),
+        action: () => copyTabToWindow(w.id, paneIdx, tabIdx),
+      })),
+    ];
+    items.push({ key: 'tab.menu.moveToSubmenu', submenu: moveSubmenu });
+    items.push({ key: 'tab.menu.copyToSubmenu', submenu: copySubmenu });
+  }
+
   items.push({ separator: true });
   items.push({ key: 'tab.close', action: () => closeTab(paneIdx, tabIdx) });
 
-  for (const it of items) {
-    if (it.separator) {
-      const sep = document.createElement('div');
-      sep.className = 'context-menu-separator';
-      contextMenu.appendChild(sep);
-      continue;
-    }
-    const div = document.createElement('div');
-    div.className = 'context-menu-item';
-    div.textContent = t(it.key);
-    div.addEventListener('click', () => {
-      hideContextMenu();
-      it.action();
-    });
-    contextMenu.appendChild(div);
-  }
+  for (const it of items) appendContextMenuItem(contextMenu, it);
 
   contextMenu.style.left = '0px';
   contextMenu.style.top = '0px';
@@ -1552,6 +1722,76 @@ function showTabContextMenu(event, paneIdx, tabIdx) {
   if (y + rect.height > window.innerHeight) y = window.innerHeight - rect.height - 4;
   contextMenu.style.left = `${x}px`;
   contextMenu.style.top = `${y}px`;
+}
+
+// 4T-0012: Tooltip-Text fuer einen Fenster-Eintrag im Tab-Kontextmenue:
+// Dateiname des aktiven Tabs des Zielfensters, bei mehreren Tabs zusaetzlich
+// "(+N weitere)" (lokalisiert).
+function buildWindowTooltip(w) {
+  const name = (w && w.activeTabName) ? w.activeTabName : '';
+  if (w && typeof w.tabCount === 'number' && w.tabCount > 1) {
+    const suffix = t('tab.menu.tooltipMoreTabsSuffix').replace('{n}', String(w.tabCount - 1));
+    return name ? `${name} ${suffix}` : suffix;
+  }
+  return name;
+}
+
+// 4T-0012: Baut ein Kontextmenue-Item (oder Submenu-Item). Unterstuetzt drei
+// Formen: Separator (`{separator: true}`), normaler Eintrag (`{key|label, action}`),
+// Submenu-Eintrag (`{key|label, submenu: [...]}`). Submenus sind DOM-Kinder
+// des Wrappers, damit der globale Outside-Click-Handler sie nicht abwuergt.
+function appendContextMenuItem(parent, item) {
+  if (item.separator) {
+    const sep = document.createElement('div');
+    sep.className = 'context-menu-separator';
+    parent.appendChild(sep);
+    return;
+  }
+  const label = item.label != null ? item.label : t(item.key);
+  if (Array.isArray(item.submenu) && item.submenu.length > 0) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'context-menu-item context-menu-item-submenu';
+    const lbl = document.createElement('span');
+    lbl.className = 'context-menu-item-label';
+    lbl.textContent = label;
+    wrapper.appendChild(lbl);
+    const arrow = document.createElement('span');
+    arrow.className = 'context-menu-submenu-arrow';
+    arrow.textContent = '▸';
+    wrapper.appendChild(arrow);
+
+    const sub = document.createElement('div');
+    sub.className = 'context-menu context-menu-submenu';
+    sub.hidden = true;
+    for (const subItem of item.submenu) appendContextMenuItem(sub, subItem);
+    wrapper.appendChild(sub);
+
+    let closeTimer = null;
+    const open = () => {
+      if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+      sub.hidden = false;
+    };
+    const scheduleClose = () => {
+      if (closeTimer) clearTimeout(closeTimer);
+      closeTimer = setTimeout(() => { sub.hidden = true; closeTimer = null; }, 250);
+    };
+    wrapper.addEventListener('mouseenter', open);
+    wrapper.addEventListener('mouseleave', scheduleClose);
+    sub.addEventListener('mouseenter', open);
+    sub.addEventListener('mouseleave', scheduleClose);
+    parent.appendChild(wrapper);
+    return;
+  }
+  const div = document.createElement('div');
+  div.className = 'context-menu-item';
+  div.textContent = label;
+  if (item.tooltip) div.title = item.tooltip;
+  div.addEventListener('click', (e) => {
+    e.stopPropagation();
+    hideContextMenu();
+    item.action();
+  });
+  parent.appendChild(div);
 }
 
 function hideContextMenu() {

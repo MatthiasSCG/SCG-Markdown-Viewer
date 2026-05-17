@@ -66,7 +66,7 @@
   "help.feature.theme": "Tema chiaro e scuro — sincronizzato automaticamente con il tema di sistema di Windows.",
   "help.feature.languages": "Interfaccia in tedesco, inglese, francese, spagnolo e italiano — commutabile dal selettore di lingua nella barra di stato.",
   "help.feature.windowState": "Posizione, dimensione e stato massimizzato della finestra vengono ricordati alla chiusura e ripristinati al successivo avvio.",
-  "help.feature.multiWindow": "Sposta una scheda in una nuova finestra: clic destro sulla scheda e scegli «Sposta in una nuova finestra» o «Copia in una nuova finestra». Le finestre aperte possono essere disposte su monitor diversi; con il ripristino della sessione attivo, tutte le finestre aperte vengono riaperte al prossimo avvio.",
+  "help.feature.multiWindow": "Spostare le schede in una finestra nuova o esistente: clic destro sulla scheda e scegli «Sposta in» o «Copia in»; con più finestre aperte, un sottomenu elenca tutte le altre finestre come destinazione. Il titolo della finestra mostra il suffisso «(Finestra N)» quando ci sono più finestre aperte, per distinguere senza ambiguità origine e destinazione. Le finestre aperte possono essere disposte su monitor diversi; con il ripristino della sessione attivo, tutte le finestre aperte vengono riaperte al prossimo avvio.",
   "help.feature.editMode": "Modifica il contenuto Markdown nel pannello del codice sorgente (matita nella barra di stato o Ctrl+E). La modalità di modifica è disponibile solo nella vista Sorgente o Divisa; un clic sulla matita nella vista Renderizzata passa automaticamente alla Divisa e attiva l'editor.",
   "help.feature.save": "Salva (Ctrl+S) e Salva con nome (Ctrl+Maiusc+S). Le modifiche non salvate sono contrassegnate da • nel titolo della scheda e della finestra; alla chiusura di una scheda modificata appare una finestra di conferma. In caso di modifica esterna con un buffer modificato, viene chiesto se ricaricare o mantenere la versione locale.",
   "help.feature.autoSave": "Opzionale: salvataggio automatico (File → Salvataggio automatico). Salva 2 secondi dopo l'ultima modifica o quando la finestra perde il fuoco. Le schede senza percorso («Senza titolo») non vengono salvate automaticamente.",
@@ -137,5 +137,13 @@
   "menu.file.autoSave": "Salvataggio automatico",
   "statusbar.saved": "Salvato",
   "statusbar.saveFailed": "Salvataggio non riuscito",
-  "statusbar.edit": "Modifica (Ctrl+E)"
+  "statusbar.edit": "Modifica (Ctrl+E)",
+  "statusbar.targetWindowGone": "Finestra di destinazione non disponibile",
+  "statusbar.targetFileMissing": "Impossibile leggere il file",
+  "window.title.suffix": "Finestra {n}",
+  "tab.menu.moveToSubmenu": "Sposta in",
+  "tab.menu.copyToSubmenu": "Copia in",
+  "tab.menu.targetNewWindow": "Nuova finestra",
+  "tab.menu.targetWindowLabel": "Finestra {n}",
+  "tab.menu.tooltipMoreTabsSuffix": "(+{n} altri)"
 }
