@@ -7,15 +7,27 @@ Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-05-17 — Tab in bestehendes Fenster verschieben oder kopieren
+
+Punkt-Release mit einer Verbesserung an der Multi-Window-Bedienung: Tabs lassen sich per Rechtsklick nicht mehr nur in ein neues, sondern auch in ein bestehendes anderes Fenster verschieben oder kopieren. Damit Quell- und Zielfenster eindeutig benennbar bleiben, tragen alle Fenster bei mehr als einem offenen Fenster den Suffix `(Fenster N)` im Titel. Umgesetzt als Task [4T-0012](Projektmanagement/Aufgaben/4T-0012-tab-in-bestehendes-fenster.md).
+
 ### Neu
 
-- **Tab in bestehendes Fenster verschieben oder kopieren** ([4T-0012](Projektmanagement/Aufgaben/4T-0012-tab-in-bestehendes-fenster.md)): Rechtsklick auf einen Tab bietet bei mehreren offenen Fenstern jetzt die Untermenüs „Verschieben in" und „Kopieren in" mit den Einträgen „Neues Fenster" und jeweils einem Eintrag pro anderem offenen Fenster (Label `Fenster N`, Tooltip mit Dateinamen des dortigen aktiven Tabs). Bei nur einem Fenster bleibt die heutige flache Bedienung erhalten. Verschieben übergibt den Tab inklusive ungespeichertem Buffer ans Ziel-Fenster und schließt ihn im Quell-Fenster ohne weiteren Speichern-Dialog; Kopieren lässt den Quell-Tab unverändert.
-- **Fenstertitel mit `(Fenster N)`-Suffix im Mehr-Fenster-Fall** (4T-0012): Sobald mehr als ein Fenster offen ist, hängt jedes Fenster den Suffix `(Fenster N)` an seinen Titel. Die Nummerierung 1..N folgt der Erzeugungsreihenfolge, rückt beim Schließen lückenlos nach und entfällt komplett, sobald nur noch ein Fenster offen ist. Damit sind Quell- und Zielfenster im Tab-Kontextmenü und in der Windows-Taskleiste eindeutig benennbar.
-- **Hilfe-Dialog erweitert** (4T-0012): Beschreibung der Multi-Window-Funktion in allen fünf Sprachen ergänzt um den Bezug auf bestehende Fenster als Ziel und den Titel-Suffix.
+- **Tab in bestehendes Fenster verschieben oder kopieren** ([4T-0012](Projektmanagement/Aufgaben/4T-0012-tab-in-bestehendes-fenster.md)): Rechtsklick auf einen Tab bietet bei mehreren offenen Fenstern jetzt die Untermenüs „Verschieben in" und „Kopieren in" mit den Einträgen „Neues Fenster" und jeweils einem Eintrag pro anderem offenen Fenster (Label `Fenster N`, Tooltip mit Dateinamen des dortigen aktiven Tabs, bei mehreren Tabs zusätzlich `(+N weitere)`). Bei nur einem Fenster bleibt die heutige flache Bedienung mit „In neues Fenster verschieben/kopieren" erhalten. Verschieben übergibt den Tab inklusive ungespeichertem Buffer ans Zielfenster und schließt ihn im Quellfenster ohne weiteren Speichern-Dialog; Kopieren lässt den Quell-Tab unverändert.
+- **Keine Duplikate beim Transfer** (4T-0012): Wenn die zu verschiebende Datei im Zielfenster bereits in einer beliebigen Pane geöffnet ist, wird dort der bestehende Tab aktiviert statt ein zweiter angelegt. Beim Verschieben wird der Quell-Tab dennoch geschlossen.
+- **Fenstertitel mit `(Fenster N)`-Suffix im Mehr-Fenster-Fall** (4T-0012): Sobald mehr als ein Fenster offen ist, hängt jedes Fenster den Suffix `(Fenster N)` an seinen Titel (auch in der Windows-Taskleiste sichtbar). Die Nummerierung 1..N folgt der Erzeugungsreihenfolge, rückt beim Schließen lückenlos nach und entfällt komplett, sobald nur noch ein Fenster offen ist. Damit sind Quell- und Zielfenster im Tab-Kontextmenü und in der Windows-Taskleiste eindeutig benennbar.
+
+### Geändert
+
+- **Hilfe-Dialog** (4T-0012): Beschreibung der Multi-Window-Funktion in allen fünf Sprachen aktualisiert; erwähnt jetzt das Verschieben/Kopieren in bestehende Fenster und die Bedeutung des Titel-Suffixes.
 
 ### i18n
 
 - **9 neue Keys** in allen fünf Sprachen (Deutsch, Englisch, Französisch, Spanisch, Italienisch): `window.title.suffix`, `tab.menu.moveToSubmenu`, `tab.menu.copyToSubmenu`, `tab.menu.targetNewWindow`, `tab.menu.targetWindowLabel`, `tab.menu.tooltipMoreTabsSuffix`, `statusbar.targetWindowGone`, `statusbar.targetFileMissing`. Plus aktualisierter Wert für `help.feature.multiWindow`.
+
+### Hinweise zur Migration
+
+- Keine Migration nötig. Sitzung, Recent Files, Sprache und Auto-Save-Toggle aus 0.6.0 werden unverändert übernommen.
 
 ## [0.6.0] - 2026-05-16 — Edit-Modus, Statusbar-Layout und SCG-Markdown-Branding
 
