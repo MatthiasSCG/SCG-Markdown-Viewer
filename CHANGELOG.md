@@ -5,8 +5,6 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
-## [Unreleased]
-
 ## [0.7.0] - 2026-05-17 — Tab in bestehendes Fenster verschieben oder kopieren
 
 Punkt-Release mit einer Verbesserung an der Multi-Window-Bedienung: Tabs lassen sich per Rechtsklick nicht mehr nur in ein neues, sondern auch in ein bestehendes anderes Fenster verschieben oder kopieren. Damit Quell- und Zielfenster eindeutig benennbar bleiben, tragen alle Fenster bei mehr als einem offenen Fenster den Suffix `(Fenster N)` im Titel. Umgesetzt als Task [4T-0012](Projektmanagement/Aufgaben/4T-0012-tab-in-bestehendes-fenster.md).
