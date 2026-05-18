@@ -24,6 +24,7 @@ Konventionen:
 - Die Setup-EXE wird vom selben Build-Lauf mitgeliefert, ist für Task-Tests aber nicht zwingend.
 - Während der Entwicklung einer Version trägt `package.json` bereits die **Zielversion** der laufenden Entwicklung (z.B. `0.6.0`, sobald die Arbeit an 0.6.0 beginnt). So überschreiben Test-EXEs nicht die offizielle EXE der Vorgängerversion in `releases/` und sind eindeutig der laufenden Entwicklung zuordenbar. Die offizielle Release-Notes-Veröffentlichung der neuen Version bleibt dennoch der letzte Schritt im Versionssprung (siehe Release-Prozess unten).
 - `releases/` ist per `.gitignore` ausgeschlossen, der Build-Output landet nicht im Repo.
+- **Smoke-Test bei Änderungen an Preload, Main oder Build-Konfiguration:** Vor der Test-Aufforderung an den Nutzer selbst per Doppelklick die frisch gebaute Portable-EXE starten und prüfen, ob das Fenster erscheint. Bei reinen Renderer-Änderungen genügt der Build-Erfolg. Hintergrund: in 4T-0017 (0.9.0) startete die App nicht, weil ein `webFrame`-Aufruf zur Modul-Lade-Zeit das Preload-Skript abbrechen ließ. Der Build lief sauber durch, der Renderer kam aber nie hoch und das Fenster blieb unsichtbar.
 
 ## Abschluss-Sammeltask am Epic-Ende
 
@@ -120,3 +121,26 @@ Bei jeder neuen Funktionalität, die das Verhalten der App nach außen ändert, 
 ### CHANGELOG-Eintrag
 
 Im `CHANGELOG.md` zur aktuellen Version einen Punkt ergänzen, dass die Hilfe-Inhalte erweitert wurden — inklusive Anzahl der neuen i18n-Keys.
+
+## i18n-Konventionen
+
+### Anführungszeichen in i18n-Strings
+
+In JSON-Strings ist `"` der String-Begrenzer. Innerhalb des Strings darf kein nicht-escaptes ASCII-`"` stehen, sonst terminiert der JSON-Parser den String vorzeitig — auch wenn das Zeichen optisch wie ein Anführungszeichen rund um einen Platzhalter wirken soll.
+
+**Beispiel:** in einem deutschen i18n-Wert soll der Wiki-Link-Name `{target}` in Anführungszeichen gesetzt werden.
+
+- **Falsch** (terminiert JSON-String nach `Ziel „`):
+  ```json
+  "linter.brokenWikiLink.tooltip": "Ziel „{target}" nicht gefunden."
+  ```
+- **Richtig** (einfache Quotes):
+  ```json
+  "linter.brokenWikiLink.tooltip": "Ziel '{target}' nicht gefunden."
+  ```
+- **Auch richtig** (Unicode-Anführungszeichen, JSON-neutral):
+  ```json
+  "linter.brokenWikiLink.tooltip": "Ziel «{target}» nicht gefunden."
+  ```
+
+Regel: ASCII-`"` ausschließlich als JSON-String-Begrenzer, niemals im Text-Inhalt. Wenn ein typografisches Anführungszeichen gewünscht ist, dann Unicode-Variante verwenden, ansonsten einfache Quotes. Aufgekommen bei 4T-0020 (0.9.0), wo das DE-Linter-Tooltip zunächst mit gemischten Anführungszeichen geschrieben war und nur durch die nachträgliche JSON-Validierung als syntaktisch defekt aufgefallen ist.
