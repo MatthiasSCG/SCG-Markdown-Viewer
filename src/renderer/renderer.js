@@ -3,7 +3,7 @@
 'use strict';
 
 import { loadTranslations, applyTranslations, setLanguage, t, normalizeLocale } from './i18n.js';
-import { EditorState, Compartment, StateField, StateEffect } from '@codemirror/state';
+import { EditorState, Compartment, StateField, StateEffect, Prec } from '@codemirror/state';
 import {
   EditorView,
   ViewPlugin,
@@ -614,6 +614,113 @@ const foldGutterExtensions = [
 
 let pendingPreviewUpdate = null;
 
+// 4T-0016: Tab/Shift+Tab in Markdown-Listen rueckt Listen-Eintraege ein bzw.
+// aus. Erkannt werden ungeordnete Marker (`-`, `*`, `+`, inkl. Task-Liste
+// `- [ ]` / `- [x]`) und geordnete Marker (`1.`, `2.`, ...). Die Variante
+// mit Klammer (`1)`) wird bewusst nicht unterstuetzt. Einrueck-Schrittweite
+// ist zwei Leerzeichen. Beim Einruecken einer geordneten Liste wird die
+// Nummer auf `1.` zurueckgesetzt (neue Sub-Liste), beim Ausruecken bleibt
+// die Nummer unveraendert. In Code-Bloecken (FencedCode / CodeBlock) greift
+// die Logik nicht, damit der Default-Tab dort erhalten bleibt.
+const LIST_LINE_RE = /^(\s*)((?:[-*+]|\d+\.)\s)/;
+const LIST_INDENT_STEP = 2;
+
+function lineInsideCodeBlock(state, line) {
+  const tree = syntaxTree(state);
+  let node = tree.resolveInner(line.from, 1);
+  while (node) {
+    if (node.name === 'FencedCode' || node.name === 'CodeBlock') return true;
+    node = node.parent;
+  }
+  return false;
+}
+
+// Liefert true, wenn mindestens eine Zeile in der aktuellen Selektion ein
+// Listen-Marker traegt; sonst false (dann faellt der Tab-Handler durch und
+// CodeMirror behaelt sein Default-Verhalten).
+function selectionTouchesList(state) {
+  for (const range of state.selection.ranges) {
+    const fromLine = state.doc.lineAt(range.from).number;
+    const toLine = state.doc.lineAt(range.to).number;
+    for (let n = fromLine; n <= toLine; n++) {
+      const line = state.doc.line(n);
+      if (!LIST_LINE_RE.test(line.text)) continue;
+      if (lineInsideCodeBlock(state, line)) continue;
+      return true;
+    }
+  }
+  return false;
+}
+
+// Erzeugt eine Transaktion, die Listen-Zeilen der aktuellen Selektion ein-
+// oder ausrueckt. delta = +1 (Einruecken) oder -1 (Ausruecken). Nicht-Listen-
+// Zeilen bleiben unveraendert. Alle Aenderungen laufen als ein dispatch, damit
+// Strg+Z sie als atomaren Schritt rueckgaengig macht.
+function applyListIndent(view, delta) {
+  const state = view.state;
+  if (state.readOnly) return false;
+  if (!selectionTouchesList(state)) return false;
+  const changes = [];
+  const seenLines = new Set();
+  for (const range of state.selection.ranges) {
+    const fromLine = state.doc.lineAt(range.from).number;
+    const toLine = state.doc.lineAt(range.to).number;
+    for (let n = fromLine; n <= toLine; n++) {
+      if (seenLines.has(n)) continue;
+      seenLines.add(n);
+      const line = state.doc.line(n);
+      const m = LIST_LINE_RE.exec(line.text);
+      if (!m) continue;
+      if (lineInsideCodeBlock(state, line)) continue;
+      const leading = m[1];
+      const marker = m[2];
+      const isOrdered = /^\d+\.\s$/.test(marker);
+      if (delta > 0) {
+        if (isOrdered) {
+          // Marker (z.B. "2. ") inklusive Leerzeichen ersetzen durch
+          // "  1. " (Sub-Liste startet wieder bei 1).
+          changes.push({
+            from: line.from,
+            to: line.from + leading.length + marker.length,
+            insert: leading + ' '.repeat(LIST_INDENT_STEP) + '1. ',
+          });
+        } else {
+          // 2 Leerzeichen vor dem Marker einfuegen, Marker unveraendert.
+          changes.push({
+            from: line.from + leading.length,
+            insert: ' '.repeat(LIST_INDENT_STEP),
+          });
+        }
+      } else {
+        if (leading.length === 0) continue; // Ebene 0 -> No-Op
+        // Bis zu LIST_INDENT_STEP fuehrende Whitespace-Zeichen entfernen.
+        const removeCount = Math.min(LIST_INDENT_STEP, leading.length);
+        changes.push({
+          from: line.from,
+          to: line.from + removeCount,
+          insert: '',
+        });
+      }
+    }
+  }
+  if (!changes.length) return false;
+  view.dispatch(state.update({
+    changes,
+    userEvent: delta > 0 ? 'input.indent.more' : 'input.indent.less',
+    scrollIntoView: true,
+  }));
+  return true;
+}
+
+// Eigene Keymap mit hoher Praezedenz, damit Tab/Shift-Tab vor dem
+// defaultKeymap greifen. Gibt false zurueck, wenn keine Listen-Zeile betroffen
+// ist; CodeMirror reicht den Tastendruck dann an die naechste Bindung weiter
+// (Default-Verhalten ausserhalb von Listen bleibt unveraendert).
+const listIndentKeymap = Prec.high(keymap.of([
+  { key: 'Tab', run: (view) => applyListIndent(view, +1) },
+  { key: 'Shift-Tab', run: (view) => applyListIndent(view, -1) },
+]));
+
 function createEditorState(opts = {}) {
   return EditorState.create({
     doc: opts.content || '',
@@ -643,6 +750,8 @@ function createEditorState(opts = {}) {
       markdown(),
       syntaxHighlighting(mdHighlightStyle, { fallback: true }),
       history(),
+      // 4T-0016: Tab/Shift-Tab fuer Listen-Indent vor dem defaultKeymap.
+      listIndentKeymap,
       keymap.of([...foldKeymap, ...defaultKeymap, ...historyKeymap]),
       drawSelection(),
       searchHighlightField,
