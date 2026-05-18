@@ -295,12 +295,12 @@ npm run build:renderer
 Die EXEs landen zunächst unter `dist/`, der `postbuild`-Hook verschiebt
 sie in den Versions-Archiv-Ordner `releases/`:
 
-- `SCG Markdown-0.6.0-Setup.exe` — Setup-Assistent (NSIS), Installation
+- `SCG Markdown-<version>-Setup.exe` — Setup-Assistent (NSIS), Installation
   pro Benutzer (`%LOCALAPPDATA%\Programs\SCG Markdown`), Start-Menü- und
   Desktop-Verknüpfung, sauberer Uninstaller. Eine Setup-Seite bietet die
   optionale Datei-Assoziation für `.md`, `.markdown`, `.mdown`, `.mkd`
   (Default: aktiviert, abwählbar).
-- `SCG Markdown-0.6.0-Portable.exe` — läuft ohne Installation, kein
+- `SCG Markdown-<version>-Portable.exe` — läuft ohne Installation, kein
   Eintrag im System; Datei-Assoziation ist hier technisch nicht möglich.
 
 > **Datei-Assoziation deaktivieren oder später ändern:**
@@ -323,6 +323,14 @@ sie in den Versions-Archiv-Ordner `releases/`:
 | Mittlere Maustaste             | Tab schließen                                   |
 | `Strg + 1` / `Strg + 2` / `Strg + 3` | Ansicht umschalten (Gerendert/Geteilt/Quellcode) |
 | `Strg + E`                     | Edit-Modus umschalten                           |
+| `Strg + ,`                     | Einstellungen öffnen                            |
+| `Strg + +` / `Strg + -` / `Strg + 0` | Inhalt vergrößern / verkleinern / auf 100 % zurücksetzen |
+| `Strg + Mausrad`               | Inhalt per Mausrad vergrößern oder verkleinern  |
+| `Strg + Umschalt + F`          | Fokus-Modus umschalten                          |
+| `Strg + Umschalt + O`          | Inhaltsverzeichnis-Sidebar umschalten           |
+| `Strg + Umschalt + B`          | Backlinks-Sidebar umschalten                    |
+| `Strg + Umschalt + [` / `Strg + Umschalt + ]` | Region am Cursor ein- / ausklappen |
+| `Tab` / `Umschalt + Tab`       | Listenelement eine Ebene ein- / ausrücken       |
 | `Strg + F`                     | Suche öffnen                                    |
 | `Strg + H`                     | Suchen und Ersetzen (im Edit-Modus)             |
 | `F3` / `Umschalt + F3`         | Nächster / vorheriger Treffer                   |
@@ -342,10 +350,15 @@ die Multi-Resolution-`icon.ico` (16/24/32/48/64/128/256 px) und
 
 ## Status
 
-Version `0.6.0` — Editor-Funktionalität, native Menüleiste, Statusbar-
-Layout, Speichern mit Dirty-State und Auto-Save, Suchen und Ersetzen,
-Rebranding auf „SCG Markdown". Funktional vollständig für den aktuellen
-Funktionsumfang, inklusive Windows-Build (Installer + Portable).
+Version `0.9.0` — Editor-UX und -Komfort: Tab/Umschalt+Tab in Markdown-
+Listen, Zoom pro Tab über `Strg + +/-/0` und `Strg + Mausrad`,
+konfigurierbare Schriftart und -größe (Einstellungen-Dialog), Fokus-Modus
+und Typewriter-Scroll für ablenkungsfreies Schreiben, leichter Markdown-
+Linter mit Inline-Hinweisen. Der Hilfe-Dialog ist in zwei Tabs und nach
+Funktionsgruppen sortiert. Aufsetzend auf Strukturnavigation (Folding,
+Inhaltsverzeichnis, Backlinks) aus 0.8.0 und Multi-Window-Bedienung aus
+0.7.0. Funktional vollständig für den aktuellen Funktionsumfang,
+inklusive Windows-Build (Installer + Portable).
 
 ## Lizenz
 
