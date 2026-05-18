@@ -31,21 +31,22 @@ Jeder Epic-Versionssprung wird durch einen **Abschluss-Sammeltask** abgeschlosse
 
 **Standard-Inhalte** des Sammeltasks (Checkliste, in dieser Reihenfolge):
 
-1. **Hilfe-Dialog erweitern** — neue Funktionen und Shortcuts in `HELP_FEATURES` / `HELP_SHORTCUTS` in [src/renderer/renderer.js](src/renderer/renderer.js), zugehörige i18n-Keys in allen fünf Sprachen. Details im Abschnitt [Hilfe-Dialog bei neuen Funktionen erweitern](#hilfe-dialog-bei-neuen-funktionen-erweitern).
+1. **Hilfe-Dialog erweitern** — neue Funktionen und Shortcuts in `HELP_FEATURE_GROUPS` / `HELP_SHORTCUTS` in [src/renderer/renderer.js](src/renderer/renderer.js), zugehörige i18n-Keys in allen fünf Sprachen. Neue Funktions-Einträge in die passende Gruppe (Datei und Sitzung, Bearbeitung, Ansicht, Navigation, Allgemein) einsortieren. Details im Abschnitt [Hilfe-Dialog bei neuen Funktionen erweitern](#hilfe-dialog-bei-neuen-funktionen-erweitern).
 2. **CHANGELOG.md** — neuer Block `## [X.Y.Z] - JJJJ-MM-TT — <Untertitel>` ganz oben, Verweis auf das Epic im einleitenden Absatz. Subsektionen wie „Neu", „Geändert", „Behoben", „i18n".
-3. **Release-Notes** — `docs/release-notes-X.Y.Z.md` aus `docs/release-notes-template.md` ableiten. Auf Deutsch mit Umlauten, sektioniert wie im Template beschrieben.
-4. **Test-Iteration mit dem Nutzer** — Portable-EXE bauen und Nutzer prüfen lassen, ob Hilfe-Dialog-Inhalte sitzen und die Release-Notes inhaltlich passen. **Erst nach Freigabe** weiter.
-5. **Commit, Tag, GitHub-Release** — siehe Abschnitt [Release-Prozess: Tag + GitHub-Release bei jedem Versionssprung](#release-prozess-tag--github-release-bei-jedem-versionssprung). Der Release-Tag soll auf dem Commit liegen, der den finalen Doku-Stand trägt.
-6. **Status-Updates** — alle Umsetzungs-Tasks des Epics, der Sammeltask selbst und das Epic auf `Erledigt`.
+3. **Release-Notes** — `dist/release-notes-X.Y.Z.md` aus `docs/release-notes-template.md` ableiten (gitignored). Auf Deutsch mit Umlauten, sektioniert wie im Template beschrieben.
+4. **README.md aktualisieren** — Status-Sektion (vorletztes Kapitel) auf die neue Version und ein bis zwei Sätze über die Schwerpunkte des Releases umschreiben. Tastenkürzel-Tabelle um die neuen Bindings ergänzen, sofern welche dazugekommen sind. EXE-Dateinamen im Build-Abschnitt sind über den Platzhalter `<version>` versionsfrei gehalten und brauchen keine Pflege.
+5. **Test-Iteration mit dem Nutzer** — Portable-EXE bauen und Nutzer prüfen lassen, ob Hilfe-Dialog-Inhalte sitzen, die Release-Notes inhaltlich passen und die README-Status-Sektion stimmt. **Erst nach Freigabe** weiter.
+6. **Commit, Tag, GitHub-Release** — siehe Abschnitt [Release-Prozess: Tag + GitHub-Release bei jedem Versionssprung](#release-prozess-tag--github-release-bei-jedem-versionssprung). Der Release-Tag soll auf dem Commit liegen, der den finalen Doku-Stand trägt.
+7. **Status-Updates** — alle Umsetzungs-Tasks des Epics, der Sammeltask selbst und das Epic auf `Erledigt`.
 
 **Hinweise zur Reihenfolge:**
 
-- Erst Doku-Texte schreiben (Schritte 1–3), dann Test-Iteration (Schritt 4), **erst danach** Commit + Build + Tag + Release (Schritt 5). So bleibt der finale Doku-Stand am Release-Tag verankert; nachträgliche Doku-Korrekturen würden sonst hinter dem Tag stehen und im Release-Asset fehlen.
+- Erst Doku-Texte schreiben (Schritte 1–4), dann Test-Iteration (Schritt 5), **erst danach** Commit + Build + Tag + Release (Schritt 6). So bleibt der finale Doku-Stand am Release-Tag verankert; nachträgliche Doku-Korrekturen würden sonst hinter dem Tag stehen und im Release-Asset fehlen.
 - Sammeltask-ID ist die nächste freie 4T-Nummer; sie bezieht sich nicht auf eine fortlaufende Sammeltask-Reihe und ist daher nicht „4T-0010 → 4T-0011" o.ä., sondern folgt einfach der Reihenfolge der angelegten Tasks im Projekt.
 
 ## Release-Prozess: Tag + GitHub-Release bei jedem Versionssprung
 
-Dieser technische Ablauf ist Teil des Abschluss-Sammeltasks (Schritt 5, siehe Abschnitt davor) und wird bei jedem Versionssprung in dieser Form durchgeführt.
+Dieser technische Ablauf ist Teil des Abschluss-Sammeltasks (Schritt 6, siehe Abschnitt davor) und wird bei jedem Versionssprung in dieser Form durchgeführt.
 
 Wenn ein Commit eine neue Version setzt (z.B. `package.json` von `0.4.0` auf `0.5.0`), nach `git push` **immer zusätzlich** folgendes durchführen — sonst ist die neue Version nur als Commit, aber nicht als Release auf GitHub sichtbar (und der Hauptmonitor unter „Releases" zeigt weiter die alte Version als „Latest").
 
@@ -99,14 +100,14 @@ Notes auf **Deutsch** mit Umlauten, im Stil der bisherigen Releases (`gh release
 
 ## Hilfe-Dialog bei neuen Funktionen erweitern
 
-Der `?`-Knopf rechts neben „Über" in der Toolbar öffnet ein Modal mit zwei Sektionen — **Funktionen** und **Tastenkürzel**. Beide werden dynamisch aus i18n-Keys gerendert (siehe `renderHelpContent()` in `src/renderer/renderer.js`).
+Der Hilfe-Dialog (`F1` oder Hilfe-Menü) hat seit 0.9.0 zwei Reiter — **Funktionen** und **Tastenkürzel**. Die Funktionen sind in fünf Gruppen sortiert: Datei und Sitzung, Bearbeitung, Ansicht, Navigation, Allgemein. Beide Tabs werden dynamisch aus i18n-Keys gerendert (siehe `renderHelpContent()` in `src/renderer/renderer.js`).
 
 Bei jeder neuen Funktionalität, die das Verhalten der App nach außen ändert, ist der Hilfe-Dialog mit zu pflegen — sonst veraltet er.
 
 ### Neues Feature → Funktions-Liste erweitern
 
 1. Neuen i18n-Key `help.feature.<name>` in allen **fünf** Sprachdateien (`src/i18n/de.json` / `en.json` / `fr.json` / `es.json` / `it.json`) anlegen. Beschreibung: 1 Satz, was das Feature tut.
-2. Den neuen Key in `HELP_FEATURES` in `src/renderer/renderer.js` an passender Stelle einfügen — die Reihenfolge bestimmt die Anzeige im Modal.
+2. Den neuen Key in `HELP_FEATURE_GROUPS` in `src/renderer/renderer.js` an passender Stelle einfügen — in die thematisch passende Gruppe, Reihenfolge innerhalb der Gruppe bestimmt die Anzeige im Modal. Falls keine bestehende Gruppe passt, **nicht** spontan eine neue Gruppe erfinden, sondern zuerst überlegen, ob das Feature wirklich neu genug ist oder besser in eine bestehende Gruppe passt.
 
 ### Neuer Shortcut → Tastenkürzel-Tabelle erweitern
 
@@ -114,7 +115,7 @@ Bei jeder neuen Funktionalität, die das Verhalten der App nach außen ändert, 
 2. Eintrag in `HELP_SHORTCUTS` in `src/renderer/renderer.js` mit:
    - `keys`: Array von Tasten-Strings, z.B. `['Strg+K']` oder mehrere Varianten wie `['F3', 'Umschalt+F3']`. Einzelne Tasten innerhalb eines Strings sind durch `+` getrennt.
    - `descKey`: der i18n-Key aus Schritt 1.
-3. Falls eine neue Taste verwendet wird, die noch nicht in `KEY_LABEL_KEY` (Strg, Umschalt, Alt, Tab, Enter, Esc, Mittlere Maustaste) steht: dort ergänzen und einen neuen `help.key.<name>`-Key in allen fünf Sprachen anlegen, damit die Tastennamen lokalisiert werden (z.B. „Strg" / „Ctrl" / „Maj" / „Mayús" / „Maiusc").
+3. Falls eine neue Taste verwendet wird, die noch nicht in `KEY_LABEL_KEY` (Strg, Umschalt, Alt, Tab, Enter, Esc, Mittlere Maustaste, Mausrad) steht: dort ergänzen und einen neuen `help.key.<name>`-Key in allen fünf Sprachen anlegen, damit die Tastennamen lokalisiert werden (z.B. „Strg" / „Ctrl" / „Maj" / „Mayús" / „Maiusc").
 
 ### CHANGELOG-Eintrag
 
