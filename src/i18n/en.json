@@ -185,5 +185,13 @@
   "settings.renderSize": "Render font size",
   "settings.ok": "OK",
   "settings.apply": "Apply",
-  "settings.cancel": "Cancel"
+  "settings.cancel": "Cancel",
+  "linter.bareUrl.short": "Bare URL",
+  "linter.bareUrl.tooltip": "URL without Markdown link syntax. Prefer [label](URL) or autolink <URL>.",
+  "linter.emptyLinkText.short": "Empty link text",
+  "linter.emptyLinkText.tooltip": "This link has no visible text. Add a label between the square brackets.",
+  "linter.missingAltText.short": "Missing alt text",
+  "linter.missingAltText.tooltip": "This image has no alt text. Add a short description for accessibility.",
+  "linter.brokenWikiLink.short": "Wiki link target not found",
+  "linter.brokenWikiLink.tooltip": "Target '{target}' not found in search scope (file folder and 2 sub-folder levels)."
 }

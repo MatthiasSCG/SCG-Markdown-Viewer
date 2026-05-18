@@ -185,5 +185,13 @@
   "settings.renderSize": "Render-Schriftgröße",
   "settings.ok": "OK",
   "settings.apply": "Anwenden",
-  "settings.cancel": "Abbrechen"
+  "settings.cancel": "Abbrechen",
+  "linter.bareUrl.short": "Bare URL",
+  "linter.bareUrl.tooltip": "URL ohne Markdown-Link-Syntax. Besser als [Anzeigetext](URL) oder Auto-Link <URL>.",
+  "linter.emptyLinkText.short": "Leerer Link-Text",
+  "linter.emptyLinkText.tooltip": "Der Link hat keinen sichtbaren Text. Bitte Link-Text in den eckigen Klammern angeben.",
+  "linter.missingAltText.short": "Fehlender Alt-Text",
+  "linter.missingAltText.tooltip": "Das Bild hat keinen Alt-Text. Für Barrierefreiheit eine kurze Beschreibung ergänzen.",
+  "linter.brokenWikiLink.short": "Wiki-Link-Ziel nicht gefunden",
+  "linter.brokenWikiLink.tooltip": "Ziel '{target}' im Suchraum (Datei-Ordner und 2 Unterordner-Ebenen) nicht gefunden."
 }

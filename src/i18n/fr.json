@@ -185,5 +185,13 @@
   "settings.renderSize": "Taille de la police du rendu",
   "settings.ok": "OK",
   "settings.apply": "Appliquer",
-  "settings.cancel": "Annuler"
+  "settings.cancel": "Annuler",
+  "linter.bareUrl.short": "URL nue",
+  "linter.bareUrl.tooltip": "URL sans syntaxe de lien Markdown. Préférer [texte](URL) ou un lien automatique <URL>.",
+  "linter.emptyLinkText.short": "Texte de lien vide",
+  "linter.emptyLinkText.tooltip": "Ce lien n'a pas de texte visible. Ajouter un libellé entre les crochets.",
+  "linter.missingAltText.short": "Texte alternatif manquant",
+  "linter.missingAltText.tooltip": "Cette image n'a pas de texte alternatif. Ajouter une courte description pour l'accessibilité.",
+  "linter.brokenWikiLink.short": "Cible de lien wiki introuvable",
+  "linter.brokenWikiLink.tooltip": "Cible « {target} » introuvable dans la portée de recherche (dossier du fichier et 2 niveaux de sous-dossiers)."
 }

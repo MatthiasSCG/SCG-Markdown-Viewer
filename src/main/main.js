@@ -867,6 +867,17 @@ function registerIpc() {
     return { ok: true };
   });
 
+  // 4T-0020: Linter-Lookup fuer broken-wiki-link. Batch-Endpunkt: pro Lint-
+  // Lauf ein Roundtrip mit allen Basenames des Dokuments. Antwort siehe
+  // existingWikiTargets in backlinks.js (status + Liste der gefundenen).
+  // Triggert keinen Index-Aufbau; falls kein Index vorliegt, wird 'unavailable'
+  // zurueckgegeben und der Linter unterdrueckt die Regel.
+  ipcMain.handle('linter:resolveWikiTargets', (_event, params) => {
+    const filePath = params && params.filePath;
+    const basenames = params && Array.isArray(params.basenames) ? params.basenames : [];
+    return backlinks.existingWikiTargets(filePath, basenames);
+  });
+
   // Renderer fordert ein neues Fenster mit initialen Panes/Tabs an.
   // Format von initialPanes: [{ paths, activeIndex, tabSettings }, ...]
   ipcMain.handle('window:openNew', (event, initialPanes) => {

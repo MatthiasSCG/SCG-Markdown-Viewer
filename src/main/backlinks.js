@@ -387,10 +387,42 @@ function fileBelongsToRoot(filePath, rootPath) {
   return abs === rootPath || abs.startsWith(rootPath + path.sep);
 }
 
+// 4T-0020: Lookup fuer den Markdown-Linter. Liefert fuer eine Liste von
+// Wiki-Link-Basenames das Set derjenigen, deren Ziel im Suchraum der aktiven
+// Datei existiert. Aufrufer (Renderer-Linter) entscheidet anhand des Status,
+// ob er die broken-wiki-link-Regel anwenden darf:
+// - 'ready': Index ist verfuegbar, 'existing' ist verbindlich.
+// - 'indexing': Index wird gerade aufgebaut, Regel temporaer unterdruecken.
+// - 'unavailable': kein Suchraum (z.B. unbenannte Datei) oder Index
+//   oversized, Regel ebenfalls unterdruecken.
+// Es wird hier KEIN ensureIndex aufgerufen, sondern nur ein bereits
+// vorhandener Index genutzt. Damit triggert der Linter keinen Index-Aufbau
+// neben dem ohnehin laufenden Backlinks-Panel-Pfad — das wuerde Refcount-
+// und Soft-Timer-Logik durcheinanderbringen.
+function existingWikiTargets(filePath, basenames) {
+  if (!filePath || !Array.isArray(basenames)) {
+    return { status: 'unavailable', existing: [] };
+  }
+  const root = rootFor(filePath);
+  if (!root) return { status: 'unavailable', existing: [] };
+  const entry = indexes.get(root);
+  if (!entry) return { status: 'unavailable', existing: [] };
+  if (entry.status === 'oversized') return { status: 'unavailable', existing: [] };
+  if (entry.status === 'indexing') return { status: 'indexing', existing: [] };
+  const existing = [];
+  for (const name of basenames) {
+    if (typeof name !== 'string' || !name) continue;
+    if (resolveWikiLink(entry, name).length > 0) existing.push(name);
+  }
+  return { status: 'ready', existing };
+}
+
 module.exports = {
   attachBroadcast,
   backlinksFor,
   releaseRoot,
   rootForActiveFile,
   fileBelongsToRoot,
+  // 4T-0020: Linter-Lookup fuer broken-wiki-link.
+  existingWikiTargets,
 };

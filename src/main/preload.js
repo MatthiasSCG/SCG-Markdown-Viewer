@@ -186,6 +186,9 @@ contextBridge.exposeInMainWorld('api', {
   // aufgerufen). onBacklinksInvalidated meldet Watcher-Updates aus dem Main.
   requestBacklinks: (filePath) => ipcRenderer.invoke('backlinks:request', { filePath }),
   releaseBacklinks: (filePath) => ipcRenderer.invoke('backlinks:release', { filePath }),
+  // 4T-0020: Batch-Lookup fuer den Markdown-Linter (broken-wiki-link).
+  resolveWikiTargets: (filePath, basenames) =>
+    ipcRenderer.invoke('linter:resolveWikiTargets', { filePath, basenames }),
   onBacklinksInvalidated: (cb) => ipcRenderer.on('backlinks:invalidated', (_e, payload) => cb(payload)),
 
   // Multi-Window

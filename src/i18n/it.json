@@ -185,5 +185,13 @@
   "settings.renderSize": "Dimensione carattere del rendering",
   "settings.ok": "OK",
   "settings.apply": "Applica",
-  "settings.cancel": "Annulla"
+  "settings.cancel": "Annulla",
+  "linter.bareUrl.short": "URL nuda",
+  "linter.bareUrl.tooltip": "URL senza sintassi di collegamento Markdown. Preferire [testo](URL) o collegamento automatico <URL>.",
+  "linter.emptyLinkText.short": "Testo del collegamento vuoto",
+  "linter.emptyLinkText.tooltip": "Questo collegamento non ha testo visibile. Aggiungere un'etichetta tra le parentesi quadre.",
+  "linter.missingAltText.short": "Testo alternativo mancante",
+  "linter.missingAltText.tooltip": "Questa immagine non ha testo alternativo. Aggiungere una breve descrizione per l'accessibilità.",
+  "linter.brokenWikiLink.short": "Destinazione del collegamento wiki non trovata",
+  "linter.brokenWikiLink.tooltip": "Destinazione «{target}» non trovata nell'ambito di ricerca (cartella del file e 2 livelli di sottocartelle)."
 }

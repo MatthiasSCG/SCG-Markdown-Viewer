@@ -13,6 +13,7 @@ import {
   keymap,
   drawSelection,
   Decoration,
+  hoverTooltip,
 } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
@@ -864,6 +865,224 @@ const listIndentKeymap = Prec.high(keymap.of([
   { key: 'Shift-Tab', run: (view) => applyListIndent(view, -1) },
 ]));
 
+// 4T-0020: Markdown-Linter-Light. Vier Regeln (bare-url, empty-link-text,
+// missing-alt-text, broken-wiki-link), Erkennung per Regex auf den Dokument-
+// Text mit syntaxTree-Schutz gegen Code-Bloecke und Markdown-Link-Knoten.
+// Decorations werden als CodeMirror-StateField gehalten; ein UpdateListener
+// triggert mit 300-ms-Debounce einen asynchronen Lint-Lauf, dessen Ergebnis
+// per StateEffect ins Feld dispatcht wird. Tooltip via hoverTooltip mit
+// lokalisiertem Inhalt.
+
+const LINT_DEBOUNCE_MS = 300;
+
+// Regel 1: bare URL (http(s):// oder mailto:). Endet nicht in typischen
+// trailing-Zeichen, die in Fliesstext angrenzen koennen. Schluss-Komma/
+// -Klammer werden ebenfalls nicht zur URL gezaehlt, sonst werden Saetze
+// wie "Siehe https://example.com, ..." kosmetisch falsch markiert.
+const LINT_BARE_URL_RE = /\b(?:https?:\/\/|mailto:)[^\s<>"`\[\]()]+/g;
+// Regeln 2 + 3: leere Linktexte. Gruppe 1 unterscheidet ueber den optionalen
+// '!' Bild vs. Link. Wir matchen sowohl Inline-Form `[](url)` als auch
+// Referenz-Form `[][ref]`.
+const LINT_EMPTY_LINK_RE = /(!?)\[\]\((\s*[^\s)]+[^)]*?)\)|(!?)\[\]\[([^\]]+)\]/g;
+// Regel 4: Wiki-Link [[Ziel]] oder [[Ziel|Anzeige]].
+const LINT_WIKI_RE = /\[\[([^\]\n|]+?)(?:\|[^\]\n]*)?\]\]/g;
+
+const setLintDecorations = StateEffect.define();
+
+const lintField = StateField.define({
+  create() { return Decoration.none; },
+  update(value, tr) {
+    // Bei Doc-Change Decorations leeren — ein neuer Lint-Lauf laeuft nach
+    // dem Debounce und dispatcht frische Decorations. So bleiben keine
+    // verrutschten Marker stehen, etwa nach Tab-Wechsel.
+    let next = tr.docChanged ? Decoration.none : value;
+    for (const effect of tr.effects) {
+      if (effect.is(setLintDecorations)) next = effect.value;
+    }
+    return next;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
+
+const LINT_RULES = {
+  bareUrl: { className: 'cm-linter-mark cm-linter-bare-url' },
+  emptyLinkText: { className: 'cm-linter-mark cm-linter-empty-link-text' },
+  missingAltText: { className: 'cm-linter-mark cm-linter-missing-alt-text' },
+  brokenWikiLink: { className: 'cm-linter-mark cm-linter-broken-wiki-link' },
+};
+
+function makeLintMark(ruleId) {
+  return Decoration.mark({
+    class: LINT_RULES[ruleId].className,
+    attributes: { 'data-lint-rule': ruleId },
+  });
+}
+
+// Pruefung, ob die Position innerhalb von Code-Kontext liegt (FencedCode,
+// CodeBlock, InlineCode). In diesem Fall greifen die Regeln 1-4 nicht.
+function lintIsInCodeContext(state, pos) {
+  const tree = syntaxTree(state);
+  let node = tree.resolveInner(pos, 1);
+  while (node) {
+    if (node.name === 'FencedCode' || node.name === 'CodeBlock' || node.name === 'InlineCode') return true;
+    node = node.parent;
+  }
+  return false;
+}
+
+// Pruefung, ob die Position innerhalb einer Markdown-Link-Syntax oder eines
+// Autolinks liegt. Verhindert false positives fuer bare-url: eine URL in
+// [text](url) oder <https://...> ist kein Verstoss.
+function lintIsInLinkContext(state, pos) {
+  const tree = syntaxTree(state);
+  let node = tree.resolveInner(pos, 1);
+  while (node) {
+    if (node.name === 'Link' || node.name === 'Autolink' || node.name === 'URL') return true;
+    node = node.parent;
+  }
+  return false;
+}
+
+// Pro EditorView ein Debounce-Timer, damit Doc-Aenderungen den Lint-Lauf
+// nicht haeufiger als alle LINT_DEBOUNCE_MS triggern.
+const lintTimers = new WeakMap();
+
+function scheduleLint(view) {
+  const existing = lintTimers.get(view);
+  if (existing) clearTimeout(existing);
+  const timer = setTimeout(() => {
+    lintTimers.delete(view);
+    runLint(view);
+  }, LINT_DEBOUNCE_MS);
+  lintTimers.set(view, timer);
+}
+
+async function runLint(view) {
+  // View koennte zwischenzeitlich entfernt worden sein (Pane geschlossen).
+  const paneIdx = paneEditors.indexOf(view);
+  if (paneIdx < 0) return;
+  const pane = state.panes[paneIdx];
+  if (!pane || pane.activeIndex < 0) return;
+  const tab = pane.tabs[pane.activeIndex];
+  if (!tab) return;
+  const stateAtStart = view.state;
+  const text = stateAtStart.doc.toString();
+  // Snapshot der Doc-Laenge fuer Stale-Check beim spaeten Dispatch.
+  const docLengthAtStart = stateAtStart.doc.length;
+
+  const ranges = [];
+  const pushRange = (from, to, ruleId) => {
+    if (from >= 0 && to > from && to <= docLengthAtStart) {
+      ranges.push({ from, to, mark: makeLintMark(ruleId) });
+    }
+  };
+
+  // Regel 1: bare URLs
+  for (const m of text.matchAll(LINT_BARE_URL_RE)) {
+    const from = m.index;
+    const to = from + m[0].length;
+    if (lintIsInCodeContext(stateAtStart, from)) continue;
+    if (lintIsInLinkContext(stateAtStart, from)) continue;
+    pushRange(from, to, 'bareUrl');
+  }
+
+  // Regeln 2 + 3: leere Link-/Bild-Texte
+  for (const m of text.matchAll(LINT_EMPTY_LINK_RE)) {
+    const from = m.index;
+    const to = from + m[0].length;
+    if (lintIsInCodeContext(stateAtStart, from)) continue;
+    const isImage = (m[1] === '!') || (m[3] === '!');
+    pushRange(from, to, isImage ? 'missingAltText' : 'emptyLinkText');
+  }
+
+  // Regel 4: broken-wiki-link. Erst alle Wiki-Link-Matches im Dokument
+  // sammeln, dann genau einen IPC-Roundtrip an den Main schicken, dort
+  // gegen den Backlinks-Index pruefen.
+  const wikiMatches = [];
+  for (const m of text.matchAll(LINT_WIKI_RE)) {
+    const from = m.index;
+    const to = from + m[0].length;
+    if (lintIsInCodeContext(stateAtStart, from)) continue;
+    const target = (m[1] || '').trim();
+    if (!target) continue;
+    wikiMatches.push({ from, to, target });
+  }
+  if (wikiMatches.length > 0 && tab.path) {
+    const basenames = [...new Set(wikiMatches.map((w) => w.target))];
+    try {
+      const result = await api.resolveWikiTargets(tab.path, basenames);
+      if (result && result.status === 'ready') {
+        const existingSet = new Set(result.existing || []);
+        for (const w of wikiMatches) {
+          if (!existingSet.has(w.target)) pushRange(w.from, w.to, 'brokenWikiLink');
+        }
+      }
+      // Bei 'indexing' / 'unavailable': Regel 4 wird in diesem Lauf
+      // unterdrueckt, die anderen drei Regeln werden trotzdem angewendet.
+    } catch {
+      // IPC-Fehler ignorieren; Regel 4 entfaellt fuer diesen Lauf.
+    }
+  }
+
+  // Stale-Check: wenn das Dokument inzwischen veraendert wurde, sind die
+  // gesammelten Positionen ggf. ungueltig. Dann verwerfen wir das Ergebnis;
+  // ein neuer Lauf ist eh schon ueber den UpdateListener angestossen.
+  if (paneEditors.indexOf(view) < 0) return;
+  if (view.state.doc.length !== docLengthAtStart) return;
+
+  ranges.sort((a, b) => a.from - b.from || a.to - b.to);
+  const set = Decoration.set(ranges.map((r) => r.mark.range(r.from, r.to)));
+  view.dispatch({ effects: setLintDecorations.of(set) });
+}
+
+// UpdateListener triggert Debounce-Lauf bei Doc-Aenderungen.
+const lintUpdateListener = EditorView.updateListener.of((update) => {
+  if (update.docChanged) scheduleLint(update.view);
+});
+
+// Hover-Tooltip mit lokalisiertem Inhalt. Sucht an der Hover-Position die
+// erste Lint-Marker-Decoration und baut daraus einen kleinen DOM-Tooltip.
+const lintHoverTooltip = hoverTooltip((view, pos) => {
+  const decoSet = view.state.field(lintField, false);
+  if (!decoSet) return null;
+  let hit = null;
+  decoSet.between(Math.max(0, pos - 1), pos + 1, (from, to, value) => {
+    const ruleId = value.spec && value.spec.attributes && value.spec.attributes['data-lint-rule'];
+    if (!ruleId) return;
+    hit = { from, to, ruleId };
+    return false;
+  });
+  if (!hit) return null;
+  const target = view.state.doc.sliceString(hit.from, hit.to);
+  return {
+    pos: hit.from,
+    end: hit.to,
+    above: true,
+    create() {
+      return { dom: buildLintTooltipDom(hit.ruleId, target) };
+    },
+  };
+});
+
+function buildLintTooltipDom(ruleId, target) {
+  const dom = document.createElement('div');
+  dom.className = 'cm-linter-tooltip';
+  const title = document.createElement('div');
+  title.className = 'cm-linter-tooltip-title';
+  title.textContent = t(`linter.${ruleId}.short`);
+  dom.appendChild(title);
+  const desc = document.createElement('div');
+  desc.className = 'cm-linter-tooltip-desc';
+  let text = t(`linter.${ruleId}.tooltip`);
+  if (ruleId === 'brokenWikiLink') {
+    const cleaned = target.replace(/^\[\[|\]\]$/g, '').split('|')[0].trim();
+    text = text.replace('{target}', cleaned);
+  }
+  desc.textContent = text;
+  dom.appendChild(desc);
+  return dom;
+}
+
 function createEditorState(opts = {}) {
   return EditorState.create({
     doc: opts.content || '',
@@ -898,6 +1117,12 @@ function createEditorState(opts = {}) {
       // 4T-0016: Tab/Shift-Tab fuer Listen-Indent vor dem defaultKeymap.
       listIndentKeymap,
       keymap.of([...foldKeymap, ...defaultKeymap, ...historyKeymap]),
+      // 4T-0020: Markdown-Linter-Light. lintField haelt die Decorations,
+      // lintUpdateListener triggert mit Debounce einen neuen Lauf,
+      // lintHoverTooltip zeigt Regel-Beschreibungen beim Hover.
+      lintField,
+      lintUpdateListener,
+      lintHoverTooltip,
       drawSelection(),
       searchHighlightField,
       EditorView.updateListener.of((update) => {

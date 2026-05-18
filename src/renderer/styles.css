@@ -40,6 +40,10 @@
   --syntax-string: #0a3069;
   --syntax-number: #0550ae;
   --syntax-selection: rgba(10, 102, 194, 0.4);
+  /* 4T-0020: Markdown-Linter-Light. Warn-Farbe fuer die Wellen-
+     Unterstreichung der Inline-Hinweise. Light-Theme: gedaempftes
+     Bernstein, deutlich genug sichtbar ohne aufdringlich zu wirken. */
+  --linter-warn: #c97a00;
 }
 
 [data-theme="dark"] {
@@ -70,6 +74,9 @@
   --syntax-string: #a5d6ff;
   --syntax-number: #79c0ff;
   --syntax-selection: rgba(78, 162, 255, 0.5);
+  /* 4T-0020: Linter-Warnfarbe im Dark-Theme — etwas waermer als Light,
+     bleibt vor dunklem Hintergrund gut lesbar. */
+  --linter-warn: #e8a544;
 }
 
 /* === Reset / Basis ======================================================== */
@@ -1120,6 +1127,42 @@ select {
   display: block;
   margin: 16px auto 0;
   min-width: 100px;
+}
+
+/* === Markdown-Linter-Light (4T-0020) ==================================== */
+/* Wellen-Unterstreichung dezent in Warn-Farbe. CSS-Variable wird vom Theme
+   gesetzt; Light- und Dark-Mode haben jeweils eigene Werte. */
+.cm-editor .cm-linter-mark {
+  text-decoration: underline wavy var(--linter-warn);
+  text-decoration-skip-ink: none;
+  text-underline-offset: 2px;
+}
+/* Tooltip-Box wird von der CodeMirror-hoverTooltip-Extension in einem
+   .cm-tooltip-Container platziert. Der CodeMirror-Default-Container hat
+   keinen theme-konformen Hintergrund, daher hier explizit setzen — sonst
+   bleibt im Dark-Theme heller Default-Hintergrund stehen und der Text
+   ist kaum lesbar. */
+.cm-editor .cm-tooltip {
+  background: var(--bg-alt);
+  color: var(--fg);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  box-shadow: var(--shadow);
+}
+.cm-tooltip .cm-linter-tooltip {
+  padding: 6px 10px;
+  max-width: 360px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.cm-linter-tooltip-title {
+  font-weight: 600;
+  color: var(--linter-warn);
+  margin-bottom: 2px;
+}
+.cm-linter-tooltip-desc {
+  color: var(--fg);
 }
 
 /* === Fokus-Modus (4T-0019) ============================================== */
