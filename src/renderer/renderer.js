@@ -2082,6 +2082,10 @@ function bindUi() {
 
   $('#btn-help-close').addEventListener('click', hideHelp);
   helpModal.querySelector('.help-modal-backdrop').addEventListener('click', hideHelp);
+  // 4T-0027: Tab-Wechsel im Hilfe-Modal per Klick auf die Tab-Buttons.
+  helpModal.querySelectorAll('.help-tab').forEach((tab) => {
+    tab.addEventListener('click', () => switchHelpTab(tab.dataset.helpTab));
+  });
 
   // 4T-0018: Settings-Modal — Buttons, Backdrop, Live-Vorschau.
   $('#btn-settings-cancel').addEventListener('click', cancelSettings);
@@ -3636,46 +3640,87 @@ function hideAbout() {
 }
 
 // --- Hilfe-Modal ------------------------------------------------------------
-// Liste der Hauptfunktionen — Reihenfolge bestimmt Anzeige im Modal.
-const HELP_FEATURES = [
-  'help.feature.openFiles',
-  'help.feature.tabs',
-  'help.feature.multiWindow',
-  'help.feature.newTab',
-  'help.feature.viewModes',
-  'help.feature.editMode',
-  'help.feature.save',
-  'help.feature.autoSave',
-  'help.feature.sourceToggles',
-  'help.feature.foldGutter',
-  'help.feature.outline',
-  'help.feature.backlinks',
-  'help.feature.anchorLinks',
-  'help.feature.search',
-  'help.feature.searchReplace',
-  'help.feature.autoReload',
-  'help.feature.restoreSession',
-  'help.feature.links',
-  'help.feature.theme',
-  'help.feature.languages',
-  'help.feature.windowState',
-  'help.feature.menuBar',
+// 4T-0027: Funktionen sind gruppiert nach Oberbegriffen. Reihenfolge innerhalb
+// einer Gruppe bestimmt die Anzeige im Modal. Innerhalb des Funktionen-Tabs
+// werden die Gruppen-Ueberschriften aus help.group.* gezogen, die Eintraege
+// aus help.feature.*.
+const HELP_FEATURE_GROUPS = [
+  {
+    groupKey: 'help.group.file',
+    features: [
+      'help.feature.openFiles',
+      'help.feature.newTab',
+      'help.feature.save',
+      'help.feature.autoSave',
+      'help.feature.autoReload',
+      'help.feature.restoreSession',
+      'help.feature.windowState',
+    ],
+  },
+  {
+    groupKey: 'help.group.editing',
+    features: [
+      'help.feature.editMode',
+      'help.feature.tabIndent',
+      'help.feature.search',
+      'help.feature.searchReplace',
+      'help.feature.linter',
+    ],
+  },
+  {
+    groupKey: 'help.group.view',
+    features: [
+      'help.feature.viewModes',
+      'help.feature.sourceToggles',
+      'help.feature.foldGutter',
+      'help.feature.zoom',
+      'help.feature.settings',
+      'help.feature.focusMode',
+      'help.feature.typewriterScroll',
+    ],
+  },
+  {
+    groupKey: 'help.group.navigation',
+    features: [
+      'help.feature.tabs',
+      'help.feature.multiWindow',
+      'help.feature.outline',
+      'help.feature.backlinks',
+      'help.feature.anchorLinks',
+      'help.feature.links',
+    ],
+  },
+  {
+    groupKey: 'help.group.general',
+    features: [
+      'help.feature.theme',
+      'help.feature.languages',
+      'help.feature.menuBar',
+    ],
+  },
 ];
 
 // Shortcuts — { keys: Array von Tasten-Strings, descKey: i18n-Key }.
 // Mehrere Tasten in einer Zeile werden als getrennte <kbd>-Elemente gerendert.
+// 4T-0027: erweitert um die 0.9.0-Tastenkuerzel (Zoom, Einstellungen,
+// Fokus-Modus, Tab-Indent in Listen).
 const HELP_SHORTCUTS = [
   { keys: ['Strg+N'], descKey: 'help.shortcut.newTab' },
   { keys: ['Strg+O'], descKey: 'help.shortcut.openFile' },
   { keys: ['Strg+W'], descKey: 'help.shortcut.closeTab' },
   { keys: ['Strg+S'], descKey: 'help.shortcut.save' },
   { keys: ['Strg+Umschalt+S'], descKey: 'help.shortcut.saveAs' },
+  { keys: ['Strg+,'], descKey: 'help.shortcut.openSettings' },
   { keys: ['Strg+E'], descKey: 'help.shortcut.toggleEdit' },
   { keys: ['Strg+1', 'Strg+2', 'Strg+3'], descKey: 'help.shortcut.viewModes' },
+  { keys: ['Strg++', 'Strg+-', 'Strg+0'], descKey: 'help.shortcut.zoom' },
+  { keys: ['Strg+Mausrad'], descKey: 'help.shortcut.zoomWheel' },
+  { keys: ['Strg+Umschalt+F'], descKey: 'help.shortcut.focusMode' },
   { keys: ['Strg+Umschalt+O'], descKey: 'help.shortcut.toggleOutline' },
   { keys: ['Strg+Umschalt+B'], descKey: 'help.shortcut.toggleBacklinks' },
   { keys: ['Strg+Umschalt+['], descKey: 'help.shortcut.foldRegion' },
   { keys: ['Strg+Umschalt+]'], descKey: 'help.shortcut.unfoldRegion' },
+  { keys: ['Tab', 'Umschalt+Tab'], descKey: 'help.shortcut.tabIndent' },
   { keys: ['Strg+Tab', 'Strg+Umschalt+Tab'], descKey: 'help.shortcut.switchTab' },
   { keys: ['Strg+Alt+→', 'Strg+Alt+←'], descKey: 'help.shortcut.moveTab' },
   { keys: ['Mittlere Maustaste'], descKey: 'help.shortcut.middleClickClose' },
@@ -3699,6 +3744,8 @@ const KEY_LABEL_KEY = {
   'Enter': 'help.key.enter',
   'Esc': 'help.key.esc',
   'Mittlere Maustaste': 'help.key.middleClick',
+  // 4T-0027: Mausrad als eigene "Taste" fuer den Zoom-per-Mausrad-Shortcut.
+  'Mausrad': 'help.key.mouseWheel',
 };
 
 function localizeKey(token) {
@@ -3709,14 +3756,33 @@ function localizeKey(token) {
 }
 
 function renderHelpContent() {
+  // 4T-0027: Funktionen-Tab. Gruppen-Container mit jeweils Ueberschrift
+  // und Item-Liste.
   const featuresEl = $('#help-features');
   featuresEl.innerHTML = '';
-  for (const key of HELP_FEATURES) {
-    const li = document.createElement('li');
-    li.textContent = t(key);
-    featuresEl.appendChild(li);
+  for (const group of HELP_FEATURE_GROUPS) {
+    const groupDiv = document.createElement('div');
+    groupDiv.className = 'help-feature-group';
+    const heading = document.createElement('h3');
+    heading.className = 'help-feature-group-title';
+    heading.textContent = t(group.groupKey);
+    groupDiv.appendChild(heading);
+    const ul = document.createElement('ul');
+    ul.className = 'help-features';
+    for (const featureKey of group.features) {
+      const li = document.createElement('li');
+      li.textContent = t(featureKey);
+      ul.appendChild(li);
+    }
+    groupDiv.appendChild(ul);
+    featuresEl.appendChild(groupDiv);
   }
 
+  // Tastenkuerzel-Tab. Tabelle wie bisher; Tasten-Tokens werden ueber
+  // localizeKey in die aktive Sprache umgesetzt. Beim Split nach '+' wird
+  // ein einzelnes leeres Token am Ende erlaubt: "Strg++" wird zu
+  // ["Strg", "", "+"] - der Plus-Charakter selbst ist das letzte
+  // Token, nicht ein Separator.
   const shortcutsEl = $('#help-shortcuts');
   shortcutsEl.innerHTML = '';
   for (const sc of HELP_SHORTCUTS) {
@@ -3724,8 +3790,7 @@ function renderHelpContent() {
     const tdKeys = document.createElement('td');
     sc.keys.forEach((k, i) => {
       if (i > 0) tdKeys.appendChild(document.createTextNode('  /  '));
-      // Einzelne Tasten innerhalb eines Strings sind durch '+' getrennt.
-      const parts = k.split('+');
+      const parts = splitShortcutKeys(k);
       parts.forEach((part, j) => {
         if (j > 0) tdKeys.appendChild(document.createTextNode(' + '));
         const kbd = document.createElement('kbd');
@@ -3741,8 +3806,41 @@ function renderHelpContent() {
   }
 }
 
+// 4T-0027: Helper fuer den '+'-Split. "Strg+E" -> ["Strg", "E"], aber
+// "Strg++" muss zu ["Strg", "+"] werden (die zweite Plus-Taste ist Inhalt,
+// nicht Trenner). Trick: nur EINMAL splitten und alles zwischen den Trennern
+// als Tokens nehmen. Naehrungslogik: Wenn der letzte Char '+' ist, dann ist
+// die "Taste" '+' selbst. Behandle das gesondert.
+function splitShortcutKeys(k) {
+  if (k.endsWith('+') && k.length >= 2 && k[k.length - 2] === '+') {
+    const head = k.slice(0, -1); // "Strg+"
+    const headTokens = head.split('+').filter((s) => s !== '');
+    return [...headTokens, '+'];
+  }
+  return k.split('+');
+}
+
+// 4T-0027: Tab-Wechsel im Hilfe-Modal. Beim Oeffnen des Modals wird via
+// showHelp() immer der Funktionen-Tab gesetzt; per Klick auf die Tab-Buttons
+// kann der Nutzer auf Tastenkuerzel umschalten.
+function switchHelpTab(target) {
+  const tabs = helpModal.querySelectorAll('.help-tab');
+  tabs.forEach((tab) => {
+    const isActive = tab.dataset.helpTab === target;
+    tab.classList.toggle('active', isActive);
+    tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+  const panelFeatures = helpModal.querySelector('#help-panel-features');
+  const panelShortcuts = helpModal.querySelector('#help-panel-shortcuts');
+  if (panelFeatures) panelFeatures.hidden = target !== 'features';
+  if (panelShortcuts) panelShortcuts.hidden = target !== 'shortcuts';
+}
+
 function showHelp() {
   renderHelpContent();
+  // 4T-0027: Beim Oeffnen immer den Funktionen-Tab aktivieren, unabhaengig
+  // davon, was beim letzten Schliessen aktiv war.
+  switchHelpTab('features');
   helpModal.hidden = false;
   // Scroll-Position des Modals zuruecksetzen — sonst landet man dort, wo der
   // Fokus den Container hinscrollt (oder beim letzten Stand).

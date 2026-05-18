@@ -57,6 +57,7 @@ Alle fünf Themen sind kleinere Einzel-Features; sie werden in einem Epic gebün
 - [x] [4T-0018 — Konfigurierbare Schriftart und -größe (Settings-Dialog)](4T-0018-schriftart-konfigurierbar.md)
 - [x] [4T-0019 — Fokus-Modus mit optionalem Typewriter-Scroll](4T-0019-fokus-modus.md)
 - [x] [4T-0020 — Markdown-Linter-Light (Inline-Hinweise)](4T-0020-linter-light.md)
+- [ ] [4T-0027 — Hilfe-Dialog, CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.9.0](4T-0027-changelog-release-090.md)
 
 ## Architekturentscheidungen
 

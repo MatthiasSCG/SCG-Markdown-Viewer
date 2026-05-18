@@ -5,6 +5,35 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.9.0] - 2026-05-18 — Editor-UX und -Komfort: Listen-Indent, Zoom, Schriftart, Fokus-Modus und Markdown-Linter
+
+Feature-Release, das im Alltag spürbare Verbesserungen am Schreib- und Leseerlebnis bündelt. Umgesetzt als Epic [3E-0003](Projektmanagement/Aufgaben/3E-0003-editor-ux-und-komfort.md) in den Tasks [4T-0016](Projektmanagement/Aufgaben/4T-0016-tab-indent-listen.md) bis [4T-0020](Projektmanagement/Aufgaben/4T-0020-linter-light.md), inklusive Abschluss-Sammeltask [4T-0027](Projektmanagement/Aufgaben/4T-0027-changelog-release-090.md). Der Hilfe-Dialog ist in diesem Release strukturell überarbeitet, weil die kumulierte Funktions- und Tastenkürzel-Liste über die Releases hinweg unübersichtlich geworden war.
+
+### Neu
+
+- **Tab und Umschalt+Tab in Markdown-Listen** ([4T-0016](Projektmanagement/Aufgaben/4T-0016-tab-indent-listen.md)): Rückt Listenelemente eine Ebene ein bzw. aus, in zwei Leerzeichen pro Stufe. Erkannt werden ungeordnete (`-`, `*`, `+`), geordnete (`1.`) und Task-Listen (`- [ ]` / `- [x]`); geordnete Listen werden beim Einrücken auf `1.` zurückgesetzt, ungeordnete und Task-Listen behalten ihren Marker. Mehrzeilen-Selektion wird in einer Transaktion ausgeführt (`Strg+Z` macht die Operation als Ganzes rückgängig). In Code-Blöcken und außerhalb von Listen bleibt das CodeMirror-Default-Tab-Verhalten erhalten.
+- **Zoom pro Tab** ([4T-0017](Projektmanagement/Aufgaben/4T-0017-zoom-editor-render.md)): `Strg + +`, `Strg + -`, `Strg + 0` und `Strg + Mausrad` zoomen den Inhalt des aktiven Tabs in 10-%-Schritten zwischen 50 % und 300 %. Der Faktor wirkt nur auf Editor- und Render-Pane (UI bleibt unverändert) und wird pro Tab gehalten, sodass mehrere Tabs unterschiedliche Zooms zeigen können. Indikator rechts in der Statusbar bei Abweichung von 100 %, Klick darauf setzt zurück. Beim Tab-Transfer in ein anderes Fenster wandert der Zoom mit. Sitzungswiederherstellung startet bewusst bei 100 %.
+- **Einstellungen-Dialog mit konfigurierbarer Schriftart und -größe** ([4T-0018](Projektmanagement/Aufgaben/4T-0018-schriftart-konfigurierbar.md)): Neuer modaler Dialog `Datei → Einstellungen` (auch `Strg + ,`) mit Sektion „Darstellung". Editor- und Render-Schriftart sowie -größe sind getrennt einstellbar. Schriftart als kombiniertes Auswahl- und Freitext-Feld mit kuratierten Windows-Vorschlägen (Editor monospace: Consolas, Cascadia Code, Cascadia Mono, JetBrains Mono, Fira Code, Source Code Pro, Courier New; Render proportional: Segoe UI, Calibri, Arial, Helvetica, Georgia, Times New Roman, Verdana). Schriftgröße 8 bis 32, Default 14 (Editor) / 15 (Render). Live-Vorschau im Dialog, OK / Anwenden / Abbrechen. Werte persistent und über Multi-Window-Broadcast in allen offenen Fenstern aktiv. Code-Blöcke im Render-Pane nutzen die Editor-Schriftart für konsistente Darstellung.
+- **Fokus-Modus** ([4T-0019](Projektmanagement/Aufgaben/4T-0019-fokus-modus.md)): `Strg + Umschalt + F` oder `Ansicht → Fokus-Modus` blendet Tab-Leisten, Statusbar und Sidebar-Panels aus für ablenkungsfreies Schreiben. Editor- und Render-Pane bleiben sichtbar, die native Menüleiste ist über Alt erreichbar. Esc verlässt den Modus, sofern kein Overlay mit Vorrang offen ist (Regex-Hilfe, Suchbar, Modale, Kontextmenü). Persistent, wirkt pro Fenster.
+- **Typewriter-Scroll** (4T-0019): `Ansicht → Typewriter-Scroll` hält die Cursor-Zeile im Editor vertikal zentriert, sobald der Cursor bewegt wird. Wirkt nur im Edit-Modus, nur im Editor-Pane. Persistent, global.
+- **Markdown-Linter-Light** ([4T-0020](Projektmanagement/Aufgaben/4T-0020-linter-light.md)): Vier feste Regeln markieren typische Mängel im Editor als dezente Wellen-Unterstreichung — bare URLs (ohne Markdown-Link-Syntax), leere Link-Texte (`[](url)`), fehlende Alt-Texte (`![](pfad)`) und Wiki-Links, deren Ziel im Suchraum aus 0.8.0 nicht gefunden wird. Hover zeigt lokalisierte Erklärung. Code-Blöcke, Inline-Code, Markdown-Links und Autolinks sind korrekt ausgenommen. Regel 4 (Wiki-Link-Ziel) greift nur, wenn der Backlinks-Index der Pane aktiv ist (Backlinks-Panel mindestens einmal geöffnet).
+- **Bearbeiten-Toggle im Ansicht-Menü** (4T-0019, Test-Feedback): `Ansicht → Bearbeiten` mit Häkchen und Accelerator `Strg + E`. Notwendig, weil der bisherige Toolbar-Button im Fokus-Modus ausgeblendet ist; Modus bleibt damit auch dort jederzeit erreichbar.
+- **Hilfe-Dialog mit zwei Reitern und gruppierten Funktionen** ([4T-0027](Projektmanagement/Aufgaben/4T-0027-changelog-release-090.md)): Funktionen und Tastenkürzel sind in zwei Tabs getrennt; Funktionen gliedern sich in fünf Gruppen (Datei und Sitzung, Bearbeitung, Ansicht, Navigation, Allgemein). Beim Öffnen ist der Funktionen-Tab aktiv.
+
+### Geändert
+
+- **Editor- und Render-Pane nutzen CSS-Variablen für Schrift** (4T-0018): Neue `:root`-Variablen `--editor-font-family`, `--editor-font-size`, `--render-font-family`, `--render-font-size` ersetzen die vorher fix gesetzten Werte. UI-Elemente (Tabbar, Statusbar, Sidebar, Menü, Dialoge) bleiben auf `--font-ui` und reagieren nicht auf die Schriftart-Einstellung.
+- **`Strg + E` ist jetzt Menü-Accelerator** (4T-0019): Der bisherige Renderer-only-Tastenkürzel-Handler entfällt; das Routing läuft über den neuen Menü-Eintrag „Bearbeiten". Funktionsverhalten unverändert.
+- **CodeMirror-Tooltips theme-konform** (4T-0020): `.cm-tooltip` erhält explizit theme-konformen Hintergrund, Border und Schatten (vorher war der Default-Hintergrund im Dark-Theme zu hell und der Tooltip-Text schwer lesbar).
+
+### Behoben
+
+- (keine separaten Bug-Fixes in 0.9.0)
+
+### i18n
+
+- Insgesamt rund 65 neue Keys über die fünf unterstützten Sprachen (DE, EN, FR, ES, IT): Statusbar-Zoom-Indikator, Settings-Dialog-Inhalte und Buttons, Menü-Einträge für Bearbeiten / Fokus-Modus / Typewriter-Scroll / Einstellungen, Linter-Regel-Beschreibungen (Kurzform und Tooltip mit Platzhalter `{target}` für Regel 4), Hilfe-Dialog-Tabs (`help.tabFeatures`, `help.tabShortcuts`), Hilfe-Funktionsgruppen (`help.group.*`), neue Feature- und Shortcut-Einträge für die 0.9.0-Funktionen sowie ein neues Tastenlabel `help.key.mouseWheel`.
+
 ## [0.8.0] - 2026-05-18 — Strukturnavigation: Folding, Inhaltsverzeichnis und Backlinks
 
 Großes Feature-Release rund um die Strukturnavigation langer Markdown-Dokumente und ihre Vernetzung untereinander. Umgesetzt als Epic [3E-0002](Projektmanagement/Aufgaben/3E-0002-strukturnavigation.md) in den Tasks [4T-0013](Projektmanagement/Aufgaben/4T-0013-code-folding-headings.md), [4T-0014](Projektmanagement/Aufgaben/4T-0014-outline-panel.md) und [4T-0015](Projektmanagement/Aufgaben/4T-0015-backlinks-panel.md), inklusive Abschluss-Sammeltask [4T-0026](Projektmanagement/Aufgaben/4T-0026-changelog-release-080.md).

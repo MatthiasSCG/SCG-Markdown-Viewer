@@ -165,16 +165,22 @@
       <dl class="regex-help-list" id="regex-help-list"></dl>
     </div>
 
+    <!-- Hilfe-Dialog ab 0.9.0 (4T-0027): zwei Reiter (Funktionen | Tastenkuerzel),
+         Funktionen gruppiert nach Oberbegriffen (Datei und Sitzung, Bearbeitung,
+         Ansicht, Navigation, Allgemein). Beim Oeffnen ist der Funktionen-Reiter
+         aktiv. -->
     <div id="help-modal" class="help-modal" hidden>
       <div class="help-modal-backdrop"></div>
       <div class="help-modal-content" role="dialog" aria-modal="true" aria-labelledby="help-title">
         <h2 id="help-title" data-i18n="help.title">Hilfe</h2>
-        <div class="help-section">
-          <h3 data-i18n="help.featuresTitle">Funktionen</h3>
-          <ul class="help-features" id="help-features"></ul>
+        <div class="help-tabs" role="tablist">
+          <button class="help-tab active" data-help-tab="features" role="tab" aria-selected="true" data-i18n="help.tabFeatures">Funktionen</button>
+          <button class="help-tab" data-help-tab="shortcuts" role="tab" aria-selected="false" data-i18n="help.tabShortcuts">Tastenkürzel</button>
         </div>
-        <div class="help-section">
-          <h3 data-i18n="help.shortcutsTitle">Tastenkürzel</h3>
+        <div class="help-tab-panel" id="help-panel-features" role="tabpanel">
+          <div class="help-feature-groups" id="help-features"></div>
+        </div>
+        <div class="help-tab-panel" id="help-panel-shortcuts" role="tabpanel" hidden>
           <table class="help-shortcuts">
             <tbody id="help-shortcuts"></tbody>
           </table>

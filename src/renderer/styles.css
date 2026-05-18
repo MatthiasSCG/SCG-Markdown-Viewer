@@ -1079,6 +1079,45 @@ select {
   font-weight: 600;
   text-align: center;
 }
+/* 4T-0027: Tab-Leiste im Hilfe-Modal. Zwei Reiter mit unterer Aktiv-Border. */
+.help-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 16px;
+  border-bottom: 1px solid var(--border);
+}
+.help-tab {
+  background: transparent;
+  color: var(--fg-muted);
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 6px 14px;
+  margin-bottom: -1px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.help-tab:hover {
+  color: var(--fg);
+}
+.help-tab.active {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+.help-tab-panel[hidden] { display: none; }
+.help-feature-group {
+  margin: 0 0 18px;
+}
+.help-feature-group:last-child { margin-bottom: 0; }
+.help-feature-group-title {
+  margin: 0 0 6px;
+  font-size: 1.0em;
+  font-weight: 600;
+  color: var(--fg);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 3px;
+}
 .help-section {
   margin: 0 0 18px;
 }
