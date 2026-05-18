@@ -222,6 +222,12 @@ contextBridge.exposeInMainWorld('api', {
   // 4T-0015: Menue-Eintrag "Ansicht -> Backlinks" toggelt die Backlinks-
   // Sichtbarkeit der aktiven Spalte.
   onMenuToggleBacklinks: (cb) => ipcRenderer.on('menu:toggleBacklinks', () => cb()),
+  // 4T-0019: Menue-Eintraege "Ansicht -> Fokus-Modus" und "-> Typewriter-Scroll".
+  onMenuToggleFocusMode: (cb) => ipcRenderer.on('menu:toggleFocusMode', () => cb()),
+  onMenuToggleTypewriterScroll: (cb) => ipcRenderer.on('menu:toggleTypewriterScroll', () => cb()),
+  // 4T-0019: Menue-Eintrag "Ansicht -> Bearbeiten" (Strg+E). Ersetzt den
+  // bisherigen Renderer-only-Tastenkuerzel.
+  onMenuToggleEdit: (cb) => ipcRenderer.on('menu:toggleEdit', () => cb()),
   onMenuOpenHelp: (cb) => ipcRenderer.on('menu:openHelp', () => cb()),
   onMenuOpenAbout: (cb) => ipcRenderer.on('menu:openAbout', () => cb()),
   // 4T-0018: Settings-Dialog ueber Menue-Eintrag Datei -> Einstellungen.

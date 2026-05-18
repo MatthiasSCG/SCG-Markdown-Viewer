@@ -488,6 +488,12 @@ const state = {
     currentFileByPane: [null, null],
     lastResultsByPane: [null, null],
   },
+  // 4T-0019: Fokus-Modus und Typewriter-Scroll. Toggle wirkt nur auf das
+  // aktive Fenster; persistierter Wert ist global (settings: focusMode /
+  // typewriterScroll). Beim Start eines Fensters wird der gespeicherte
+  // Wert auf das neue Fenster angewendet.
+  focusMode: false,
+  typewriterScroll: false,
 };
 
 // Dialog-Tracking fuer Auto-Save: solange ein modaler Dialog (Schliessen-
@@ -664,6 +670,43 @@ function resetTabZoom(paneIdx) {
   renderZoomIndicator();
 }
 
+// 4T-0019: Fokus-Modus toggelt die CSS-Klasse body.focus-mode (CSS blendet
+// Tabbar, Statusbar und Sidebar-Panels aus), schreibt den Wert in den Store
+// und aktualisiert das Menue-Haekchen des eigenen Fensters. Kein Multi-Window-
+// Broadcast — andere Fenster bleiben unberuehrt.
+function setFocusMode(on) {
+  const next = !!on;
+  if (state.focusMode === next) return;
+  state.focusMode = next;
+  document.body.classList.toggle('focus-mode', next);
+  api.setSetting('focusMode', next);
+  reportMenuStateNow();
+}
+
+function toggleFocusMode() {
+  setFocusMode(!state.focusMode);
+}
+
+// 4T-0019: Typewriter-Scroll als Compartment auf allen Pane-Editoren
+// ein- oder ausschalten. Wert wird global persistiert und beim Menue-
+// Haekchen gespiegelt.
+function setTypewriterScroll(on) {
+  const next = !!on;
+  if (state.typewriterScroll === next) return;
+  state.typewriterScroll = next;
+  const extension = next ? typewriterScrollExtension : [];
+  for (const view of paneEditors) {
+    if (!view) continue;
+    view.dispatch({ effects: editorCompartments.typewriter.reconfigure(extension) });
+  }
+  api.setSetting('typewriterScroll', next);
+  reportMenuStateNow();
+}
+
+function toggleTypewriterScroll() {
+  setTypewriterScroll(!state.typewriterScroll);
+}
+
 // Anzeigename eines Tabs: Dateiname bei Tabs mit Pfad, sonst lokalisierter
 // Unbenannt-Stamm plus Index (z.B. "Unbenannt 1").
 function tabDisplayName(tab) {
@@ -685,7 +728,23 @@ const editorCompartments = {
   // toggelbar pro Tab. codeFolding() bleibt dauerhaft aktiv, damit die
   // Tastenkuerzel Strg+Umschalt+[/] auch bei ausgeblendetem Gutter wirken.
   foldGutter: new Compartment(),
+  // 4T-0019: Typewriter-Scroll als Compartment, damit der Listener zur
+  // Laufzeit ein-/ausgeschaltet werden kann, ohne den Editor neu aufzubauen.
+  typewriter: new Compartment(),
 };
+
+// 4T-0019: Typewriter-Scroll-Extension. Bei jeder Cursor- oder Selektions-
+// Aenderung wird die Cursor-Zeile vertikal in der Editor-Viewport-Mitte
+// gehalten. Nicht angewendet bei reinen Doc-Aenderungen ohne Cursor-Bewegung
+// — sonst wuerde das Tippen am Zeilenende ein Stottern verursachen.
+const typewriterScrollExtension = EditorView.updateListener.of((update) => {
+  if (!update.selectionSet) return;
+  // Nur im Edit-Modus aktiv. Im Read-Only-Modus bewegt der Nutzer den
+  // Cursor nicht aktiv durch den Text, das wuerde nur stoeren.
+  if (update.state.readOnly) return;
+  const head = update.state.selection.main.head;
+  update.view.dispatch({ effects: EditorView.scrollIntoView(head, { y: 'center' }) });
+});
 
 // Extension-Bundle fuer die Gliederung — wird per Compartment ein-/ausgeschaltet.
 // foldStructureField bleibt bewusst AUSSERHALB, weil das Outline-Panel
@@ -831,6 +890,8 @@ function createEditorState(opts = {}) {
       foldChangeNotifier,
       editorCompartments.lineNumbers.of(opts.lineNumbers ? cmLineNumbers() : []),
       editorCompartments.lineWrap.of(opts.wrapLines ? EditorView.lineWrapping : []),
+      // 4T-0019: Typewriter-Scroll als Compartment, zur Laufzeit togglebar.
+      editorCompartments.typewriter.of(state.typewriterScroll ? typewriterScrollExtension : []),
       markdown(),
       syntaxHighlighting(mdHighlightStyle, { fallback: true }),
       history(),
@@ -1697,6 +1758,14 @@ async function init() {
   // Settings laden und als CSS-Variablen auf :root setzen, bevor die Panes
   // gerendert werden — damit greifen die Werte direkt beim ersten Paint.
   applyAppearanceVars(await readAppearanceFromStore());
+  // 4T-0019: Fokus-Modus und Typewriter-Scroll aus den Settings laden.
+  // Beide werden global gehalten (nicht pro Fenster) und auf das frische
+  // Fenster angewendet, bevor die Panes erzeugt werden, sodass das
+  // Compartment beim ersten createEditorState bereits die richtige
+  // Konfiguration hat.
+  state.focusMode = !!(await api.getSetting('focusMode'));
+  state.typewriterScroll = !!(await api.getSetting('typewriterScroll'));
+  document.body.classList.toggle('focus-mode', state.focusMode);
 
   // Bindings
   bindUi();
@@ -1854,6 +1923,10 @@ function bindUi() {
       } else if (e.key === 'B' || e.key === 'b') {
         e.preventDefault();
         toggleBacklinksPanel(state.activePaneIndex);
+      } else if (e.key === 'F' || e.key === 'f') {
+        // 4T-0019: Strg+Umschalt+F toggelt den Fokus-Modus des aktiven Fensters.
+        e.preventDefault();
+        toggleFocusMode();
       }
     }
   });
@@ -1966,10 +2039,19 @@ function bindUi() {
         closeSearchBar();
         return;
       }
+      // 4T-0019: Vor dem allgemeinen Hide-Block pruefen, ob etwas Sichtbares
+      // mit Vorrang offen ist. Wenn ja, schliesst Esc nur dieses Element und
+      // der Fokus-Modus bleibt unangetastet. Sonst verlaesst Esc den Fokus-
+      // Modus (sofern aktiv).
+      const hasOpenOverlay = !contextMenu.hidden
+        || !helpModal.hidden
+        || !aboutModal.hidden
+        || !settingsModal.hidden;
       hideContextMenu();
       hideHelp();
       hideAbout();
       hideSettings();
+      if (!hasOpenOverlay && state.focusMode) setFocusMode(false);
     }
     // F1 ist jetzt am Menue-Eintrag "Hilfe" als Accelerator gebunden, kein
     // manueller Handler hier mehr noetig.
@@ -1995,9 +2077,6 @@ function bindUi() {
         const next = (pane.activeIndex + (e.shiftKey ? -1 : 1) + pane.tabs.length) % pane.tabs.length;
         activateTab(state.activePaneIndex, next);
       }
-    } else if (ctrl && e.key.toLowerCase() === 'e') {
-      e.preventDefault();
-      toggleEditMode();
     } else if (ctrl && e.key.toLowerCase() === 'f') {
       e.preventDefault();
       openSearchBar();
@@ -2051,6 +2130,19 @@ function bindUi() {
   // 4T-0018: Settings-Dialog ueber Menue oeffnen.
   if (typeof api.onMenuOpenSettings === 'function') {
     api.onMenuOpenSettings(() => showSettings());
+  }
+  // 4T-0019: Fokus-Modus und Typewriter-Scroll ueber Menue toggeln.
+  if (typeof api.onMenuToggleFocusMode === 'function') {
+    api.onMenuToggleFocusMode(() => toggleFocusMode());
+  }
+  if (typeof api.onMenuToggleTypewriterScroll === 'function') {
+    api.onMenuToggleTypewriterScroll(() => toggleTypewriterScroll());
+  }
+  // 4T-0019: Bearbeiten-Toggle ueber das Ansicht-Menue (Strg+E). Loest den
+  // bisherigen Renderer-only-Tastenkuerzel-Handler ab, sodass der Modus auch
+  // im Fokus-Modus (ohne sichtbaren Toolbar-Button) togglebar bleibt.
+  if (typeof api.onMenuToggleEdit === 'function') {
+    api.onMenuToggleEdit(() => toggleEditMode());
   }
   // 4T-0018: Multi-Window-Broadcast: ein anderes Fenster hat eine appearance.*-
   // Einstellung geaendert. Lokale CSS-Variablen aktualisieren.
@@ -2345,6 +2437,14 @@ function reportMenuStateNow() {
     outlineVisible: !!state.outline.visibleByPane[state.activePaneIndex],
     // 4T-0015: Haekchen-Stand fuer das Backlinks-Toggle im Ansicht-Menue.
     backlinksVisible: !!state.backlinks.visibleByPane[state.activePaneIndex],
+    // 4T-0019: Haekchen-Stand fuer Fokus-Modus und Typewriter-Scroll im
+    // Ansicht-Menue (beide pro Fenster wirksam, global persistiert).
+    focusMode: !!state.focusMode,
+    typewriterScroll: !!state.typewriterScroll,
+    // 4T-0019: Edit-Modus pro Tab. Im Menue als Checkbox "Bearbeiten" mit
+    // Accelerator Strg+E. Damit ist der Modus auch im Fokus-Modus
+    // erreichbar (Toolbar-Button ist dort ausgeblendet).
+    editMode: tab ? !!tab.editMode : false,
   });
 }
 

@@ -1122,6 +1122,18 @@ select {
   min-width: 100px;
 }
 
+/* === Fokus-Modus (4T-0019) ============================================== */
+/* Ausgeblendet: Tabbar (beide Spalten), Statusbar, Sidebar-Panels und
+   Sidebar-Splitter. Sichtbar bleiben Editor- und Render-Pane sowie der
+   Inner-Splitter zwischen ihnen. Native Menueleiste ist nicht im DOM und
+   bleibt damit ueber Alt erreichbar. */
+body.focus-mode .tabbar,
+body.focus-mode .statusbar,
+body.focus-mode .pane-sidebar,
+body.focus-mode .splitter.sidebar-splitter {
+  display: none !important;
+}
+
 /* === Settings-Modal (4T-0018) =========================================== */
 .settings-modal {
   position: fixed;

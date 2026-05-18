@@ -168,6 +168,17 @@ function buildMenu(win, state, actions) {
         },
         { type: 'separator' },
         {
+          // 4T-0019: Edit-Modus auch im Menue erreichbar (im Fokus-Modus ist
+          // der Toolbar-Button rechts unten ausgeblendet). Pro aktivem Tab.
+          label: t('menu.view.edit'),
+          type: 'checkbox',
+          checked: !!(state && state.editMode),
+          enabled: !!(state && state.hasActiveTab),
+          accelerator: 'CmdOrCtrl+E',
+          click: send('menu:toggleEdit'),
+        },
+        { type: 'separator' },
+        {
           label: t('menu.view.outline'),
           type: 'checkbox',
           checked: !!(state && state.outlineVisible),
@@ -201,6 +212,25 @@ function buildMenu(win, state, actions) {
           checked: !!(state && state.wordWrap),
           enabled: togglesEnabled,
           click: send('menu:toggleWordWrap'),
+        },
+        { type: 'separator' },
+        {
+          // 4T-0019: Fokus-Modus toggelt UI-Chrome (Tabbar, Statusbar, Sidebar)
+          // im aktiven Fenster. Wirkt nur auf dieses Fenster, persistierter
+          // Wert ist global.
+          label: t('menu.view.focusMode'),
+          type: 'checkbox',
+          checked: !!(state && state.focusMode),
+          accelerator: 'CmdOrCtrl+Shift+F',
+          click: send('menu:toggleFocusMode'),
+        },
+        {
+          // 4T-0019: Typewriter-Scroll haelt die Cursor-Zeile im Editor-Pane
+          // vertikal zentriert.
+          label: t('menu.view.typewriterScroll'),
+          type: 'checkbox',
+          checked: !!(state && state.typewriterScroll),
+          click: send('menu:toggleTypewriterScroll'),
         },
       ],
     },

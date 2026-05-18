@@ -356,6 +356,13 @@ function getMenuState(id) {
     foldGutter: base.foldGutter !== undefined ? base.foldGutter : true,
     // 4T-0015: Haekchen-Stand fuer das Backlinks-Toggle im Ansicht-Menue.
     backlinksVisible: !!base.backlinksVisible,
+    // 4T-0019: Fokus-Modus und Typewriter-Scroll. Werte pro Fenster, aus
+    // dem Renderer-Report uebernommen; persistierter Stand kommt nur beim
+    // ersten Fenster-Start aus dem Store, danach fuehrt der Renderer.
+    focusMode: !!base.focusMode,
+    typewriterScroll: !!base.typewriterScroll,
+    // 4T-0019: Edit-Modus pro aktivem Tab (Bearbeiten-Toggle im Ansicht-Menue).
+    editMode: !!base.editMode,
   };
 }
 
