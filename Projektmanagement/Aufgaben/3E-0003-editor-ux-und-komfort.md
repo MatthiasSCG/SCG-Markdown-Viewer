@@ -54,7 +54,7 @@ Alle fünf Themen sind kleinere Einzel-Features; sie werden in einem Epic gebün
 
 - [x] [4T-0016 — Tab und Shift-Tab in Listen für Ein-/Ausrücken](4T-0016-tab-indent-listen.md)
 - [x] [4T-0017 — Zoom für Editor und Render-Pane (Strg + +/-/0)](4T-0017-zoom-editor-render.md)
-- [ ] [4T-0018 — Konfigurierbare Schriftart und -größe (Settings-Dialog)](4T-0018-schriftart-konfigurierbar.md)
+- [x] [4T-0018 — Konfigurierbare Schriftart und -größe (Settings-Dialog)](4T-0018-schriftart-konfigurierbar.md)
 - [ ] [4T-0019 — Fokus-Modus mit optionalem Typewriter-Scroll](4T-0019-fokus-modus.md)
 - [ ] [4T-0020 — Markdown-Linter-Light (Inline-Hinweise)](4T-0020-linter-light.md)
 
@@ -68,6 +68,24 @@ Alle fünf Themen sind kleinere Einzel-Features; sie werden in einem Epic gebün
 - **Linter-Light läuft synchron im Renderer**, nicht im Main-Prozess. Begründung: nur dokumentenintern, keine Datei-übergreifenden Lookups außer „existiert Wiki-Link-Ziel im Backlinks-Index" (was via bestehendem IPC abgefragt werden kann). Performance bei kurzen Dokumenten unkritisch.
 - **Linter-Marker im Editor, nicht im Render-Pane**. Begründung: Linter-Hinweise gehören zum Schreibprozess. Im Render-Pane wären sie als Wellen-Unterstreichung optisch störend und für den reinen Leser irrelevant.
 - **Fokus-Modus blendet Tabs und Statusbar aus, lässt Menüleiste sichtbar**. Begründung: Menüleiste über `Alt` bleibt erreichbar; Tabs und Statusbar sind die echten Ablenkungs-Elemente.
+
+## Zusätzliche Anforderung für den Abschluss-Sammeltask: Hilfe-Dialog-Restrukturierung
+
+Der bisherige Hilfe-Dialog rendert Funktionen und Tastenkürzel untereinander auf einer einzigen Seite. Mit jeder Version wächst die Liste, und der Dialog wird länger als ein Bildschirm. Im Abschluss-Sammeltask von 3E-0003 wird der Dialog daher strukturell überarbeitet:
+
+- **Zwei Reiter (Tabs) im Modal**: einer für **Funktionen**, einer für **Tastenkürzel**. Standard-Tab beim Öffnen ist „Funktionen". Tab-Wechsel persistiert nicht, jedes Öffnen beginnt auf „Funktionen".
+- **Gruppierung der Funktionen** nach sinnvollen Oberbegriffen. Konkret zu entscheiden im Sammeltask, Vorschlag als Startpunkt:
+  - Datei und Sitzung (Öffnen, Speichern, Recent, Auto-Save, Sitzungswiederherstellung)
+  - Bearbeitung (Tab-Indent in Listen, Suchen, Suchen und Ersetzen, Edit-Modus)
+  - Ansicht (View-Modi, Zoom, Schriftart-Konfiguration, Code-Folding, Fokus-Modus)
+  - Navigation (Outline, Backlinks, Anker-Links, Tab-Wechsel, Fenster-Transfer)
+  - Allgemein (Sprache, Theme, Mehrfenster-Betrieb, Hilfe, Über)
+- **Tastenkürzel-Tab** bleibt eine einzige Tabelle, optional zusätzlich nach denselben Gruppen sortiert (zu entscheiden im Sammeltask, je nachdem ob die Tabelle dann übersichtlicher oder unruhiger wirkt).
+- **Renderer-Datenmodell**: `HELP_FEATURES` wird von einer flachen Liste auf eine Struktur mit Gruppen umgestellt (z.B. `[{ groupKey, features: [...] }]`). `HELP_SHORTCUTS` bleibt vorerst flach.
+- **i18n**: neue Keys für Tab-Beschriftungen (`help.tabFeatures`, `help.tabShortcuts`) und für die Gruppen-Überschriften (`help.group.file`, `help.group.editing`, …). In allen fünf Sprachen.
+- **CSS**: schlanke Tab-Leiste oben im Modal, Aktiv-Indikator. Keep-it-simple, kein eigenes Framework.
+
+Diese Restrukturierung ist Teil des Abschluss-Sammeltasks für 3E-0003 und ersetzt für dieses Epic den Standard-Punkt „Hilfe-Dialog erweitern" aus der Sammeltask-Vorlage in `CLAUDE.md`. Wenn die Tab-Struktur sich bewährt, kann sie später in die generische Vorlage übernommen werden.
 
 ## Reihenfolge der Umsetzung
 

@@ -16,6 +16,17 @@
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   --font-ui: "Segoe UI", system-ui, sans-serif;
   --font-mono: "Cascadia Code", "Consolas", "Courier New", monospace;
+  /* 4T-0018: Konfigurierbare Schriftarten und -groessen fuer Editor und
+     Render-Pane. Defaults erben aus --font-mono/--font-ui; der Renderer
+     ueberschreibt sie aus den persistierten appearance.*-Settings und
+     legt jeweils eine Fallback-Kette an, damit fehlende Familien nicht
+     zu unleserlichem Output fuehren. UI-Elemente (Tabbar, Statusbar,
+     Sidebar, Dialoge) bleiben unbeeinflusst und nutzen weiterhin
+     --font-ui mit fixer Groesse. */
+  --editor-font-family: var(--font-mono);
+  --editor-font-size: 14px;
+  --render-font-family: var(--font-ui);
+  --render-font-size: 15px;
   /* Markdown-Syntax-Highlighting im CodeMirror-Editor (Light) */
   --syntax-heading: #0969da;
   --syntax-link: #0969da;
@@ -339,8 +350,8 @@ select {
 }
 .pane-source-editor .cm-editor {
   height: 100%;
-  font-family: var(--font-mono);
-  font-size: 13px;
+  font-family: var(--editor-font-family);
+  font-size: var(--editor-font-size);
   background: var(--code-bg);
   color: var(--fg);
 }
@@ -348,7 +359,7 @@ select {
   outline: none;
 }
 .pane-source-editor .cm-scroller {
-  font-family: var(--font-mono);
+  font-family: var(--editor-font-family);
   line-height: 1.5;
 }
 .pane-source-editor .cm-content {
@@ -701,6 +712,11 @@ select {
   max-width: 920px;
   margin: 0 auto;
   line-height: 1.6;
+  /* 4T-0018: Konfigurierbare Render-Schriftart/-groesse. Headings, Code,
+     Listen-Marker etc. erben automatisch ueber em-relative Groessen weiter
+     unten. */
+  font-family: var(--render-font-family);
+  font-size: var(--render-font-size);
 }
 .markdown-body h1, .markdown-body h2, .markdown-body h3,
 .markdown-body h4, .markdown-body h5, .markdown-body h6 {
@@ -717,7 +733,9 @@ select {
   background: var(--code-bg);
   padding: 2px 5px;
   border-radius: 3px;
-  font-family: var(--font-mono);
+  /* 4T-0018: Code im Render-Pane nutzt die Editor-Schriftart, damit Code-
+     Beispiele konsistent zur Editor-Ansicht erscheinen. */
+  font-family: var(--editor-font-family);
   font-size: 0.9em;
 }
 .markdown-body pre {
@@ -1102,6 +1120,90 @@ select {
   display: block;
   margin: 16px auto 0;
   min-width: 100px;
+}
+
+/* === Settings-Modal (4T-0018) =========================================== */
+.settings-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.settings-modal[hidden] { display: none; }
+.settings-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+.settings-modal-content {
+  position: relative;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px 32px 20px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  width: min(520px, 92vw);
+  max-height: 85vh;
+  overflow-y: auto;
+  text-align: left;
+}
+.settings-modal-content h2 {
+  margin: 0 0 16px;
+  font-size: 1.4em;
+  font-weight: 600;
+  text-align: center;
+}
+.settings-section {
+  margin: 0 0 18px;
+}
+.settings-section h3 {
+  margin: 0 0 12px;
+  font-size: 1.05em;
+  font-weight: 600;
+  color: var(--fg);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  margin: 10px 0;
+  gap: 12px;
+}
+.settings-row label {
+  flex: 0 0 180px;
+  font-size: 13px;
+}
+.settings-input {
+  flex: 1;
+  background: var(--bg-alt);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 5px 8px;
+  font-family: inherit;
+  font-size: 13px;
+}
+.settings-input:focus {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+.settings-input-size {
+  flex: 0 0 90px;
+}
+.settings-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.settings-buttons .btn {
+  min-width: 96px;
 }
 
 /* === Scrollbars (dezent) ================================================ */

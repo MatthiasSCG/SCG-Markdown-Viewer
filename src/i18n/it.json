@@ -133,6 +133,7 @@
   "save.errorMessage": "Impossibile salvare il file.",
   "menu.file.save": "Salva",
   "menu.file.saveAs": "Salva con nome…",
+  "menu.file.settings": "Impostazioni…",
   "menu.file.quit": "Esci",
   "menu.view.title": "&Visualizza",
   "menu.view.rendered": "Renderizzato",
@@ -172,5 +173,14 @@
   "tab.menu.copyToSubmenu": "Copia in",
   "tab.menu.targetNewWindow": "Nuova finestra",
   "tab.menu.targetWindowLabel": "Finestra {n}",
-  "tab.menu.tooltipMoreTabsSuffix": "(+{n} altri)"
+  "tab.menu.tooltipMoreTabsSuffix": "(+{n} altri)",
+  "settings.title": "Impostazioni",
+  "settings.appearance": "Aspetto",
+  "settings.editorFont": "Carattere dell'editor",
+  "settings.editorSize": "Dimensione carattere dell'editor",
+  "settings.renderFont": "Carattere del rendering",
+  "settings.renderSize": "Dimensione carattere del rendering",
+  "settings.ok": "OK",
+  "settings.apply": "Applica",
+  "settings.cancel": "Annulla"
 }

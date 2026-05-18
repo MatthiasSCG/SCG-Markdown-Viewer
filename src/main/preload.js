@@ -224,6 +224,10 @@ contextBridge.exposeInMainWorld('api', {
   onMenuToggleBacklinks: (cb) => ipcRenderer.on('menu:toggleBacklinks', () => cb()),
   onMenuOpenHelp: (cb) => ipcRenderer.on('menu:openHelp', () => cb()),
   onMenuOpenAbout: (cb) => ipcRenderer.on('menu:openAbout', () => cb()),
+  // 4T-0018: Settings-Dialog ueber Menue-Eintrag Datei -> Einstellungen.
+  onMenuOpenSettings: (cb) => ipcRenderer.on('menu:openSettings', () => cb()),
+  // 4T-0018: Multi-Window-Broadcast bei appearance.*-Aenderung.
+  onAppearanceChanged: (cb) => ipcRenderer.on('appearance:changed', (_e, payload) => cb(payload)),
   onMenuToggleRestoreSession: (cb) => ipcRenderer.on('menu:toggleRestoreSession', () => cb()),
 
   // Window-Close-Anfrage: Main fragt nach Bestaetigung; Renderer prueft

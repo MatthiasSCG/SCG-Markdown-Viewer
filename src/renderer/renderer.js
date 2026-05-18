@@ -568,6 +568,7 @@ const btnEdit = $('#btn-edit');
 const statusbarHint = $('#statusbar-hint');
 const contextMenu = $('#context-menu');
 const aboutModal = $('#about-modal');
+const settingsModal = $('#settings-modal');
 const aboutVersionEl = $('#about-version');
 const helpModal = $('#help-modal');
 
@@ -1692,6 +1693,10 @@ async function init() {
   await loadOutlineSettings();
   // 4T-0015: Backlinks-Sichtbarkeit pro Spalte aus den Settings laden.
   await loadBacklinksSettings();
+  // 4T-0018: Schriftart und -groesse fuer Editor und Render-Pane aus den
+  // Settings laden und als CSS-Variablen auf :root setzen, bevor die Panes
+  // gerendert werden — damit greifen die Werte direkt beim ersten Paint.
+  applyAppearanceVars(await readAppearanceFromStore());
 
   // Bindings
   bindUi();
@@ -1783,6 +1788,42 @@ function bindUi() {
 
   $('#btn-help-close').addEventListener('click', hideHelp);
   helpModal.querySelector('.help-modal-backdrop').addEventListener('click', hideHelp);
+
+  // 4T-0018: Settings-Modal — Buttons, Backdrop, Live-Vorschau.
+  $('#btn-settings-cancel').addEventListener('click', cancelSettings);
+  $('#btn-settings-apply').addEventListener('click', applySettings);
+  $('#btn-settings-ok').addEventListener('click', okSettings);
+  settingsModal.querySelector('.settings-modal-backdrop').addEventListener('click', cancelSettings);
+  // Live-Vorschau: jede Aenderung wendet die aktuellen Eingaben sofort als
+  // CSS-Variablen an, ohne den Store anzufassen. Bei Abbrechen wird wieder
+  // auf den Snapshot zurueckgesetzt.
+  ['settings-editor-font', 'settings-editor-size', 'settings-render-font', 'settings-render-size'].forEach((id) => {
+    $('#' + id).addEventListener('input', () => applyAppearanceVars(settingsCurrentInputValues()));
+  });
+  // Auswahl-Trick fuer die <input list>-Felder: Chromium filtert die
+  // Datalist-Optionen auf Substring-Matches des aktuellen Werts — bei
+  // gefuelltem Feld bleibt damit nur ein Eintrag sichtbar. Loesung: Beim
+  // ersten Maus-Klick auf ein fokussiertes-noch-nicht-Feld wird der Wert
+  // zwischengespeichert und visuell auf leer gesetzt; das Dropdown zeigt
+  // anschliessend alle Optionen. Geht der Fokus ohne Eingabe verloren,
+  // wird der gemerkte Wert wiederhergestellt. Programmatisches value-
+  // Setzen loest kein input-Event aus — die Live-Vorschau bleibt auf dem
+  // letzten guten Stand.
+  ['settings-editor-font', 'settings-render-font'].forEach((id) => {
+    const el = $('#' + id);
+    el.addEventListener('mousedown', () => {
+      if (document.activeElement !== el && el.value) {
+        el.dataset.savedValue = el.value;
+        el.value = '';
+      }
+    });
+    el.addEventListener('blur', () => {
+      if (!el.value && el.dataset.savedValue) {
+        el.value = el.dataset.savedValue;
+      }
+      delete el.dataset.savedValue;
+    });
+  });
 
   document.querySelectorAll('.view-btn').forEach((btn) => {
     btn.addEventListener('click', () => setViewMode(btn.dataset.view));
@@ -1928,6 +1969,7 @@ function bindUi() {
       hideContextMenu();
       hideHelp();
       hideAbout();
+      hideSettings();
     }
     // F1 ist jetzt am Menue-Eintrag "Hilfe" als Accelerator gebunden, kein
     // manueller Handler hier mehr noetig.
@@ -1964,6 +2006,11 @@ function bindUi() {
       // Strg+H ist nur im Edit-Modus aktiv (Source ist editierbar).
       const tab = activeTab();
       if (tab && tab.editMode) openSearchBar({ replaceMode: true });
+    } else if (ctrl && !e.altKey && !e.shiftKey && e.key === ',') {
+      // 4T-0018: Strg + , oeffnet den Settings-Dialog (verbreitete Konvention,
+      // u.a. in VS Code und vielen Editoren).
+      e.preventDefault();
+      showSettings();
     } else if (ctrl && !e.altKey && (e.key === '+' || e.key === '-' || e.key === '0')) {
       // 4T-0017: Strg + +/-/0 zoomt Inhalt der fokussierten Pane. Matcht
       // ueber e.key, deckt damit deutsche Tastatur (Shift+'+'-Taste),
@@ -2001,6 +2048,17 @@ function bindUi() {
   });
   api.onMenuOpenHelp(() => showHelp());
   api.onMenuOpenAbout(() => showAbout());
+  // 4T-0018: Settings-Dialog ueber Menue oeffnen.
+  if (typeof api.onMenuOpenSettings === 'function') {
+    api.onMenuOpenSettings(() => showSettings());
+  }
+  // 4T-0018: Multi-Window-Broadcast: ein anderes Fenster hat eine appearance.*-
+  // Einstellung geaendert. Lokale CSS-Variablen aktualisieren.
+  if (typeof api.onAppearanceChanged === 'function') {
+    api.onAppearanceChanged((values) => {
+      if (values) applyAppearanceVars(values);
+    });
+  }
   api.onMenuToggleRestoreSession(async () => {
     state.restoreSession = !state.restoreSession;
     await api.setSetting('restoreSession', state.restoreSession);
@@ -3372,6 +3430,115 @@ function showHelp() {
 
 function hideHelp() {
   helpModal.hidden = true;
+}
+
+// --- Settings-Dialog (4T-0018) ----------------------------------------------
+// Konfigurierbare Schriftart und -groesse fuer Editor und Render-Pane.
+// Werte werden ueber electron-store unter dem Schluessel-Prefix appearance.*
+// persistiert; eine Aenderung in einem Fenster wird vom Main an alle anderen
+// Fenster broadcastet, sodass die neuen Werte sofort ueberall greifen.
+
+const APPEARANCE_DEFAULTS = {
+  editorFont: 'Consolas',
+  editorSize: 14,
+  renderFont: 'Segoe UI',
+  renderSize: 15,
+};
+const APPEARANCE_SIZE_MIN = 8;
+const APPEARANCE_SIZE_MAX = 32;
+
+// Snapshot der Werte beim Oeffnen des Dialogs bzw. seit dem letzten Anwenden.
+// Bei Abbrechen wird zurueck auf diesen Snapshot gesetzt (Live-Vorschau wird
+// damit revertiert).
+let appearanceSnapshot = null;
+
+function clampAppearanceSize(value, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(APPEARANCE_SIZE_MIN, Math.min(APPEARANCE_SIZE_MAX, Math.round(n)));
+}
+
+// Setzt die vier appearance-CSS-Variablen auf :root. Jede Schriftart kommt mit
+// einer Fallback-Kette, damit nicht installierte Familien nicht zu kaputtem
+// Layout fuehren.
+function applyAppearanceVars(values) {
+  const root = document.documentElement;
+  const editorFont = (values.editorFont || APPEARANCE_DEFAULTS.editorFont).trim();
+  const renderFont = (values.renderFont || APPEARANCE_DEFAULTS.renderFont).trim();
+  root.style.setProperty('--editor-font-family',
+    `"${editorFont}", "Cascadia Code", "Consolas", "Courier New", monospace`);
+  root.style.setProperty('--editor-font-size',
+    `${clampAppearanceSize(values.editorSize, APPEARANCE_DEFAULTS.editorSize)}px`);
+  root.style.setProperty('--render-font-family',
+    `"${renderFont}", "Segoe UI", system-ui, sans-serif`);
+  root.style.setProperty('--render-font-size',
+    `${clampAppearanceSize(values.renderSize, APPEARANCE_DEFAULTS.renderSize)}px`);
+}
+
+async function readAppearanceFromStore() {
+  const editorFont = await api.getSetting('appearance.editorFont');
+  const editorSize = await api.getSetting('appearance.editorSize');
+  const renderFont = await api.getSetting('appearance.renderFont');
+  const renderSize = await api.getSetting('appearance.renderSize');
+  return {
+    editorFont: (editorFont || APPEARANCE_DEFAULTS.editorFont),
+    editorSize: clampAppearanceSize(editorSize, APPEARANCE_DEFAULTS.editorSize),
+    renderFont: (renderFont || APPEARANCE_DEFAULTS.renderFont),
+    renderSize: clampAppearanceSize(renderSize, APPEARANCE_DEFAULTS.renderSize),
+  };
+}
+
+function settingsCurrentInputValues() {
+  return {
+    editorFont: ($('#settings-editor-font').value || '').trim() || APPEARANCE_DEFAULTS.editorFont,
+    editorSize: clampAppearanceSize($('#settings-editor-size').value, APPEARANCE_DEFAULTS.editorSize),
+    renderFont: ($('#settings-render-font').value || '').trim() || APPEARANCE_DEFAULTS.renderFont,
+    renderSize: clampAppearanceSize($('#settings-render-size').value, APPEARANCE_DEFAULTS.renderSize),
+  };
+}
+
+async function showSettings() {
+  // Snapshot der aktuellen Werte aus dem Store — wird bei Abbrechen restored.
+  appearanceSnapshot = await readAppearanceFromStore();
+  $('#settings-editor-font').value = appearanceSnapshot.editorFont;
+  $('#settings-editor-size').value = String(appearanceSnapshot.editorSize);
+  $('#settings-render-font').value = appearanceSnapshot.renderFont;
+  $('#settings-render-size').value = String(appearanceSnapshot.renderSize);
+  settingsModal.hidden = false;
+  const content = settingsModal.querySelector('.settings-modal-content');
+  if (content) content.scrollTop = 0;
+  setTimeout(() => $('#settings-editor-font').focus({ preventScroll: true }), 0);
+}
+
+async function applySettings() {
+  const values = settingsCurrentInputValues();
+  // Vier separate setSetting-Aufrufe; der Main broadcastet bei jedem
+  // appearance.*-Key an alle Fenster. Endzustand bleibt konsistent.
+  await api.setSetting('appearance.editorFont', values.editorFont);
+  await api.setSetting('appearance.editorSize', values.editorSize);
+  await api.setSetting('appearance.renderFont', values.renderFont);
+  await api.setSetting('appearance.renderSize', values.renderSize);
+  applyAppearanceVars(values);
+  // Snapshot auf den neuen Apply-Stand setzen, damit ein spaeteres Abbrechen
+  // nur Aenderungen seit diesem Apply verwirft.
+  appearanceSnapshot = values;
+}
+
+function cancelSettings() {
+  if (appearanceSnapshot) applyAppearanceVars(appearanceSnapshot);
+  appearanceSnapshot = null;
+  settingsModal.hidden = true;
+}
+
+async function okSettings() {
+  await applySettings();
+  appearanceSnapshot = null;
+  settingsModal.hidden = true;
+}
+
+function hideSettings() {
+  // Pfad fuer Escape/Backdrop-Klick: identisch zu Abbrechen.
+  if (!settingsModal.hidden) cancelSettings();
 }
 
 // --- Hilfs-Funktionen -------------------------------------------------------

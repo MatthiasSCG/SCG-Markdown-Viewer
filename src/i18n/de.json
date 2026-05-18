@@ -133,6 +133,7 @@
   "save.errorMessage": "Die Datei konnte nicht gespeichert werden.",
   "menu.file.save": "Speichern",
   "menu.file.saveAs": "Speichern unter…",
+  "menu.file.settings": "Einstellungen…",
   "menu.file.quit": "Beenden",
   "menu.view.title": "&Ansicht",
   "menu.view.rendered": "Gerendert",
@@ -172,5 +173,14 @@
   "tab.menu.copyToSubmenu": "Kopieren in",
   "tab.menu.targetNewWindow": "Neues Fenster",
   "tab.menu.targetWindowLabel": "Fenster {n}",
-  "tab.menu.tooltipMoreTabsSuffix": "(+{n} weitere)"
+  "tab.menu.tooltipMoreTabsSuffix": "(+{n} weitere)",
+  "settings.title": "Einstellungen",
+  "settings.appearance": "Darstellung",
+  "settings.editorFont": "Editor-Schriftart",
+  "settings.editorSize": "Editor-Schriftgröße",
+  "settings.renderFont": "Render-Schriftart",
+  "settings.renderSize": "Render-Schriftgröße",
+  "settings.ok": "OK",
+  "settings.apply": "Anwenden",
+  "settings.cancel": "Abbrechen"
 }

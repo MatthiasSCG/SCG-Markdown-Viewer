@@ -201,6 +201,58 @@
       </div>
     </div>
 
+    <!-- 4T-0018: Settings-Dialog. Aktuell nur Sektion "Darstellung"
+         (Schriftart und -groesse fuer Editor und Render-Pane). Datalists liefern
+         kuratierte Vorschlaege; freie Eingabe ist erlaubt. -->
+    <div id="settings-modal" class="settings-modal" hidden>
+      <div class="settings-modal-backdrop"></div>
+      <div class="settings-modal-content" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <h2 id="settings-title" data-i18n="settings.title">Einstellungen</h2>
+        <div class="settings-section">
+          <h3 data-i18n="settings.appearance">Darstellung</h3>
+          <div class="settings-row">
+            <label for="settings-editor-font" data-i18n="settings.editorFont">Editor-Schriftart</label>
+            <input id="settings-editor-font" class="settings-input" type="text" list="settings-mono-fonts" autocomplete="off" spellcheck="false" />
+          </div>
+          <div class="settings-row">
+            <label for="settings-editor-size" data-i18n="settings.editorSize">Editor-Schriftgröße</label>
+            <input id="settings-editor-size" class="settings-input settings-input-size" type="number" min="8" max="32" step="1" />
+          </div>
+          <div class="settings-row">
+            <label for="settings-render-font" data-i18n="settings.renderFont">Render-Schriftart</label>
+            <input id="settings-render-font" class="settings-input" type="text" list="settings-proportional-fonts" autocomplete="off" spellcheck="false" />
+          </div>
+          <div class="settings-row">
+            <label for="settings-render-size" data-i18n="settings.renderSize">Render-Schriftgröße</label>
+            <input id="settings-render-size" class="settings-input settings-input-size" type="number" min="8" max="32" step="1" />
+          </div>
+        </div>
+        <div class="settings-buttons">
+          <button id="btn-settings-cancel" class="btn" data-i18n="settings.cancel">Abbrechen</button>
+          <button id="btn-settings-apply" class="btn" data-i18n="settings.apply">Anwenden</button>
+          <button id="btn-settings-ok" class="btn btn-primary" data-i18n="settings.ok">OK</button>
+        </div>
+        <datalist id="settings-mono-fonts">
+          <option value="Consolas"></option>
+          <option value="Cascadia Code"></option>
+          <option value="Cascadia Mono"></option>
+          <option value="JetBrains Mono"></option>
+          <option value="Fira Code"></option>
+          <option value="Source Code Pro"></option>
+          <option value="Courier New"></option>
+        </datalist>
+        <datalist id="settings-proportional-fonts">
+          <option value="Segoe UI"></option>
+          <option value="Calibri"></option>
+          <option value="Arial"></option>
+          <option value="Helvetica"></option>
+          <option value="Georgia"></option>
+          <option value="Times New Roman"></option>
+          <option value="Verdana"></option>
+        </datalist>
+      </div>
+    </div>
+
     <script type="module" src="renderer.bundle.js"></script>
   </body>
 </html>

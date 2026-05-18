@@ -130,6 +130,13 @@ function buildMenu(win, state, actions) {
         },
         { type: 'separator' },
         {
+          // 4T-0018: Settings-Dialog (Schriftart, -groesse). Renderer-Hook.
+          label: t('menu.file.settings'),
+          accelerator: 'CmdOrCtrl+,',
+          click: send('menu:openSettings'),
+        },
+        { type: 'separator' },
+        {
           label: t('menu.file.quit'),
           role: 'quit',
         },

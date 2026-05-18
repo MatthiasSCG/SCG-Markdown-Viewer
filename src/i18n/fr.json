@@ -133,6 +133,7 @@
   "save.errorMessage": "Le fichier n'a pas pu être enregistré.",
   "menu.file.save": "Enregistrer",
   "menu.file.saveAs": "Enregistrer sous…",
+  "menu.file.settings": "Paramètres…",
   "menu.file.quit": "Quitter",
   "menu.view.title": "&Affichage",
   "menu.view.rendered": "Rendu",
@@ -172,5 +173,14 @@
   "tab.menu.copyToSubmenu": "Copier vers",
   "tab.menu.targetNewWindow": "Nouvelle fenêtre",
   "tab.menu.targetWindowLabel": "Fenêtre {n}",
-  "tab.menu.tooltipMoreTabsSuffix": "(+{n} autre(s))"
+  "tab.menu.tooltipMoreTabsSuffix": "(+{n} autre(s))",
+  "settings.title": "Paramètres",
+  "settings.appearance": "Apparence",
+  "settings.editorFont": "Police de l'éditeur",
+  "settings.editorSize": "Taille de la police de l'éditeur",
+  "settings.renderFont": "Police du rendu",
+  "settings.renderSize": "Taille de la police du rendu",
+  "settings.ok": "OK",
+  "settings.apply": "Appliquer",
+  "settings.cancel": "Annuler"
 }

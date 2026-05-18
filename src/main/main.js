@@ -657,6 +657,19 @@ function registerIpc() {
     // Menue-relevante Settings spiegeln sich in den Haekchen wider. Bei einem
     // Wechsel in einem Fenster muessen alle Fenster-Menues angepasst werden.
     if (key === 'restoreSession' || key === 'autoSave') applyMenuToAllWindows();
+    // 4T-0018: appearance.*-Aenderung an alle Fenster broadcasten, damit
+    // Schriftart und -groesse sofort ueberall greifen.
+    if (typeof key === 'string' && key.startsWith('appearance.')) {
+      const payload = {
+        editorFont: store?.get('appearance.editorFont') || undefined,
+        editorSize: store?.get('appearance.editorSize') || undefined,
+        renderFont: store?.get('appearance.renderFont') || undefined,
+        renderSize: store?.get('appearance.renderSize') || undefined,
+      };
+      for (const w of BrowserWindow.getAllWindows()) {
+        if (!w.isDestroyed()) w.webContents.send('appearance:changed', payload);
+      }
+    }
   });
 
   // Renderer meldet ein aktives Datei-Oeffnen, damit der Pfad in die Recent-
