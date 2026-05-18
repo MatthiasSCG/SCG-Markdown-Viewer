@@ -456,19 +456,31 @@ function createWindow(opts = {}) {
       sandbox: false,
     },
   };
-  if (useStored) {
-    options.x = opts.bounds.x;
-    options.y = opts.bounds.y;
-    options.width = Math.max(opts.bounds.width, options.minWidth);
-    options.height = Math.max(opts.bounds.height, options.minHeight);
-  }
-
+  // Workaround fuer Electron-Multi-Monitor-DPI-Bug (electron/electron Issues
+  // #10862, #16444, #31999): bei Setups mit unterschiedlicher Per-Monitor-DPI
+  // werden width/height beim BrowserWindow-Konstruktor sowie beim ersten
+  // setBounds-Aufruf um den Skalierungsfaktor verzerrt, weil Electron sie in
+  // DIPs des Quell- oder Primaermonitors interpretiert. Loesung: Fenster mit
+  // Default-Optionen erzeugen (landet auf Primary), dann setBounds zweimal
+  // hintereinander aufrufen. Der erste Aufruf verschiebt das Fenster auf den
+  // Zielmonitor und triggert die DPI-Erkennung; der zweite Aufruf setzt die
+  // Bounds mit der dann aktiven korrekten Ziel-DPI (4T-0025).
   const win = new BrowserWindow(options);
   const id = win.webContents.id;
   windows.set(id, win);
   lastFocusedId = id;
 
-  if (useStored && opts.maximized) win.maximize();
+  if (useStored) {
+    const targetBounds = {
+      x: opts.bounds.x,
+      y: opts.bounds.y,
+      width: Math.max(opts.bounds.width, options.minWidth),
+      height: Math.max(opts.bounds.height, options.minHeight),
+    };
+    win.setBounds(targetBounds);
+    win.setBounds(targetBounds);
+    if (opts.maximized) win.maximize();
+  }
 
   applyMenuToWindow(win);
 
@@ -521,6 +533,11 @@ function createWindow(opts = {}) {
       clearTimeout(timer);
       saveBoundsTimers.delete(id);
     }
+    // Stand persistieren, solange dieses Fenster noch in der `windows`-Map
+    // steht und nicht destroyed ist. Sonst geht beim Schliessen des letzten
+    // Fensters die Position verloren, weil der nachgelagerte 'closed'-Handler
+    // nur noch eine leere Map sehen wuerde (4T-0025).
+    if (!isQuitting) persistAllWindows();
   });
 
   win.on('closed', async () => {
@@ -535,7 +552,11 @@ function createWindow(opts = {}) {
       if (!first.done) lastFocusedId = first.value;
     }
     await unwatchAllForOwner(id);
-    if (!isQuitting) {
+    // Nur persistieren, wenn nach dem `windows.delete(id)` noch andere Fenster
+    // uebrig sind. Sonst wuerde eine leere Liste die zuletzt gemerkten Bounds
+    // des soeben geschlossenen letzten Fensters ueberschreiben (4T-0025; das
+    // 'close'-Event hat den Stand inkl. dieses Fensters bereits persistiert).
+    if (!isQuitting && windows.size > 0) {
       persistAllWindows();
       // Display-Nummern der verbliebenen Fenster ruecken nach; sinkt die Zahl
       // auf 1, wird der `(Fenster N)`-Suffix beim verbleibenden ausgeblendet.
@@ -879,8 +900,12 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => {
   isQuitting = true;
-  // Letzte Persistenz, bevor die Fenster schliessen.
-  persistAllWindows();
+  // Letzte Persistenz, bevor die Fenster schliessen. Nur wenn beim Quit noch
+  // Fenster offen sind. Wenn die Map bereits leer ist (z.B. weil der Nutzer
+  // das letzte Fenster ueber X geschlossen hat und 'window-all-closed' den
+  // Quit ausloest), darf nicht mit leerer Liste ueberschrieben werden, sonst
+  // gingen die zuletzt im 'close'-Handler gemerkten Bounds verloren (4T-0025).
+  if (windows.size > 0) persistAllWindows();
 });
 
 app.on('window-all-closed', async () => {
