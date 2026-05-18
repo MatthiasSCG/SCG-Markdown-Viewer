@@ -7,6 +7,7 @@ const fs = require('node:fs/promises');
 const { app, BrowserWindow, dialog, ipcMain, shell, nativeTheme, Menu, screen } = require('electron');
 const chokidar = require('chokidar');
 const { buildMenu, clearDictCache: clearMenuDictCache, tForLocale } = require('./menu');
+const backlinks = require('./backlinks');
 
 // Single-Instance-Lock: zweite Instanz reicht ihre Datei an die laufende weiter.
 const gotLock = app.requestSingleInstanceLock();
@@ -177,6 +178,10 @@ function broadcast(channel, ...args) {
     if (!win.isDestroyed()) win.webContents.send(channel, ...args);
   }
 }
+
+// 4T-0015: Backlinks-Modul mit dem Broadcast verdrahten, damit watcher-
+// getriebene Aenderungen alle Fenster erreichen.
+backlinks.attachBroadcast(broadcast);
 
 // --- File-Watching mit Refcounting -------------------------------------------
 
@@ -349,6 +354,8 @@ function getMenuState(id) {
     outlineVisible: !!base.outlineVisible,
     // 4T-0013: Haekchen-Stand fuer das Gliederungs-Toggle im Ansicht-Menue.
     foldGutter: base.foldGutter !== undefined ? base.foldGutter : true,
+    // 4T-0015: Haekchen-Stand fuer das Backlinks-Toggle im Ansicht-Menue.
+    backlinksVisible: !!base.backlinksVisible,
   };
 }
 
@@ -822,6 +829,21 @@ function registerIpc() {
     target.webContents.send('tab:appendFromOtherWindow', payload || {});
     if (target.isMinimized()) target.restore();
     target.focus();
+    return { ok: true };
+  });
+
+  // 4T-0015: Backlinks-Anfrage einer Pane. Erhoeht den Refcount auf die
+  // Wurzel der angefragten Datei und liefert das aktuelle Status-Payload.
+  // Der Renderer macht beim Tab-Wechsel passend zu einem 'request' immer
+  // auch ein 'release' fuer die vorher angefragte Datei.
+  ipcMain.handle('backlinks:request', (_event, params) => {
+    const filePath = params && params.filePath;
+    return backlinks.backlinksFor(filePath);
+  });
+  ipcMain.handle('backlinks:release', (_event, params) => {
+    const filePath = params && params.filePath;
+    const root = backlinks.rootForActiveFile(filePath);
+    if (root) backlinks.releaseRoot(root);
     return { ok: true };
   });
 

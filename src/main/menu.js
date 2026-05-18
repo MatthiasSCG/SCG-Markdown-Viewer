@@ -168,6 +168,13 @@ function buildMenu(win, state, actions) {
           click: send('menu:toggleOutline'),
         },
         {
+          label: t('menu.view.backlinks'),
+          type: 'checkbox',
+          checked: !!(state && state.backlinksVisible),
+          accelerator: 'CmdOrCtrl+Shift+B',
+          click: send('menu:toggleBacklinks'),
+        },
+        {
           label: t('menu.view.foldGutter'),
           type: 'checkbox',
           checked: !!(state && state.foldGutter),

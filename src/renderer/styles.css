@@ -544,6 +544,84 @@ select {
 }
 .outline-label:hover { background: var(--border); }
 
+/* === Backlinks-Sektion (4T-0015) ========================================= */
+.sidebar-backlinks {
+  border-top: 1px solid var(--border);
+  flex: 1 1 auto;
+  min-height: 100px;
+}
+.sidebar-section-info {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  font-size: 9px;
+  font-style: italic;
+  font-weight: 600;
+  color: var(--fg-muted);
+  cursor: help;
+  user-select: none;
+}
+.sidebar-section-info:hover {
+  color: var(--fg);
+  border-color: var(--fg-muted);
+}
+.backlinks-status {
+  padding: 12px 14px;
+  font-size: 12px;
+  color: var(--fg-muted);
+  font-style: italic;
+}
+.backlinks-status[hidden] { display: none; }
+.backlinks-results {
+  display: flex;
+  flex-direction: column;
+}
+.backlinks-results:empty + .backlinks-status[hidden] { display: none; }
+.backlinks-group {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+.backlinks-group:last-child { border-bottom: none; }
+.backlinks-group-header {
+  padding: 6px 10px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.backlinks-group-header:hover {
+  background: var(--hover);
+  color: var(--accent);
+}
+.backlinks-hit {
+  display: block;
+  padding: 2px 10px 2px 22px;
+  font-size: 12px;
+  color: var(--fg);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.backlinks-hit:hover { background: var(--hover); }
+.backlinks-hit-meta {
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+}
+.backlinks-hit-snippet {
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
 /* === Kontextmenue ========================================================= */
 .context-menu {
   position: fixed;

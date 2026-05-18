@@ -1,6 +1,6 @@
 # 3E-0002 — Strukturnavigation: Folding, Outline und Backlinks
 
-**Status**: Offen
+**Status**: Umsetzung abgeschlossen, Sammeltask offen
 **Zielversion**: 0.8.0
 **Vorgängerversion**: 0.7.0
 
@@ -48,7 +48,8 @@ Folding und Outline arbeiten rein dokumentenintern. Backlinks ist das einzige Fe
 
 - [x] [4T-0013 — Code-Folding nach Überschriften im Editor](4T-0013-code-folding-headings.md)
 - [x] [4T-0014 — Outline-Panel mit Heading-Baum, klickbar und scroll-synchron](4T-0014-outline-panel.md)
-- [ ] [4T-0015 — Backlinks-Panel mit Tiefen-begrenzter Indexierung](4T-0015-backlinks-panel.md)
+- [x] [4T-0015 — Backlinks-Panel mit Tiefen-begrenzter Indexierung](4T-0015-backlinks-panel.md)
+- [ ] **Abschluss-Sammeltask** (Hilfe-Dialog, CHANGELOG, Release-Notes für 0.8.0)
 
 ## Architekturentscheidungen
 

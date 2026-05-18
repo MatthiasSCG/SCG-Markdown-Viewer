@@ -1,6 +1,6 @@
 # 4T-0015 — Backlinks-Panel mit Tiefen-begrenzter Indexierung
 
-**Status**: Offen
+**Status**: Test bestanden
 **Epic**: [3E-0002 — Strukturnavigation: Folding, Outline und Backlinks](3E-0002-strukturnavigation.md)
 **Zielversion**: 0.8.0
 
@@ -181,3 +181,59 @@ Diese Helper-Funktion wird vom Backlinks-Panel beim Klick auf Treffer-Einträge 
 - **Snippet-Breite** (Zeichen-Limit für Ellipsen): während der Umsetzung festlegen, abhängig von der gewählten Sidebar-Breite. Vorschlag ca. 80 Zeichen bei 260 px Sidebar-Default.
 
 ## Lösung
+
+**Indexierungs-Modul** als eigene Datei `src/main/backlinks.js`:
+
+- `Map<wurzelPfad, Eintrag>`. Jeder Eintrag enthält Status (`indexing`/`ready`/`oversized`), `files` (Map `Quelldatei → Trefferliste`), `fileCount`, `byteSize`, chokidar-Watcher, Refcount, Soft-Timer.
+- Initial-Scan über `fs.readdirSync` rekursiv bis Tiefe 2; Hard-Cap-Prüfung bricht den Scan ab, sobald **> 2000 Markdown-Dateien** ODER **> 50 MB** überschritten sind — Status wird auf `oversized` gesetzt und kein Watcher gestartet.
+- Link-Parsing per zwei Regex pro Zeile (`WIKI_LINK_RE` für `[[Foo]]`/`[[Foo|Label]]` mit optionalem `#anker`, `MD_LINK_RE` für `[Text](pfad.md)`/`(pfad.md#anker)`). Externe Schemes (`http:`, `mailto:`) werden ausgefiltert. Pro Treffer: `{zeile, linkTyp, zielBasename|zielAbsolut, anker, snippet}`. Snippets auf 120 Zeichen mit Ellipse.
+- Watcher per `chokidar.watch(root, { depth: 2, ignoreInitial: true })`, `node_modules` und `.git*`-Ordner ausgespart. Add/Change/Unlink lösen Re-Parse nur der betroffenen Datei aus; danach `scheduleInvalidate()` mit 200 ms Debounce, das den Broadcast `backlinks:invalidated` triggert.
+- Refcount + 60-s-Soft-Timer in `ensureIndex` / `releaseRoot`; bei Refcount 0 läuft `setTimeout`-Tear-Down, wird er noch innerhalb der Frist wieder akquiriert, läuft kein Tear-Down. Watcher-Errors triggern `teardownIndex({force:true})` und Broadcast.
+- Auflösung beim Lookup: `collectBacklinksFor(activeFile, entry)`. Wiki-Links matchen alle Index-Dateien mit identischem Basename ohne Markdown-Endung (Namens-Konflikte erzeugen Backlinks bei allen Treffern). Markdown-Links werden gegen die absolute Pfad-Form der aktiven Datei verglichen. Eigen-Referenzen werden ausgefiltert. Treffer werden pro Quelldatei gruppiert, jeder Block nach Zeile sortiert, Gruppen alphabetisch nach Pfad.
+
+**IPC** in `src/main/main.js` und `src/main/preload.js`:
+
+- `backlinks:request({filePath})` (invoke): erhöht Refcount auf die Wurzel der Datei, liefert direkt `{status, results, meta}` zurück (Status-Werte `indexing`/`ready`/`oversized`/`unavailable`).
+- `backlinks:release({filePath})` (invoke): senkt den Refcount; Renderer ruft paarweise beim Tab-Wechsel.
+- `backlinks:invalidated({wurzel})` (push): bei Watcher-Updates, debounced 200 ms.
+
+**Renderer** in `src/renderer/renderer.js`:
+
+- `state.backlinks = { visibleByPane, currentFileByPane, lastResultsByPane }`.
+- `activateBacklinksFor(paneIdx, filePath)`: gibt vorherige Wurzel frei, schickt Request, validiert Race über Vergleich von `currentFileByPane` und ruft `renderBacklinks(paneIdx)` auf.
+- `deactivateBacklinksFor(paneIdx)`: Release ohne neuen Request (bei Toggle aus).
+- `renderBacklinks(paneIdx)`: status-abhängige Darstellung (`indexing`/`oversized`/`unavailable`/`empty`/Treffer-Gruppen). Pro Gruppe Header mit Datei-Basename (Tooltip = Vollpfad) und Liste der Hit-Zeilen mit `L<zeile>[, #anker]` plus Snippet. Klick auf Header springt zur ersten Trefferzeile.
+- `openOrJumpToPath(path, line)`: nutzt `findTabAcrossPanes` (existiert seit 4T-0012). Tab in einer Pane gefunden → Pane + Tab aktivieren, Cursor setzen. Nicht gefunden → `openInPane` in der aktiven Spalte, danach Cursor setzen. `placeCursorAtLine` kapselt den `view.dispatch({selection, scrollIntoView})`.
+- `applySidebarVisibility(paneIdx)`: Sidebar und Splitter sichtbar, sobald Outline ODER Backlinks aktiv. Beide aus → Sidebar weg.
+- Tab-Wechsel in `syncEditorForPane` triggert `activateBacklinksFor` für die neue Datei, sofern die Sektion sichtbar ist. `Live-Update`: `onBacklinksInvalidated` lässt alle sichtbaren Backlinks-Panels neu requesten.
+
+**Sidebar-HTML** in `src/renderer/index.html`:
+
+- Pro `.pane-group` eine zweite `<section class="sidebar-backlinks">` unter der Outline-Sektion. Header mit Titel `Backlinks` und kleinem `i`-Info-Symbol; Body enthält `<div class="backlinks-status">` und `<div class="backlinks-results">`.
+- Statusbar-Button `#btn-backlinks` (Text `Backlinks` über i18n-Key `backlinks.toggle`) eingereiht zwischen `Inhalt` und `Gliederung`.
+
+**Menü und Tastenkürzel:**
+
+- `src/main/menu.js`: neuer Eintrag `Ansicht → Backlinks` als `checkbox` mit Accelerator `CmdOrCtrl+Shift+B`, im gemeinsamen Block direkt unter `Inhaltsverzeichnis`.
+- `src/main/main.js`: `backlinksVisible` im `getMenuState`.
+- `src/main/preload.js`: `onMenuToggleBacklinks`-Listener, `onBacklinksInvalidated`-Bridge.
+- `src/renderer/renderer.js`: globaler `Ctrl+Shift+B`-Handler im `keydown`-Block. `reportMenuStateNow` spiegelt `backlinksVisible` der aktiv fokussierten Spalte.
+
+**Persistenz** in den Settings:
+
+- `backlinks.visibleColumn0` und `backlinks.visibleColumn1` (boolean), Default `false`. Sidebar-Breite teilt sich weiterhin mit dem Outline-Panel über `outline.width`.
+
+**Styling** in `src/renderer/styles.css`:
+
+- `.sidebar-backlinks` mit oberer Trennlinie zur Outline-Sektion, `flex: 1 1 auto` damit die Liste den Rest der Sidebar-Höhe nutzt.
+- `.backlinks-group`/`.backlinks-group-header`/`.backlinks-hit` mit dezenten Hover-States und Ellipsen-Truncation; Snippets in Monospace.
+- `.sidebar-section-info`: kleines `i`-Symbol mit `cursor: help` und Tooltip-Konfiguration.
+
+**i18n** in allen fünf Sprachen:
+
+- `menu.view.backlinks`, `backlinks.title`, `backlinks.toggle`, `backlinks.toggleTitle`, `backlinks.scopeTooltip` (mit `{root}`-Platzhalter), `backlinks.indexing`, `backlinks.empty`, `backlinks.oversized` (mit `{files}`/`{mb}`-Platzhaltern), `backlinks.unavailable`.
+
+**Bewusst nicht in 4T-0015:**
+
+- Vertikaler Resize-Splitter zwischen Outline- und Backlinks-Sektion innerhalb der Sidebar.
+- Hilfe-Dialog-Erweiterung, CHANGELOG, Release-Notes — folgen im Sammeltask am Epic-Ende.

@@ -159,6 +159,13 @@ contextBridge.exposeInMainWorld('api', {
   // damit das Outline-Panel im Render-Modus den passenden DOM-Anker findet.
   slugifyHeading: (text) => githubLikeSlug(String(text || '')),
 
+  // 4T-0015: Backlinks. requestBacklinks erhoeht den Refcount auf die
+  // Wurzel, releaseBacklinks senkt ihn (wird beim Tab-Wechsel paarweise
+  // aufgerufen). onBacklinksInvalidated meldet Watcher-Updates aus dem Main.
+  requestBacklinks: (filePath) => ipcRenderer.invoke('backlinks:request', { filePath }),
+  releaseBacklinks: (filePath) => ipcRenderer.invoke('backlinks:release', { filePath }),
+  onBacklinksInvalidated: (cb) => ipcRenderer.on('backlinks:invalidated', (_e, payload) => cb(payload)),
+
   // Multi-Window
   openNewWindow: (initialTabs) => ipcRenderer.invoke('window:openNew', initialTabs),
   reportPanes: (panes) => ipcRenderer.invoke('window:reportPanes', panes),
@@ -190,6 +197,9 @@ contextBridge.exposeInMainWorld('api', {
   // 4T-0014: Menue-Eintrag "Ansicht -> Inhaltsverzeichnis" sendet diesen
   // Event; Renderer toggelt die Outline-Sichtbarkeit der aktiven Spalte.
   onMenuToggleOutline: (cb) => ipcRenderer.on('menu:toggleOutline', () => cb()),
+  // 4T-0015: Menue-Eintrag "Ansicht -> Backlinks" toggelt die Backlinks-
+  // Sichtbarkeit der aktiven Spalte.
+  onMenuToggleBacklinks: (cb) => ipcRenderer.on('menu:toggleBacklinks', () => cb()),
   onMenuOpenHelp: (cb) => ipcRenderer.on('menu:openHelp', () => cb()),
   onMenuOpenAbout: (cb) => ipcRenderer.on('menu:openAbout', () => cb()),
   onMenuToggleRestoreSession: (cb) => ipcRenderer.on('menu:toggleRestoreSession', () => cb()),

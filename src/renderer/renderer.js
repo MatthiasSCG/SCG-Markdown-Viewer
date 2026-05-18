@@ -478,6 +478,16 @@ const state = {
     width: 260,
     activeLineByPane: [0, 0],
   },
+  // 4T-0015: Backlinks-Sidebar-Sektion pro Spalte. visibleByPane wie Outline.
+  // currentFileByPane haelt die aktuell beim Main angemeldete Datei pro Pane
+  // (fuer paarweises request/release beim Tab-Wechsel). lastResultsByPane
+  // cached das letzte Status-Payload, damit Re-Render ohne neuen Request
+  // moeglich ist (z.B. nach Sprachwechsel).
+  backlinks: {
+    visibleByPane: [false, false],
+    currentFileByPane: [null, null],
+    lastResultsByPane: [null, null],
+  },
 };
 
 // Dialog-Tracking fuer Auto-Save: solange ein modaler Dialog (Schliessen-
@@ -553,9 +563,14 @@ function getPaneEls(paneIdx) {
     innerSplitter: root.querySelector('.splitter.inner-splitter'),
     sidebar: root.querySelector('.pane-sidebar'),
     sidebarSplitter: root.querySelector('.splitter.sidebar-splitter'),
+    outlineSection: root.querySelector('.sidebar-outline'),
     outlineTree: root.querySelector('.outline-tree'),
     outlineEmpty: root.querySelector('.outline-empty'),
     outlineTitle: root.querySelector('.sidebar-outline .sidebar-section-title'),
+    backlinksSection: root.querySelector('.sidebar-backlinks'),
+    backlinksStatus: root.querySelector('.backlinks-status'),
+    backlinksResults: root.querySelector('.backlinks-results'),
+    backlinksInfo: root.querySelector('.sidebar-backlinks .sidebar-section-info'),
   };
 }
 
@@ -725,6 +740,11 @@ function syncEditorForPane(paneIdx) {
     renderOutline(paneIdx);
     computeOutlineActiveLine(paneIdx);
     applyOutlineActiveHighlight(paneIdx);
+  }
+  // 4T-0015: Bei Tab-Wechsel die Backlinks neu anfordern, falls Sektion
+  // sichtbar. Refcount-Management laeuft ueber activate-/deactivate-Pfad.
+  if (state.backlinks && state.backlinks.visibleByPane[paneIdx]) {
+    activateBacklinksFor(paneIdx, tab && tab.path ? tab.path : null);
   }
 }
 
@@ -1092,16 +1112,31 @@ function bindOutlineEvents(paneIdx) {
 function applyOutlineVisibility(paneIdx) {
   const els = getPaneEls(paneIdx);
   if (!els || !els.sidebar) return;
-  const visible = !!state.outline.visibleByPane[paneIdx];
-  els.sidebar.hidden = !visible;
-  if (els.sidebarSplitter) els.sidebarSplitter.hidden = !visible;
-  if (visible) {
-    els.sidebar.style.width = state.outline.width + 'px';
+  const outlineVisible = !!state.outline.visibleByPane[paneIdx];
+  if (els.outlineSection) els.outlineSection.hidden = !outlineVisible;
+  applySidebarVisibility(paneIdx);
+  if (outlineVisible) {
     renderOutline(paneIdx);
     computeOutlineActiveLine(paneIdx);
     applyOutlineActiveHighlight(paneIdx);
   }
   updateOutlineToggleButton();
+}
+
+// 4T-0014/4T-0015: Gemeinsame Sidebar-Sichtbarkeit. Die Sidebar ist
+// sichtbar, sobald mindestens eine Sektion (Outline oder Backlinks)
+// sichtbar ist. Wenn beide aus sind, verschwindet auch der Splitter.
+function applySidebarVisibility(paneIdx) {
+  const els = getPaneEls(paneIdx);
+  if (!els || !els.sidebar) return;
+  const outlineVisible = !!state.outline.visibleByPane[paneIdx];
+  const backlinksVisible = !!state.backlinks.visibleByPane[paneIdx];
+  const anyVisible = outlineVisible || backlinksVisible;
+  els.sidebar.hidden = !anyVisible;
+  if (els.sidebarSplitter) els.sidebarSplitter.hidden = !anyVisible;
+  if (anyVisible) {
+    els.sidebar.style.width = state.outline.width + 'px';
+  }
 }
 
 function updateOutlineToggleButton() {
@@ -1170,6 +1205,218 @@ function bindSidebarSplitter(paneIdx) {
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
   });
+}
+
+// --- Backlinks-Sidebar (4T-0015) -------------------------------------------
+// Zweite Sektion der linken Sidebar. Zeigt eingehende Referenzen auf die
+// aktive Datei aus dem Suchraum (Datei-Ordner + 2 Unterordner-Ebenen).
+// Indexierung laeuft im Main-Prozess; der Renderer fragt pro Pane bei
+// Tab-Wechsel die Backlinks an und gibt die alte Wurzel frei (paarweises
+// request/release fuer Refcounting + 60-s-Soft-Timer).
+
+async function activateBacklinksFor(paneIdx, filePath) {
+  // Vorherigen Eintrag freigeben (falls noetig).
+  const prev = state.backlinks.currentFileByPane[paneIdx];
+  if (prev && prev !== filePath) {
+    try { await api.releaseBacklinks(prev); } catch { /* ignore */ }
+  }
+  state.backlinks.currentFileByPane[paneIdx] = filePath || null;
+  if (!filePath) {
+    state.backlinks.lastResultsByPane[paneIdx] = { status: 'unavailable' };
+    renderBacklinks(paneIdx);
+    return;
+  }
+  // Wir fragen direkt an. Status 'ready' kommt im Normalfall sync zurueck.
+  let payload;
+  try {
+    payload = await api.requestBacklinks(filePath);
+  } catch {
+    payload = { status: 'unavailable' };
+  }
+  // Race-Sicherung: wenn die Pane in der Zwischenzeit zu einer anderen Datei
+  // gewechselt hat, verwerfen wir das Ergebnis.
+  if (state.backlinks.currentFileByPane[paneIdx] !== filePath) return;
+  state.backlinks.lastResultsByPane[paneIdx] = payload;
+  renderBacklinks(paneIdx);
+}
+
+async function deactivateBacklinksFor(paneIdx) {
+  const prev = state.backlinks.currentFileByPane[paneIdx];
+  if (prev) {
+    try { await api.releaseBacklinks(prev); } catch { /* ignore */ }
+  }
+  state.backlinks.currentFileByPane[paneIdx] = null;
+  state.backlinks.lastResultsByPane[paneIdx] = null;
+}
+
+function renderBacklinks(paneIdx) {
+  const els = getPaneEls(paneIdx);
+  if (!els || !els.backlinksResults || !els.backlinksStatus) return;
+  const payload = state.backlinks.lastResultsByPane[paneIdx];
+  els.backlinksResults.innerHTML = '';
+  els.backlinksStatus.hidden = true;
+  els.backlinksStatus.textContent = '';
+  if (!payload) {
+    els.backlinksStatus.hidden = false;
+    els.backlinksStatus.textContent = t('backlinks.indexing');
+    return;
+  }
+  if (payload.status === 'unavailable') {
+    els.backlinksStatus.hidden = false;
+    els.backlinksStatus.textContent = t('backlinks.unavailable');
+    return;
+  }
+  if (payload.status === 'oversized') {
+    els.backlinksStatus.hidden = false;
+    const meta = payload.meta || {};
+    const files = meta.fileCount || 0;
+    const mb = meta.byteSize ? Math.round(meta.byteSize / (1024 * 1024)) : 0;
+    els.backlinksStatus.textContent = t('backlinks.oversized')
+      .replace('{files}', String(files))
+      .replace('{mb}', String(mb));
+    return;
+  }
+  if (payload.status === 'indexing') {
+    els.backlinksStatus.hidden = false;
+    els.backlinksStatus.textContent = t('backlinks.indexing');
+    return;
+  }
+  // ready
+  const groups = Array.isArray(payload.results) ? payload.results : [];
+  if (groups.length === 0) {
+    els.backlinksStatus.hidden = false;
+    els.backlinksStatus.textContent = t('backlinks.empty');
+    return;
+  }
+  for (const group of groups) {
+    const groupEl = document.createElement('div');
+    groupEl.className = 'backlinks-group';
+
+    const header = document.createElement('div');
+    header.className = 'backlinks-group-header';
+    const baseName = api.basename(group.quelldatei);
+    header.textContent = baseName;
+    header.title = group.quelldatei;
+    const firstHit = group.hits[0];
+    header.addEventListener('click', () => {
+      openOrJumpToPath(group.quelldatei, firstHit ? firstHit.zeile : 1);
+    });
+    groupEl.appendChild(header);
+
+    for (const hit of group.hits) {
+      const hitEl = document.createElement('div');
+      hitEl.className = 'backlinks-hit';
+      const meta = document.createElement('span');
+      meta.className = 'backlinks-hit-meta';
+      let metaText = 'L' + hit.zeile;
+      if (hit.anker) metaText += ', #' + hit.anker;
+      metaText += '  ';
+      meta.textContent = metaText;
+      hitEl.appendChild(meta);
+      const snip = document.createElement('span');
+      snip.className = 'backlinks-hit-snippet';
+      snip.textContent = hit.snippet || '';
+      hitEl.appendChild(snip);
+      hitEl.title = hit.snippet || '';
+      hitEl.addEventListener('click', () => {
+        openOrJumpToPath(group.quelldatei, hit.zeile);
+      });
+      groupEl.appendChild(hitEl);
+    }
+    els.backlinksResults.appendChild(groupEl);
+  }
+  // Tooltip im Info-Symbol auf die konkrete Wurzel setzen.
+  if (els.backlinksInfo) {
+    const wurzel = payload.meta && payload.meta.wurzel;
+    if (wurzel) {
+      els.backlinksInfo.title = t('backlinks.scopeTooltip').replace('{root}', wurzel);
+    }
+  }
+}
+
+function applyBacklinksVisibility(paneIdx) {
+  const els = getPaneEls(paneIdx);
+  if (!els || !els.backlinksSection) return;
+  const visible = !!state.backlinks.visibleByPane[paneIdx];
+  els.backlinksSection.hidden = !visible;
+  applySidebarVisibility(paneIdx);
+  if (visible) {
+    // Bei Aktivierung aktuelle Datei abfragen.
+    const pane = state.panes[paneIdx];
+    const tab = pane && pane.activeIndex >= 0 ? pane.tabs[pane.activeIndex] : null;
+    activateBacklinksFor(paneIdx, tab && tab.path ? tab.path : null);
+  } else {
+    deactivateBacklinksFor(paneIdx);
+  }
+  updateBacklinksToggleButton();
+}
+
+function updateBacklinksToggleButton() {
+  const btn = document.getElementById('btn-backlinks');
+  if (!btn) return;
+  const visible = !!state.backlinks.visibleByPane[state.activePaneIndex];
+  btn.classList.toggle('active', visible);
+  btn.setAttribute('aria-pressed', visible ? 'true' : 'false');
+}
+
+async function toggleBacklinksPanel(paneIdx) {
+  if (paneIdx < 0 || paneIdx >= state.panes.length) return;
+  const next = !state.backlinks.visibleByPane[paneIdx];
+  state.backlinks.visibleByPane[paneIdx] = next;
+  applyBacklinksVisibility(paneIdx);
+  await persistBacklinksSettings();
+  if (paneIdx === state.activePaneIndex && typeof reportMenuStateNow === 'function') {
+    reportMenuStateNow();
+  }
+}
+
+async function persistBacklinksSettings() {
+  await api.setSetting('backlinks.visibleColumn0', !!state.backlinks.visibleByPane[0]);
+  await api.setSetting('backlinks.visibleColumn1', !!state.backlinks.visibleByPane[1]);
+}
+
+async function loadBacklinksSettings() {
+  const v0 = await api.getSetting('backlinks.visibleColumn0');
+  const v1 = await api.getSetting('backlinks.visibleColumn1');
+  state.backlinks.visibleByPane[0] = !!v0;
+  state.backlinks.visibleByPane[1] = !!v1;
+}
+
+// 4T-0015: Tab finden und Cursor auf Zeile setzen — Helper fuer Backlinks-
+// Sprung, kapselt findTabAcrossPanes plus Tab-/Pane-Aktivierung und Cursor-
+// Sprung. Wenn der Tab in keiner Pane offen ist, wird er in der aktiven Spalte
+// geoeffnet.
+async function openOrJumpToPath(targetPath, lineNumber) {
+  if (!targetPath) return;
+  const found = findTabAcrossPanes(targetPath);
+  if (found) {
+    if (found.paneIdx !== state.activePaneIndex) {
+      activatePane(found.paneIdx);
+    }
+    if (state.panes[found.paneIdx].activeIndex !== found.tabIdx) {
+      activateTab(found.paneIdx, found.tabIdx);
+    }
+    placeCursorAtLine(found.paneIdx, lineNumber);
+    return;
+  }
+  // Neuen Tab in der aktiven Spalte oeffnen, dann Cursor setzen.
+  await openInPane(state.activePaneIndex, [targetPath]);
+  placeCursorAtLine(state.activePaneIndex, lineNumber);
+}
+
+function placeCursorAtLine(paneIdx, lineNumber) {
+  const view = paneEditors[paneIdx];
+  if (!view) return;
+  const ln = parseInt(lineNumber, 10);
+  if (!Number.isFinite(ln) || ln < 1) return;
+  const doc = view.state.doc;
+  const clamped = Math.min(ln, doc.lines);
+  const lineObj = doc.line(clamped);
+  view.dispatch({
+    selection: { anchor: lineObj.from },
+    effects: EditorView.scrollIntoView(lineObj.from, { y: 'center' }),
+  });
+  view.focus();
 }
 
 // --- Initialer Main-Zustand -------------------------------------------------
@@ -1251,6 +1498,8 @@ async function init() {
 
   // 4T-0014: Outline-Sichtbarkeit und -Breite aus den Settings laden.
   await loadOutlineSettings();
+  // 4T-0015: Backlinks-Sichtbarkeit pro Spalte aus den Settings laden.
+  await loadBacklinksSettings();
 
   // Bindings
   bindUi();
@@ -1357,11 +1606,22 @@ function bindUi() {
   if (btnOutline) {
     btnOutline.addEventListener('click', () => toggleOutlinePanel(state.activePaneIndex));
   }
-  // 4T-0014: Tastenkuerzel Strg+Umschalt+O toggelt das Outline-Panel.
+  // 4T-0015: Statusbar-Toggle fuer Backlinks-Panel der aktiven Spalte.
+  const btnBacklinks = $('#btn-backlinks');
+  if (btnBacklinks) {
+    btnBacklinks.addEventListener('click', () => toggleBacklinksPanel(state.activePaneIndex));
+  }
+  // 4T-0014 + 4T-0015: Tastenkuerzel Strg+Umschalt+O (Outline) und
+  // Strg+Umschalt+B (Backlinks) toggeln das jeweilige Panel.
   document.addEventListener('keydown', (e) => {
-    if (e.ctrlKey && e.shiftKey && !e.altKey && (e.key === 'O' || e.key === 'o')) {
-      e.preventDefault();
-      toggleOutlinePanel(state.activePaneIndex);
+    if (e.ctrlKey && e.shiftKey && !e.altKey) {
+      if (e.key === 'O' || e.key === 'o') {
+        e.preventDefault();
+        toggleOutlinePanel(state.activePaneIndex);
+      } else if (e.key === 'B' || e.key === 'b') {
+        e.preventDefault();
+        toggleBacklinksPanel(state.activePaneIndex);
+      }
     }
   });
   // 4T-0014: Folding-Aenderungen aus dem Editor (Gutter, Tastenkuerzel,
@@ -1533,6 +1793,25 @@ function bindUi() {
     api.onMenuToggleOutline(async () => {
       await toggleOutlinePanel(state.activePaneIndex);
       reportMenuStateNow();
+    });
+  }
+  // 4T-0015: Menue-Eintrag "Ansicht -> Backlinks" und Live-Update-Listener.
+  if (typeof api.onMenuToggleBacklinks === 'function') {
+    api.onMenuToggleBacklinks(async () => {
+      await toggleBacklinksPanel(state.activePaneIndex);
+      reportMenuStateNow();
+    });
+  }
+  if (typeof api.onBacklinksInvalidated === 'function') {
+    api.onBacklinksInvalidated(() => {
+      // Bei Index-Update alle sichtbaren Backlinks-Sektionen frisch anfordern.
+      for (let i = 0; i < state.panes.length; i++) {
+        if (state.backlinks.visibleByPane[i]) {
+          const pane = state.panes[i];
+          const tab = pane && pane.activeIndex >= 0 ? pane.tabs[pane.activeIndex] : null;
+          activateBacklinksFor(i, tab && tab.path ? tab.path : null);
+        }
+      }
     });
   }
 
@@ -1718,12 +1997,14 @@ function activatePane(paneIdx) {
     updateActivePaneClasses();
     syncToolbarToActiveTab();
     updateOutlineToggleButton();
+    updateBacklinksToggleButton();
     return;
   }
   state.activePaneIndex = paneIdx;
   updateActivePaneClasses();
   syncToolbarToActiveTab();
   updateOutlineToggleButton();
+  updateBacklinksToggleButton();
   // Bei aktiver Suche im neuen Pane neu suchen.
   refreshSearchIfVisible();
 }
@@ -1782,6 +2063,8 @@ function reportMenuStateNow() {
     // 4T-0014: Haekchen im "Ansicht -> Inhaltsverzeichnis"-Menue spiegelt
     // die Sichtbarkeit der Outline in der aktiv fokussierten Spalte.
     outlineVisible: !!state.outline.visibleByPane[state.activePaneIndex],
+    // 4T-0015: Haekchen-Stand fuer das Backlinks-Toggle im Ansicht-Menue.
+    backlinksVisible: !!state.backlinks.visibleByPane[state.activePaneIndex],
   });
 }
 
@@ -2204,6 +2487,7 @@ function applyAllLayouts() {
   // oder umgekehrt; Inhalte werden bei sichtbarer Sidebar gerendert).
   for (let i = 0; i < state.panes.length; i++) {
     applyOutlineVisibility(i);
+    applyBacklinksVisibility(i);
   }
 }
 
