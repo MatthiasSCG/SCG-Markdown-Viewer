@@ -2,12 +2,34 @@
 // Markdown-Rendering läuft hier, weil hier Node-Module verfügbar sind.
 'use strict';
 
-const { contextBridge, ipcRenderer, webUtils } = require('electron');
+const electron = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = electron;
 const path = require('node:path');
 const fs = require('node:fs');
 const MarkdownIt = require('markdown-it');
 const taskLists = require('markdown-it-task-lists');
 const markdownItAnchor = require('markdown-it-anchor');
+
+// 4T-0017: Electron-Standard-Zoom (Strg + +/-/0, Strg + Mausrad) komplett
+// abschalten. Der Renderer implementiert einen eigenen, pro-Tab gehaltenen
+// Zoom ueber CSS auf den Inhalts-Containern. Ohne diese Limits wuerde
+// Electron zusaetzlich auf webContents-Ebene zoomen — doppelt skaliert und
+// inklusive Statusbar/Tabs/Menue, was wir explizit nicht wollen.
+//
+// Wichtig: Der Aufruf wird in DOMContentLoaded verlagert und defensiv mit
+// try/catch geklammert. Direkt zur Preload-Modul-Ladezeit ist `webFrame` je
+// nach Electron-Version noch nicht initialisiert; ein Zugriff darauf wirft
+// dann eine Exception, die das Preload-Skript abbricht — Renderer kommt
+// nicht hoch, ready-to-show feuert nicht, das Fenster bleibt unsichtbar.
+window.addEventListener('DOMContentLoaded', () => {
+  try {
+    if (electron.webFrame && typeof electron.webFrame.setVisualZoomLevelLimits === 'function') {
+      electron.webFrame.setVisualZoomLevelLimits(1, 1);
+    }
+  } catch (err) {
+    console.warn('webFrame.setVisualZoomLevelLimits nicht verfuegbar:', err);
+  }
+});
 
 // markdown-it mit GFM-naher Konfiguration.
 const md = new MarkdownIt({

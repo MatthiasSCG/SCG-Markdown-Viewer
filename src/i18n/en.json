@@ -163,6 +163,8 @@
   "statusbar.saved": "Saved",
   "statusbar.saveFailed": "Save failed",
   "statusbar.edit": "Edit (Ctrl+E)",
+  "statusbar.zoom": "Zoom {percent} %",
+  "statusbar.zoomResetTitle": "Click to reset to 100 %",
   "statusbar.targetWindowGone": "Target window no longer available",
   "statusbar.targetFileMissing": "Cannot read file",
   "window.title.suffix": "Window {n}",

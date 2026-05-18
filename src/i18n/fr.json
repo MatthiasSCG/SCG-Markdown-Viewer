@@ -163,6 +163,8 @@
   "statusbar.saved": "Enregistré",
   "statusbar.saveFailed": "Échec de l'enregistrement",
   "statusbar.edit": "Modifier (Ctrl+E)",
+  "statusbar.zoom": "Zoom {percent} %",
+  "statusbar.zoomResetTitle": "Cliquer pour revenir à 100 %",
   "statusbar.targetWindowGone": "Fenêtre cible non disponible",
   "statusbar.targetFileMissing": "Impossible de lire le fichier",
   "window.title.suffix": "Fenêtre {n}",

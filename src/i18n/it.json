@@ -163,6 +163,8 @@
   "statusbar.saved": "Salvato",
   "statusbar.saveFailed": "Salvataggio non riuscito",
   "statusbar.edit": "Modifica (Ctrl+E)",
+  "statusbar.zoom": "Zoom {percent} %",
+  "statusbar.zoomResetTitle": "Fai clic per ripristinare al 100 %",
   "statusbar.targetWindowGone": "Finestra di destinazione non disponibile",
   "statusbar.targetFileMissing": "Impossibile leggere il file",
   "window.title.suffix": "Finestra {n}",

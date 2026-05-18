@@ -525,10 +525,31 @@ function createTab(path, content, settings = {}) {
     editMode: false,
     // Dirty-Flag: true sobald content vom originalContent abweicht.
     dirty: false,
+    // 4T-0017: Zoom-Faktor pro Tab (Multiplikator fuer Editor- und Render-
+    // Pane des Tabs). Default 1.0. Wird beim Tab-Transfer in ein anderes
+    // Fenster mit uebernommen, ueberlebt aber den Fenster-Schluss und die
+    // Sitzungswiederherstellung nicht.
+    zoom: clampZoom(settings.zoom ?? DEFAULT_ZOOM),
     // Bei "Datei → Neu" der lokale Nummern-Index (Unbenannt 1, 2, …).
     // Null fuer Tabs mit Pfad.
     untitledIndex: settings.untitledIndex || null,
   };
+}
+
+// 4T-0017: Zoom-Konstanten. Schrittweite 10 %, Limits 50 % bis 300 %.
+const DEFAULT_ZOOM = 1.0;
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 3.0;
+const ZOOM_STEP = 0.1;
+
+function clampZoom(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return DEFAULT_ZOOM;
+  if (num < ZOOM_MIN) return ZOOM_MIN;
+  if (num > ZOOM_MAX) return ZOOM_MAX;
+  // Auf eine Nachkommastelle runden, damit 0.1-Schritte keine Floating-
+  // Point-Drift erzeugen (0.1 + 0.1 + 0.1 != 0.3).
+  return Math.round(num * 10) / 10;
 }
 
 // Verhindert, dass scroll-Events während eines Tab-Wechsels die gespeicherten
@@ -578,6 +599,68 @@ function activeTab() {
   const pane = state.panes[state.activePaneIndex];
   if (!pane || pane.activeIndex < 0) return null;
   return pane.tabs[pane.activeIndex];
+}
+
+// 4T-0017: Wendet den Zoom-Faktor des aktiven Tabs einer Pane auf deren
+// Inhalts-Container an. Chromium-`zoom` skaliert sowohl Schrift als auch
+// Layout-Geometrie inklusive Scrollbars; CodeMirror sieht weiterhin
+// konsistente getBoundingClientRect-Werte. Bei Faktor 1.0 wird das Property
+// entfernt, damit der Default-Stack greift.
+function applyZoomToPane(paneIdx) {
+  const pane = state.panes[paneIdx];
+  const els = getPaneEls(paneIdx);
+  if (!els) return;
+  const tab = pane && pane.activeIndex >= 0 ? pane.tabs[pane.activeIndex] : null;
+  const zoom = tab ? clampZoom(tab.zoom) : DEFAULT_ZOOM;
+  const value = zoom === 1 ? '' : String(zoom);
+  if (els.sourceEditor) els.sourceEditor.style.zoom = value;
+  if (els.renderedHtml) els.renderedHtml.style.zoom = value;
+}
+
+// 4T-0017: Aktualisiert den Statusbar-Indikator anhand des Zooms des aktiven
+// Tabs der fokussierten Pane. Bei Faktor 1.0 ist der Indikator versteckt.
+function renderZoomIndicator() {
+  const el = document.getElementById('zoom-indicator');
+  if (!el) return;
+  const tab = activeTab();
+  const zoom = tab ? clampZoom(tab.zoom) : DEFAULT_ZOOM;
+  if (zoom === 1) {
+    el.hidden = true;
+    el.textContent = '';
+    return;
+  }
+  const percent = Math.round(zoom * 100);
+  el.hidden = false;
+  el.textContent = t('statusbar.zoom').replace('{percent}', String(percent));
+  el.title = t('statusbar.zoomResetTitle');
+}
+
+// 4T-0017: Setzt den Zoom des aktiven Tabs der angegebenen Pane absolut oder
+// relativ (delta in Anzahl Schritten). Beide Pfade clampen auf das gueltige
+// Intervall und schreiben den Wert nur, wenn er sich tatsaechlich aendert
+// (sonst kein DOM-Update, kein Indikator-Re-Render). Speichert den State
+// nicht in den Settings (Zoom ist fluechtig).
+function adjustTabZoom(paneIdx, deltaSteps) {
+  const pane = state.panes[paneIdx];
+  if (!pane || pane.activeIndex < 0) return;
+  const tab = pane.tabs[pane.activeIndex];
+  if (!tab) return;
+  const next = clampZoom((tab.zoom || DEFAULT_ZOOM) + deltaSteps * ZOOM_STEP);
+  if (next === tab.zoom) return;
+  tab.zoom = next;
+  applyZoomToPane(paneIdx);
+  renderZoomIndicator();
+}
+
+function resetTabZoom(paneIdx) {
+  const pane = state.panes[paneIdx];
+  if (!pane || pane.activeIndex < 0) return;
+  const tab = pane.tabs[pane.activeIndex];
+  if (!tab) return;
+  if (tab.zoom === DEFAULT_ZOOM) return;
+  tab.zoom = DEFAULT_ZOOM;
+  applyZoomToPane(paneIdx);
+  renderZoomIndicator();
 }
 
 // Anzeigename eines Tabs: Dateiname bei Tabs mit Pfad, sonst lokalisierter
@@ -1754,6 +1837,9 @@ function bindUi() {
     setLanguage(newLang);
     reportMenuStateNow();
     renderAllPanes();
+    // 4T-0017: Zoom-Indikator-Text ist nicht ueber data-i18n abgedeckt
+    // (enthaelt Platzhalter); explizit neu rendern.
+    renderZoomIndicator();
     // Such-Labels (Scope, Counter) sind nicht ueber data-i18n abgedeckt.
     if (search.visible) {
       updateSearchScopeLabel();
@@ -1764,6 +1850,22 @@ function bindUi() {
     // Hilfe-Modal wird ebenfalls dynamisch befuellt.
     if (!helpModal.hidden) renderHelpContent();
   });
+
+  // 4T-0017: Strg+Mausrad zoomt den Inhalt der fokussierten Pane in 10-%-
+  // Schritten. preventDefault verhindert den Electron-/Browser-Default-Zoom.
+  // passive:false ist Voraussetzung, damit preventDefault greift.
+  panesContainer.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? +1 : -1;
+    adjustTabZoom(state.activePaneIndex, delta);
+  }, { passive: false });
+
+  // 4T-0017: Zoom-Indikator in der Statusbar als Reset-Klickziel.
+  const zoomIndicator = document.getElementById('zoom-indicator');
+  if (zoomIndicator) {
+    zoomIndicator.addEventListener('click', () => resetTabZoom(state.activePaneIndex));
+  }
 
   // File-Drag&Drop für EXTERNE Dateien (nicht für Tab-Drag).
   let dragCounter = 0;
@@ -1862,6 +1964,14 @@ function bindUi() {
       // Strg+H ist nur im Edit-Modus aktiv (Source ist editierbar).
       const tab = activeTab();
       if (tab && tab.editMode) openSearchBar({ replaceMode: true });
+    } else if (ctrl && !e.altKey && (e.key === '+' || e.key === '-' || e.key === '0')) {
+      // 4T-0017: Strg + +/-/0 zoomt Inhalt der fokussierten Pane. Matcht
+      // ueber e.key, deckt damit deutsche Tastatur (Shift+'+'-Taste),
+      // englische Tastatur (Shift+'='-Taste) und Numpad gleichermassen ab.
+      e.preventDefault();
+      if (e.key === '+') adjustTabZoom(state.activePaneIndex, +1);
+      else if (e.key === '-') adjustTabZoom(state.activePaneIndex, -1);
+      else resetTabZoom(state.activePaneIndex);
     } else if (e.key === 'F3') {
       if (!search.visible) return;
       e.preventDefault();
@@ -2107,6 +2217,7 @@ function activatePane(paneIdx) {
     syncToolbarToActiveTab();
     updateOutlineToggleButton();
     updateBacklinksToggleButton();
+    renderZoomIndicator();
     return;
   }
   state.activePaneIndex = paneIdx;
@@ -2114,6 +2225,8 @@ function activatePane(paneIdx) {
   syncToolbarToActiveTab();
   updateOutlineToggleButton();
   updateBacklinksToggleButton();
+  // 4T-0017: Pane-Wechsel aendert den fokussierten Tab — Indikator nachziehen.
+  renderZoomIndicator();
   // Bei aktiver Suche im neuen Pane neu suchen.
   refreshSearchIfVisible();
 }
@@ -2186,6 +2299,9 @@ function activateTab(paneIdx, tabIdx) {
   renderPaneContent(paneIdx);
   activatePane(paneIdx);
   applyAllLayouts();
+  // 4T-0017: Indikator zeigt den Zoom des fokussierten Tabs; bei Tab-Wechsel
+  // innerhalb der aktiven Pane mit anpassen.
+  renderZoomIndicator();
   persistState();
 }
 
@@ -2363,6 +2479,8 @@ function buildTabPayload(tab) {
       showLineNumbers: tab.showLineNumbers,
       showFoldGutter: tab.showFoldGutter,
       editMode: !!tab.editMode,
+      // 4T-0017: Zoom des Tabs wandert mit (analog zu View-Modus und Edit-Mode).
+      zoom: tab.zoom ?? DEFAULT_ZOOM,
     },
     untitledIndex: tab.untitledIndex || null,
   };
@@ -2558,6 +2676,10 @@ function renderPaneContent(paneIdx) {
   // View-Mode-Klassen auf dem .content-Element setzen.
   els.content.classList.remove('view-source', 'view-split', 'view-rendered');
   els.content.classList.add(`view-${tab.viewMode}`);
+
+  // 4T-0017: Zoom des aktiven Tabs auf die Inhalts-Container der Pane
+  // anwenden. Tab-Wechsel innerhalb einer Pane wechselt damit den Zoom.
+  applyZoomToPane(paneIdx);
 
   // Scroll-Position wiederherstellen — und erst danach den Save wieder freigeben.
   requestAnimationFrame(() => {

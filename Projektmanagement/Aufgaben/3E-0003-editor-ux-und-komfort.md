@@ -53,7 +53,7 @@ Alle fünf Themen sind kleinere Einzel-Features; sie werden in einem Epic gebün
 ## Untergeordnete Tasks
 
 - [x] [4T-0016 — Tab und Shift-Tab in Listen für Ein-/Ausrücken](4T-0016-tab-indent-listen.md)
-- [ ] [4T-0017 — Zoom für Editor und Render-Pane (Strg + +/-/0)](4T-0017-zoom-editor-render.md)
+- [x] [4T-0017 — Zoom für Editor und Render-Pane (Strg + +/-/0)](4T-0017-zoom-editor-render.md)
 - [ ] [4T-0018 — Konfigurierbare Schriftart und -größe (Settings-Dialog)](4T-0018-schriftart-konfigurierbar.md)
 - [ ] [4T-0019 — Fokus-Modus mit optionalem Typewriter-Scroll](4T-0019-fokus-modus.md)
 - [ ] [4T-0020 — Markdown-Linter-Light (Inline-Hinweise)](4T-0020-linter-light.md)

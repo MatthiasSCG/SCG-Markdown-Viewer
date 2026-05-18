@@ -163,6 +163,8 @@
   "statusbar.saved": "Guardado",
   "statusbar.saveFailed": "Error al guardar",
   "statusbar.edit": "Editar (Ctrl+E)",
+  "statusbar.zoom": "Zoom {percent} %",
+  "statusbar.zoomResetTitle": "Haz clic para restablecer al 100 %",
   "statusbar.targetWindowGone": "Ventana de destino no disponible",
   "statusbar.targetFileMissing": "No se puede leer el archivo",
   "window.title.suffix": "Ventana {n}",
