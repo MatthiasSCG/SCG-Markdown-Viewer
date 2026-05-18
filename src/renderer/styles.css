@@ -352,6 +352,55 @@ select {
   min-width: 2.5ch;
   text-align: right;
 }
+/* 4T-0013: Folding-Gutter mit dynamischen Hierarchie-Spuren. Pro
+   tatsaechlich vorkommender Heading-Ebene UND pro Block-Verschachtelungs-
+   tiefe (ListItem, Blockquote, FencedCode, HTMLBlock, Table) eine 10px-Spur.
+   Spurenanzahl variiert mit dem Inhalt der Datei und wird ueber den Spacer-
+   Marker an CodeMirror gemeldet. Innerhalb einer Region zeigt die zugehoerige
+   Spur eine senkrechte Linie; auf der Start-Zeile wird die Linie durch den
+   klickbaren Pfeil ersetzt (⌄ offen / › zugeklappt). Bleibt auch sichtbar,
+   wenn Zeilennummern deaktiviert sind. */
+.pane-source-editor .cm-headingGutter .cm-gutterElement {
+  padding: 0;
+  min-width: 0;
+  text-align: left;
+}
+.scg-heading-gutter {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  line-height: 1.5;
+  width: calc(var(--scg-tracks, 0) * 10px);
+  min-width: calc(var(--scg-tracks, 0) * 10px);
+}
+.scg-heading-track {
+  position: relative;
+  width: 10px;
+  flex: 0 0 10px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--fg-muted);
+  user-select: none;
+}
+.scg-heading-track.scg-heading-line::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  margin-left: -0.5px;
+  background: var(--border-strong);
+}
+.scg-heading-track.scg-heading-marker {
+  cursor: pointer;
+  opacity: 0.65;
+  transition: opacity 0.1s ease, color 0.1s ease;
+}
+.scg-heading-track.scg-heading-marker:hover {
+  opacity: 1;
+  color: var(--fg);
+}
 .pane-source-editor .cm-activeLineGutter,
 .pane-source-editor .cm-activeLine {
   background: transparent;

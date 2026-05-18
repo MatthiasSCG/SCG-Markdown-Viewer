@@ -6,6 +6,9 @@ import { loadTranslations, applyTranslations, setLanguage, t, normalizeLocale } 
 import { EditorState, Compartment, StateField, StateEffect } from '@codemirror/state';
 import {
   EditorView,
+  ViewPlugin,
+  GutterMarker,
+  gutter,
   lineNumbers as cmLineNumbers,
   keymap,
   drawSelection,
@@ -13,7 +16,18 @@ import {
 } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { markdown } from '@codemirror/lang-markdown';
-import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
+import {
+  syntaxHighlighting,
+  HighlightStyle,
+  syntaxTree,
+  codeFolding,
+  foldKeymap,
+  foldedRanges,
+  foldable,
+  foldEffect,
+  foldState,
+  unfoldEffect,
+} from '@codemirror/language';
 import { tags } from '@lezer/highlight';
 
 // Markdown-Syntax-Highlighting mit CSS-Variablen. Farben kommen aus styles.css
@@ -69,6 +83,358 @@ const searchHighlightField = StateField.define({
     return deco;
   },
   provide: (f) => EditorView.decorations.from(f),
+});
+
+// 4T-0013: Folding-Struktur-Cache. Wird bei jeder Doc-Aenderung aus dem
+// CodeMirror-syntaxTree neu aufgebaut. Enthaelt:
+// - headings: pro Heading {kind:'heading', level, fromLine, toLine, track}.
+//   toLine ist die letzte Zeile der Heading-Region, track entspricht dem
+//   Heading-Level (1..6).
+// - blocks: pro mehrzeiligem Block-Foldable (ListItem, Blockquote, FencedCode,
+//   HTMLBlock, Table) {kind:'block', fromLine, toLine, from, to, track}.
+//   track liegt rechts der Heading-Spuren: maxHeadingLevel + Verschachtelungs-
+//   tiefe innerhalb anderer Blocks (Top-Level-Block => maxHeadingLevel + 1).
+// - allRegions: vereinte Liste, sortiert nach fromLine fuer schnelle Iteration.
+// - totalTracks: Spurenanzahl insgesamt (maxHeadingLevel + maxBlockDepth).
+// Die Spurenanzahl ist dynamisch: nur die in der Datei vorkommenden Heading-
+// Ebenen und Block-Verschachtelungstiefen bekommen Platz. Beim Einfuegen
+// neuer Ebenen waechst der Gutter ueber den Spacer-Mechanismus mit.
+const FOLDABLE_BLOCK_TYPES = new Set([
+  'ListItem', 'Blockquote', 'FencedCode', 'HTMLBlock', 'Table',
+]);
+
+function computeFoldStructure(state) {
+  const headings = [];
+  const blocks = [];
+  syntaxTree(state).iterate({
+    enter(node) {
+      const match = /^(?:ATX|Setext)Heading([1-6])$/.exec(node.name);
+      if (match) {
+        const level = parseInt(match[1], 10);
+        const fromLine = state.doc.lineAt(node.from).number;
+        headings.push({
+          kind: 'heading',
+          level,
+          fromLine,
+          toLine: 0,
+          track: level,
+        });
+        return;
+      }
+      if (FOLDABLE_BLOCK_TYPES.has(node.name)) {
+        const startLine = state.doc.lineAt(node.from);
+        const endLine = state.doc.lineAt(node.to);
+        if (endLine.number <= startLine.number) return; // einzeilig -> nicht faltbar
+        blocks.push({
+          kind: 'block',
+          fromLine: startLine.number,
+          toLine: endLine.number,
+          from: startLine.to,
+          to: node.to,
+          track: 0,
+        });
+      }
+    },
+  });
+  const totalLines = state.doc.lines;
+  for (let i = 0; i < headings.length; i++) {
+    const h = headings[i];
+    let end = totalLines;
+    for (let j = i + 1; j < headings.length; j++) {
+      if (headings[j].level <= h.level) {
+        end = headings[j].fromLine - 1;
+        break;
+      }
+    }
+    h.toLine = end;
+  }
+  let maxHeadingLevel = 0;
+  for (const h of headings) {
+    if (h.level > maxHeadingLevel) maxHeadingLevel = h.level;
+  }
+  for (const b of blocks) {
+    let depth = 1;
+    for (const other of blocks) {
+      if (other === b) continue;
+      const envelopes = other.fromLine <= b.fromLine
+        && other.toLine >= b.toLine
+        && (other.fromLine < b.fromLine || other.toLine > b.toLine);
+      if (envelopes) depth++;
+    }
+    b.track = maxHeadingLevel + depth;
+  }
+  let maxBlockDepth = 0;
+  for (const b of blocks) {
+    const d = b.track - maxHeadingLevel;
+    if (d > maxBlockDepth) maxBlockDepth = d;
+  }
+  const allRegions = headings.concat(blocks).sort((a, b) => a.fromLine - b.fromLine);
+  return {
+    headings,
+    blocks,
+    allRegions,
+    maxHeadingLevel,
+    totalTracks: maxHeadingLevel + maxBlockDepth,
+  };
+}
+
+const foldStructureField = StateField.define({
+  create(state) { return computeFoldStructure(state); },
+  update(value, tr) {
+    // Auch ohne docChange neu berechnen, wenn sich der syntaxTree geaendert
+    // hat. Der lezer-markdown-Parser laeuft asynchron und liefert den
+    // fertigen Tree haeufig erst ueber ein spaeteres, nicht-doc-aenderndes
+    // Update nach (besonders bei groesseren Dateien). Ohne diesen Check
+    // bliebe das Field mit dem initial leeren Tree haengen.
+    if (!tr.docChanged && syntaxTree(tr.state) === syntaxTree(tr.startState)) {
+      return value;
+    }
+    return computeFoldStructure(tr.state);
+  },
+});
+
+// 4T-0013: Eigener Folding-Gutter mit dynamischen Hierarchie-Spuren. Pro
+// tatsaechlich vorkommender Heading-Ebene UND pro Block-Verschachtelungstiefe
+// (Listen, Blockquotes, Code, Tables) eine eigene Spur. Heading-Spuren liegen
+// links, Block-Spuren direkt daneben rechts. Auf der Start-Zeile einer Region
+// sitzt der Pfeil (⌄ offen / › zugeklappt), darunter laeuft eine senkrechte
+// Linie bis zum Ende der Region. Gilt einheitlich fuer Headings und Bloecke.
+
+function isRegionFolded(state, region) {
+  let folded = false;
+  foldedRanges(state).between(region.from, region.to, (from, to) => {
+    if (from === region.from && to === region.to) {
+      folded = true;
+      return false;
+    }
+  });
+  return folded;
+}
+
+function getFoldRangeForRegion(state, region) {
+  if (region.kind === 'heading') {
+    const lineObj = state.doc.line(region.fromLine);
+    return foldable(state, lineObj.from, lineObj.to);
+  }
+  return { from: region.from, to: region.to };
+}
+
+// Breite pro Spur in Pixel. Marker und Spacer setzen die Container-Breite
+// per Inline-Style (width + minWidth) UND per CSS-Custom-Property
+// '--scg-tracks', damit die Breite robust durch das Gutter-Layout
+// propagiert. CodeMirrors Spacer-Element bekommt visibility:hidden, der
+// Layout-Platz haengt allein an dieser Breite.
+const FOLD_TRACK_PX = 10;
+
+function applyTrackWidth(root, totalTracks) {
+  const w = (totalTracks * FOLD_TRACK_PX) + 'px';
+  root.style.width = w;
+  root.style.minWidth = w;
+  root.style.flex = '0 0 ' + w;
+  root.style.setProperty('--scg-tracks', String(totalTracks));
+}
+
+class FoldGutterMarker extends GutterMarker {
+  constructor(totalTracks, trackInfo) {
+    super();
+    this.totalTracks = totalTracks;
+    this.trackInfo = trackInfo; // { [k]: 'inside' | {regionKind, folded, fromLine} }
+  }
+  eq(other) {
+    if (!(other instanceof FoldGutterMarker)) return false;
+    if (this.totalTracks !== other.totalTracks) return false;
+    for (let k = 1; k <= this.totalTracks; k++) {
+      const a = this.trackInfo[k];
+      const b = other.trackInfo[k];
+      if (a === b) continue;
+      if (!a || !b) return false;
+      if (a === 'inside' || b === 'inside') return false;
+      if (a.regionKind !== b.regionKind) return false;
+      if (a.folded !== b.folded) return false;
+      if (a.fromLine !== b.fromLine) return false;
+    }
+    return true;
+  }
+  toDOM() {
+    const root = document.createElement('div');
+    root.className = 'scg-heading-gutter';
+    applyTrackWidth(root, this.totalTracks);
+    for (let k = 1; k <= this.totalTracks; k++) {
+      const info = this.trackInfo[k];
+      const span = document.createElement('span');
+      span.className = 'scg-heading-track';
+      if (info && info !== 'inside') {
+        span.classList.add('scg-heading-marker');
+        span.classList.add('scg-track-' + info.regionKind);
+        span.textContent = info.folded ? '›' : '⌄';
+        span.dataset.foldKind = info.regionKind;
+        span.dataset.foldLine = String(info.fromLine);
+      } else if (info === 'inside') {
+        span.classList.add('scg-heading-line');
+      }
+      root.appendChild(span);
+    }
+    return root;
+  }
+}
+
+// Spacer haelt die Gutter-Breite auf der maximal benoetigten Spurenanzahl.
+class FoldGutterSpacer extends GutterMarker {
+  constructor(totalTracks) {
+    super();
+    this.totalTracks = totalTracks;
+  }
+  eq(other) {
+    return other instanceof FoldGutterSpacer && this.totalTracks === other.totalTracks;
+  }
+  toDOM() {
+    const root = document.createElement('div');
+    root.className = 'scg-heading-gutter';
+    applyTrackWidth(root, this.totalTracks);
+    for (let k = 0; k < this.totalTracks; k++) {
+      const span = document.createElement('span');
+      span.className = 'scg-heading-track';
+      root.appendChild(span);
+    }
+    return root;
+  }
+}
+
+const headingFoldGutter = gutter({
+  class: 'cm-headingGutter',
+  lineMarker(view, line) {
+    const struct = view.state.field(foldStructureField, false);
+    if (!struct || struct.totalTracks === 0) return null;
+    const lineNumber = view.state.doc.lineAt(line.from).number;
+    const trackInfo = {};
+    let hasContent = false;
+    for (const r of struct.allRegions) {
+      if (r.fromLine === lineNumber) {
+        const range = getFoldRangeForRegion(view.state, r);
+        const folded = range ? isRegionFolded(view.state, range) : false;
+        trackInfo[r.track] = {
+          regionKind: r.kind,
+          folded,
+          fromLine: r.fromLine,
+        };
+        hasContent = true;
+      } else if (r.fromLine < lineNumber && r.toLine >= lineNumber) {
+        if (!trackInfo[r.track]) {
+          trackInfo[r.track] = 'inside';
+          hasContent = true;
+        }
+      }
+    }
+    if (!hasContent) return null;
+    return new FoldGutterMarker(struct.totalTracks, trackInfo);
+  },
+  // Bei Folding-Aenderungen muss der Gutter neu gerendert werden, damit der
+  // Pfeil von ⌄ auf › (oder umgekehrt) wechselt. CodeMirror redraws nur bei
+  // docChange automatisch; foldState- oder Struktur-Aenderungen melden wir
+  // explizit.
+  lineMarkerChange(update) {
+    if (update.startState.field(foldState, false) !== update.state.field(foldState, false)) {
+      return true;
+    }
+    return update.startState.field(foldStructureField, false)
+      !== update.state.field(foldStructureField, false);
+  },
+  initialSpacer(view) {
+    const struct = view.state.field(foldStructureField, false);
+    const tracks = (struct && struct.totalTracks) || 0;
+    return new FoldGutterSpacer(tracks);
+  },
+  updateSpacer(spacer, update) {
+    const struct = update.state.field(foldStructureField, false);
+    const need = (struct && struct.totalTracks) || 0;
+    if (!(spacer instanceof FoldGutterSpacer) || spacer.totalTracks !== need) {
+      return new FoldGutterSpacer(need);
+    }
+    return spacer;
+  },
+  domEventHandlers: {
+    click(view, _line, event) {
+      const target = event.target instanceof Element
+        ? event.target.closest('[data-fold-line]')
+        : null;
+      if (!target) return false;
+      const lineNumber = parseInt(target.dataset.foldLine, 10);
+      if (!Number.isFinite(lineNumber)) return false;
+      const kind = target.dataset.foldKind;
+      if (kind === 'heading') {
+        if (isHeadingRegionFolded(view, lineNumber)) {
+          unfoldHeadingRegion(view, lineNumber);
+        } else {
+          foldHeadingRegion(view, lineNumber);
+        }
+        return true;
+      }
+      if (kind === 'block') {
+        const struct = view.state.field(foldStructureField, false);
+        const region = struct
+          ? struct.blocks.find((b) => b.fromLine === lineNumber)
+          : null;
+        if (!region) return false;
+        const range = { from: region.from, to: region.to };
+        if (isRegionFolded(view.state, range)) {
+          view.dispatch({ effects: unfoldEffect.of(range) });
+        } else {
+          view.dispatch({ effects: foldEffect.of(range) });
+        }
+        return true;
+      }
+      return false;
+    },
+  },
+});
+
+// 4T-0013: Setzt die Gutter-Breite direkt am .cm-headingGutter-DOM, basierend
+// auf der aktuellen Spurenanzahl im foldStructureField. Drittes Sicherheits-
+// netz neben Inline-Style am Marker-DOM und CSS-Variable, damit der Gutter
+// auch dann eine korrekte Breite hat, wenn CodeMirrors Spacer-Mechanismus die
+// Marker-Breite nicht zuverlaessig hochpropagiert.
+const foldGutterWidthSync = ViewPlugin.fromClass(class {
+  constructor(view) { this.apply(view); }
+  update(update) {
+    const prev = update.startState.field(foldStructureField, false);
+    const curr = update.state.field(foldStructureField, false);
+    if (prev !== curr) this.apply(update.view);
+  }
+  apply(view) {
+    const struct = view.state.field(foldStructureField, false);
+    const tracks = (struct && struct.totalTracks) || 0;
+    const gutterEl = view.dom.querySelector('.cm-headingGutter');
+    if (gutterEl) {
+      const px = (tracks * FOLD_TRACK_PX) + 'px';
+      gutterEl.style.minWidth = px;
+      gutterEl.style.width = px;
+      gutterEl.style.setProperty('--scg-tracks', String(tracks));
+    }
+  }
+});
+
+// 4T-0013: Bei jeder Folding-Aenderung (Gutter, Tastenkuerzel, programmatisch)
+// ein DOM-Custom-Event 'scg:foldchange' auf document feuern. Konsument ist das
+// Outline-Panel aus 4T-0014, das daraufhin seine Pfeil-Indikatoren auffrischt.
+// Hier nur die Quelle; im aktuellen Stand abonniert noch niemand.
+const foldChangeNotifier = ViewPlugin.fromClass(class {
+  update(update) {
+    let changed = false;
+    for (const tr of update.transactions) {
+      for (const eff of tr.effects) {
+        if (eff.is(foldEffect) || eff.is(unfoldEffect)) {
+          changed = true;
+          break;
+        }
+      }
+      if (changed) break;
+    }
+    if (!changed) return;
+    const paneIdx = paneEditors.indexOf(update.view);
+    document.dispatchEvent(new CustomEvent('scg:foldchange', {
+      detail: { paneIdx: paneIdx >= 0 ? paneIdx : null },
+    }));
+  }
 });
 
 const api = window.api;
@@ -207,12 +573,26 @@ function createEditorState(opts = {}) {
     doc: opts.content || '',
     extensions: [
       editorCompartments.readOnly.of(EditorState.readOnly.of(opts.readOnly !== false)),
+      // 4T-0013: Heading-Folding mit Hierarchie-Spuren. Der eigene
+      // headingFoldGutter ersetzt CodeMirrors foldGutter und zeichnet pro
+      // Heading-Ebene eine vertikale Spur plus eine 7. Spur fuer Block-
+      // Folding (ListItem, Blockquote, FencedCode, HTMLBlock, Table). Die
+      // Region-Erkennung nutzt weiterhin den foldService aus
+      // @codemirror/lang-markdown (ueber foldable/foldedRanges/foldEffect);
+      // codeFolding() aktiviert das foldState-Field, das ohne foldGutter()
+      // sonst nicht im State waere. foldKeymap bindet Strg+Umschalt+[ (Fold)
+      // und Strg+Umschalt+] (Unfold) an den Cursor.
+      codeFolding(),
+      foldStructureField,
+      headingFoldGutter,
+      foldGutterWidthSync,
+      foldChangeNotifier,
       editorCompartments.lineNumbers.of(opts.lineNumbers ? cmLineNumbers() : []),
       editorCompartments.lineWrap.of(opts.wrapLines ? EditorView.lineWrapping : []),
       markdown(),
       syntaxHighlighting(mdHighlightStyle, { fallback: true }),
       history(),
-      keymap.of([...defaultKeymap, ...historyKeymap]),
+      keymap.of([...foldKeymap, ...defaultKeymap, ...historyKeymap]),
       drawSelection(),
       searchHighlightField,
       EditorView.updateListener.of((update) => {
@@ -290,6 +670,50 @@ function syncEditorForPane(paneIdx) {
   if (els && els.sourceEditor) {
     els.sourceEditor.classList.toggle('read-only', !tab.editMode);
   }
+}
+
+// 4T-0013: Read-/Write-API fuer Heading-Folding zur Verwendung durch das
+// Outline-Panel (4T-0014). Liest den Folding-Status einer Heading-Zeile bzw.
+// klappt sie programmatisch ein/aus. Region wird ueber den markdown-foldService
+// (foldable) bestimmt; tatsaechlicher Folding-Zustand kommt aus foldedRanges.
+
+// Ermittelt die foldbare Region (from..to) fuer die Zeile mit 1-basiertem Index.
+// Gibt null zurueck, wenn die Zeile kein faltbares Heading ist.
+function getHeadingRegion(view, line) {
+  if (!view) return null;
+  const doc = view.state.doc;
+  if (line < 1 || line > doc.lines) return null;
+  const lineObj = doc.line(line);
+  return foldable(view.state, lineObj.from, lineObj.to);
+}
+
+function isHeadingRegionFolded(view, line) {
+  const region = getHeadingRegion(view, line);
+  if (!region) return false;
+  let folded = false;
+  foldedRanges(view.state).between(region.from, region.to, (from, to) => {
+    if (from === region.from && to === region.to) {
+      folded = true;
+      return false;
+    }
+  });
+  return folded;
+}
+
+function foldHeadingRegion(view, line) {
+  const region = getHeadingRegion(view, line);
+  if (!region) return false;
+  if (isHeadingRegionFolded(view, line)) return false;
+  view.dispatch({ effects: foldEffect.of(region) });
+  return true;
+}
+
+function unfoldHeadingRegion(view, line) {
+  const region = getHeadingRegion(view, line);
+  if (!region) return false;
+  if (!isHeadingRegionFolded(view, line)) return false;
+  view.dispatch({ effects: unfoldEffect.of(region) });
+  return true;
 }
 
 function schedulePreviewUpdate(paneIdx) {

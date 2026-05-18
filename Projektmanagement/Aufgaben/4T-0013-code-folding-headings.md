@@ -1,6 +1,6 @@
 # 4T-0013 — Code-Folding nach Überschriften im Editor
 
-**Status**: Offen
+**Status**: Test bestanden
 **Epic**: [3E-0002 — Strukturnavigation: Folding, Outline und Backlinks](3E-0002-strukturnavigation.md)
 **Zielversion**: 0.8.0
 
@@ -97,3 +97,65 @@ Konkret:
 - **Read-/Write-API für externen Zugriff auf den `foldState`**: `foldedRanges(state)` für Read, `foldEffect`/`unfoldEffect` für Write, alle aus `@codemirror/language`. Change-Notification über einen eigenen `ViewPlugin` mit `update()`-Callback, der `transaction.effects` auf diese Effect-Typen filtert und ein DOM-Custom-Event auslöst.
 
 ## Lösung
+
+Umgesetzt im Renderer, ohne Eingriff in den Main-Prozess.
+
+**Imports** in `src/renderer/renderer.js`:
+
+- Aus `@codemirror/view` zusätzlich `ViewPlugin`, `gutter`, `GutterMarker`.
+- Aus `@codemirror/language` zusätzlich `syntaxTree`, `codeFolding`, `foldKeymap`, `foldedRanges`, `foldable`, `foldEffect`, `unfoldEffect`, `foldState`. `foldKeymap` enthält bereits die Standard-Bindings `Strg+Umschalt+[` (Fold) und `Strg+Umschalt+]` (Unfold) sowie die Alternativen `Strg+Alt+[` / `Strg+Alt+]` und wird unverändert übernommen.
+- **Wichtig**: `codeFolding()` muss explizit als Extension geladen werden, weil das `foldState`-Field sonst nicht im EditorState aktiv ist. Bei Verwendung des Standard-`foldGutter` wurde `codeFolding()` automatisch mit eingehängt; mit dem eigenen Gutter (siehe unten) entfällt das, also setzen wir es selbst.
+
+**Eigener Folding-Gutter mit dynamischen Hierarchie-Spuren** (statt CodeMirrors Standard-`foldGutter`):
+
+- `foldStructureField` (`StateField`): Bei Doc-Änderung werden aus dem `syntaxTree` gesammelt:
+  - **Headings**: Knoten `ATXHeading1..6` und `SetextHeading1..2`. Pro Heading werden `level`, `fromLine`, `toLine` (letzte zur Region gehörige Zeile, Zeile vor dem nächsten Heading mit gleicher oder höherer Stufe bzw. letzte Doc-Zeile) und `track` (= `level`) berechnet.
+  - **Block-Foldables**: Knoten der Typen `ListItem`, `Blockquote`, `FencedCode`, `HTMLBlock`, `Table`, sofern mehrzeilig. Pro Block werden `fromLine`, `toLine`, `from`/`to` (Region-Form `from = Ende der Startzeile`, `to = Knoten-Ende`, analog zur markdown-`foldNodeProp`-Logik) und `track` (= `maxHeadingLevel` + Verschachtelungstiefe innerhalb anderer Blocks) berechnet.
+  - **`totalTracks`** = `maxHeadingLevel` + `maxBlockDepth`. Spurenanzahl ist dynamisch und passt sich an die in der Datei vorkommenden Heading-Ebenen und Block-Verschachtelungstiefen an.
+- `FoldGutterMarker`: Pro sichtbarer Zeile, die mindestens eine Region berührt, ein Marker mit `totalTracks` Spuren. Pro Spur:
+  - `start`-Eintrag: Pfeil-Indikator (`⌄` offen, `›` zugeklappt), klickbar, mit `data-fold-kind` (`heading` oder `block`) und `data-fold-line`.
+  - `inside`-Eintrag: senkrechte Linie über die volle Zeilenhöhe — **gilt einheitlich für Heading- und Block-Regionen**.
+  - leer, wenn die Spur diese Zeile nicht überdeckt.
+- `FoldGutterSpacer` + `initialSpacer` / `updateSpacer`: Hält die Gutter-Breite proportional zur tatsächlichen Spurenanzahl. Beim Hinzufügen oder Entfernen einer Heading-Ebene bzw. Block-Tiefe wächst der Gutter mit.
+- **Drei voneinander unabhängige Wege zur Breitenpropagation** (jeweils robust gegen Layout-Eigenheiten des CodeMirror-Gutter-Mechanismus): (1) Inline-Style `width`/`min-width`/`flex` am Marker- und Spacer-DOM, (2) CSS-`calc()` über die CSS-Custom-Property `--scg-tracks` am Marker-Root, (3) der `ViewPlugin` `foldGutterWidthSync` setzt `width` und `min-width` direkt am `.cm-headingGutter`-DOM, sobald sich das `foldStructureField` ändert.
+- **`foldStructureField`-Update auch ohne `docChanged`**: Der lezer-markdown-Parser arbeitet asynchron und liefert den vollständigen `syntaxTree` häufig erst über ein späteres, nicht-doc-änderndes Update nach. Mein Update-Callback vergleicht `syntaxTree(tr.state) === syntaxTree(tr.startState)`; wenn die Identity wechselt, wird die Struktur neu berechnet — auch ohne Doc-Änderung.
+- `lineMarkerChange`: Meldet `true`, wenn sich `foldState` **oder** `foldStructureField` zwischen `startState` und `state` geändert hat. So wird der Gutter auch ohne Doc-Änderung neu gerendert, sobald per Tastenkürzel oder Klick gefaltet/entfaltet wird.
+- `domEventHandlers.click`: Liest `data-fold-line` und `data-fold-kind` am angeklickten Spur-Span. Bei `kind === 'heading'` wird über `foldHeadingRegion` / `unfoldHeadingRegion` getoggelt, bei `kind === 'block'` direkt per `foldEffect`/`unfoldEffect` auf die im `foldStructureField` gespeicherte Block-Region.
+
+**Erweiterungen** in `createEditorState`:
+
+- `codeFolding()`, `foldStructureField`, `headingFoldGutter` und `foldChangeNotifier` werden **vor** dem `lineNumbers`-Compartment in die Extension-Liste eingehängt. Dadurch landet der Heading-Gutter links vom Zeilennummern-Gutter im DOM, weil CodeMirror Gutters in Registrierungs-Reihenfolge anordnet.
+- `keymap.of([...foldKeymap, ...defaultKeymap, ...historyKeymap])` ersetzt das bisherige Keymap, sodass die Folding-Bindings vor den Default-Keymap-Einträgen greifen.
+
+**Renderer-interne API** (für 4T-0014):
+
+- `getHeadingRegion(view, line)`: Hilfsfunktion, liefert die `foldable`-Region (`{from, to}`) für eine 1-basierte Zeilennummer, oder `null` falls die Zeile kein Heading ist. Quelle ist der markdown-`foldService` aus dem Sprachpaket.
+- `isHeadingRegionFolded(view, line)`: Liest `foldedRanges(state)` und prüft, ob die Region exakt als gefaltet eingetragen ist.
+- `foldHeadingRegion(view, line)` / `unfoldHeadingRegion(view, line)`: Idempotente Toggle-Helfer; dispatchen `foldEffect` bzw. `unfoldEffect`. Geben `true` zurück, wenn ein Zustandswechsel stattgefunden hat.
+
+**Change-Notification** (`foldChangeNotifier`):
+
+- Ein leichter `ViewPlugin`, der bei jedem Update durch alle Transaktions-Effekte iteriert. Wenn ein `foldEffect` oder `unfoldEffect` erkannt wird, feuert er ein `CustomEvent('scg:foldchange', { detail: { paneIdx } })` auf `document`. Der `paneIdx` wird über `paneEditors.indexOf(update.view)` ermittelt; ist die View nicht gefunden, ist `paneIdx` `null`.
+- Konsument ist im aktuellen Stand niemand; das Outline-Panel aus 4T-0014 wird darauf abonnieren.
+
+**Styling** in `src/renderer/styles.css`:
+
+- `.cm-headingGutter`: keine feste `min-width` mehr — der `FoldGutterSpacer` aus dem Gutter-Setup gibt die Breite dynamisch vor (10 px pro Spur).
+- `.scg-heading-gutter`: Flex-Container über die volle Zeilenhöhe.
+- `.scg-heading-track`: 10 px breit, mittig ausgerichtet. Bei `.scg-heading-line` zeichnet ein Pseudo-Element eine 1 px starke senkrechte Linie in `--border-strong`. Bei `.scg-heading-marker` ist der Span klickbar (`cursor: pointer`), mittlere Auffälligkeit (`opacity: 0.65`), bei Hover voll sichtbar.
+- Heading- und Block-Spuren werden visuell gleich behandelt (gleiche Linie, gleicher Pfeil); Unterschied steckt nur im DOM-Attribut `data-fold-kind` für den Click-Handler.
+- Light und Dark werden über die bestehenden CSS-Variablen abgedeckt; spezielle Theme-Regeln waren nicht nötig.
+- Pfeil-Marker: `⌄` für expandierte Region, `›` für zugeklappte Region (direkt im Marker-DOM gesetzt).
+
+**Persistenz und Verhalten:**
+
+- Folding-State wird im CodeMirror-`foldState`-StateField gehalten, das Bestandteil der EditorView-Instanz ist. Jeder Tab hat eine eigene CodeMirror-Instanz pro Pane, in der der Folding-State innerhalb der Sitzung überlebt.
+- Beim Schließen eines Tabs oder beim App-Neustart geht der State verloren; das ist beabsichtigt und entspricht den Akzeptanzkriterien.
+
+**Versions-Bump:**
+
+- `package.json` von `0.7.1` auf `0.8.0` angehoben (Zielversion des Epics 3E-0002).
+
+**Bewusst nicht in 4T-0013:**
+
+- Hilfe-Dialog-Erweiterung, i18n-Keys, CHANGELOG-Eintrag, Release-Notes — folgen im Sammeltask am Epic-Ende (siehe 3E-0002, Reihenfolge 4).
