@@ -1,6 +1,6 @@
 # 4T-0027 — Hilfe-Dialog, CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.9.0
 
-**Status**: In Arbeit
+**Status**: Erledigt
 **Epic**: [3E-0003 — Editor-UX und -Komfort](3E-0003-editor-ux-und-komfort.md)
 **Zielversion**: 0.9.0
 
@@ -127,3 +127,40 @@ Gemäß projekt-lokaler `CLAUDE.md`:
 - `package.json` (bereits 0.9.0, nur Verifikation)
 
 ## Lösung
+
+**Hilfe-Dialog-Restrukturierung** in `src/renderer/index.html`, `src/renderer/renderer.js` und `src/renderer/styles.css`:
+
+- HTML: Tab-Leiste mit zwei Buttons (`Funktionen`, `Tastenkürzel`) und zwei Panels (`#help-panel-features`, `#help-panel-shortcuts`). Inaktives Panel wird per `hidden`-Attribut versteckt. `role="tablist"` / `role="tab"` / `role="tabpanel"` für die Tastatur- und Screenreader-Zugänglichkeit; aktiver Tab über `aria-selected` und CSS-Klasse `active` markiert.
+- Renderer-Datenmodell: `HELP_FEATURES` von einer flachen Liste auf `HELP_FEATURE_GROUPS` mit fünf Gruppen umgestellt — `help.group.file`, `help.group.editing`, `help.group.view`, `help.group.navigation`, `help.group.general`. Render-Logik in `renderHelpContent` erzeugt pro Gruppe einen `.help-feature-group`-Container mit Überschrift und Item-Liste.
+- `switchHelpTab(target)` synchronisiert die `active`-Klassen, `aria-selected`-Attribute und die `hidden`-Zustände der Panels. Beim Öffnen über `showHelp()` wird immer auf `features` gesetzt — der Tab-Stand persistiert nicht über Dialog-Schließen hinweg.
+- CSS: schlanke Tab-Leiste mit unterer Aktiv-Border (`var(--accent)`), Hover-Highlight für inaktive Tabs, Gruppen-Headings mit Trenn-Border unterhalb.
+
+**Neue Hilfe-Inhalte für 0.9.0** in `src/renderer/renderer.js`:
+
+- Sechs neue Feature-Keys in den passenden Gruppen: `tabIndent` (Bearbeitung), `linter` (Bearbeitung), `zoom`, `settings`, `focusMode`, `typewriterScroll` (alle Ansicht).
+- Fünf neue Shortcut-Einträge in `HELP_SHORTCUTS`: `Strg+,` (Einstellungen), `Strg++/-/0` (Zoom-Tasten), `Strg+Mausrad` (Zoom-Wheel), `Strg+Umschalt+F` (Fokus-Modus), `Tab/Umschalt+Tab` (Listen-Indent).
+- Neuer Tastenlabel-Eintrag `Mausrad` → `help.key.mouseWheel` in `KEY_LABEL_KEY`.
+- Helper `splitShortcutKeys(k)` löst die Sonderfall-Splittung für Tasten wie `Strg++` (zweite Plus-Taste ist Inhalt, nicht Trenner): erkennt das Pattern `endsWith('+') && [...-2] === '+'` und liefert in dem Fall `[...head, '+']`.
+
+**i18n** in allen fünf Sprachen, je 19 neue Keys (insgesamt 95):
+
+- 2 Tab-Keys: `help.tabFeatures`, `help.tabShortcuts`
+- 5 Gruppen-Keys: `help.group.{file,editing,view,navigation,general}`
+- 6 Feature-Keys: `help.feature.{tabIndent,linter,zoom,settings,focusMode,typewriterScroll}`
+- 5 Shortcut-Keys: `help.shortcut.{openSettings,zoom,zoomWheel,focusMode,tabIndent}`
+- 1 Tastenlabel: `help.key.mouseWheel`
+
+**CHANGELOG.md**: neuer Block `## [0.9.0] - 2026-05-18 — Editor-UX und -Komfort: Listen-Indent, Zoom, Schriftart, Fokus-Modus und Markdown-Linter` mit Verweis auf Epic 3E-0003 und die Tasks 4T-0016 bis 4T-0020 und 4T-0027. Sektionen Neu, Geändert, Behoben (leer in 0.9.0), i18n.
+
+**Release-Notes** `dist/release-notes-0.9.0.md` (gitignored) — aus `docs/release-notes-template.md` abgeleitet, sechs Sektionen unter „Was ist neu seit v0.8.0": Listen-Indent, Zoom, Schriftart, Fokus-Modus / Typewriter, Linter, Hilfe-Dialog-Umbau, plus Geändert-Block. Hinweis-Sektion erklärt die Backlinks-Index-Abhängigkeit der Linter-Regel 4.
+
+**Build, Tag und GitHub-Release**:
+
+1. `npm run build` — EXEs unter `releases/` archiviert.
+2. Release-Commit `1a9a42e` mit Doku- und Hilfe-Dialog-Stand, push auf `main`.
+3. Tag `v0.9.0` auf `1a9a42e`, push.
+4. `gh release create v0.9.0 --title "v0.9.0 — Editor-UX und -Komfort" --notes-file dist/release-notes-0.9.0.md --latest "releases/SCG Markdown-0.9.0-Setup.exe" "releases/SCG Markdown-0.9.0-Portable.exe"`.
+
+Release-URL: <https://github.com/MatthiasSCG/SCG-Markdown/releases/tag/v0.9.0>.
+
+**Status-Updates**: 4T-0027 und Epic 3E-0003 auf `Erledigt` in einem separaten Commit nach dem Release-Tag, damit der Tag auf dem reinen Doku-Stand verankert ist (nicht hinter Status-Korrekturen). 4T-0016 bis 4T-0020 standen bereits vor dem Sammeltask auf `Erledigt`.
