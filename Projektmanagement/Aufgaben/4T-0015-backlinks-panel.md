@@ -1,6 +1,6 @@
 # 4T-0015 — Backlinks-Panel mit Tiefen-begrenzter Indexierung
 
-**Status**: Test bestanden
+**Status**: Erledigt
 **Epic**: [3E-0002 — Strukturnavigation: Folding, Outline und Backlinks](3E-0002-strukturnavigation.md)
 **Zielversion**: 0.8.0
 

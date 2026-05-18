@@ -1,6 +1,6 @@
 # 4T-0014 — Outline-Panel mit Heading-Baum, klickbar und scroll-synchron
 
-**Status**: Test bestanden
+**Status**: Erledigt
 **Epic**: [3E-0002 — Strukturnavigation: Folding, Outline und Backlinks](3E-0002-strukturnavigation.md)
 **Zielversion**: 0.8.0
 

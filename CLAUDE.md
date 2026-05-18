@@ -25,7 +25,27 @@ Konventionen:
 - Während der Entwicklung einer Version trägt `package.json` bereits die **Zielversion** der laufenden Entwicklung (z.B. `0.6.0`, sobald die Arbeit an 0.6.0 beginnt). So überschreiben Test-EXEs nicht die offizielle EXE der Vorgängerversion in `releases/` und sind eindeutig der laufenden Entwicklung zuordenbar. Die offizielle Release-Notes-Veröffentlichung der neuen Version bleibt dennoch der letzte Schritt im Versionssprung (siehe Release-Prozess unten).
 - `releases/` ist per `.gitignore` ausgeschlossen, der Build-Output landet nicht im Repo.
 
+## Abschluss-Sammeltask am Epic-Ende
+
+Jeder Epic-Versionssprung wird durch einen **Abschluss-Sammeltask** abgeschlossen, der alle nachgelagerten Doku- und Release-Arbeiten bündelt. Er wird nicht zu Epic-Beginn angelegt, sondern erst, wenn alle Umsetzungs-Tasks des Epics auf „Test bestanden" stehen — sonst wandern Detail-Entscheidungen aus den Umsetzungs-Tasks vorzeitig in den Sammeltask. Vorbilder im Repo: [4T-0010](Projektmanagement/Aufgaben/4T-0010-changelog-release-060.md) (für 0.6.0), [4T-0026](Projektmanagement/Aufgaben/4T-0026-changelog-release-080.md) (für 0.8.0).
+
+**Standard-Inhalte** des Sammeltasks (Checkliste, in dieser Reihenfolge):
+
+1. **Hilfe-Dialog erweitern** — neue Funktionen und Shortcuts in `HELP_FEATURES` / `HELP_SHORTCUTS` in [src/renderer/renderer.js](src/renderer/renderer.js), zugehörige i18n-Keys in allen fünf Sprachen. Details im Abschnitt [Hilfe-Dialog bei neuen Funktionen erweitern](#hilfe-dialog-bei-neuen-funktionen-erweitern).
+2. **CHANGELOG.md** — neuer Block `## [X.Y.Z] - JJJJ-MM-TT — <Untertitel>` ganz oben, Verweis auf das Epic im einleitenden Absatz. Subsektionen wie „Neu", „Geändert", „Behoben", „i18n".
+3. **Release-Notes** — `docs/release-notes-X.Y.Z.md` aus `docs/release-notes-template.md` ableiten. Auf Deutsch mit Umlauten, sektioniert wie im Template beschrieben.
+4. **Test-Iteration mit dem Nutzer** — Portable-EXE bauen und Nutzer prüfen lassen, ob Hilfe-Dialog-Inhalte sitzen und die Release-Notes inhaltlich passen. **Erst nach Freigabe** weiter.
+5. **Commit, Tag, GitHub-Release** — siehe Abschnitt [Release-Prozess: Tag + GitHub-Release bei jedem Versionssprung](#release-prozess-tag--github-release-bei-jedem-versionssprung). Der Release-Tag soll auf dem Commit liegen, der den finalen Doku-Stand trägt.
+6. **Status-Updates** — alle Umsetzungs-Tasks des Epics, der Sammeltask selbst und das Epic auf `Erledigt`.
+
+**Hinweise zur Reihenfolge:**
+
+- Erst Doku-Texte schreiben (Schritte 1–3), dann Test-Iteration (Schritt 4), **erst danach** Commit + Build + Tag + Release (Schritt 5). So bleibt der finale Doku-Stand am Release-Tag verankert; nachträgliche Doku-Korrekturen würden sonst hinter dem Tag stehen und im Release-Asset fehlen.
+- Sammeltask-ID ist die nächste freie 4T-Nummer; sie bezieht sich nicht auf eine fortlaufende Sammeltask-Reihe und ist daher nicht „4T-0010 → 4T-0011" o.ä., sondern folgt einfach der Reihenfolge der angelegten Tasks im Projekt.
+
 ## Release-Prozess: Tag + GitHub-Release bei jedem Versionssprung
+
+Dieser technische Ablauf ist Teil des Abschluss-Sammeltasks (Schritt 5, siehe Abschnitt davor) und wird bei jedem Versionssprung in dieser Form durchgeführt.
 
 Wenn ein Commit eine neue Version setzt (z.B. `package.json` von `0.4.0` auf `0.5.0`), nach `git push` **immer zusätzlich** folgendes durchführen — sonst ist die neue Version nur als Commit, aber nicht als Release auf GitHub sichtbar (und der Hauptmonitor unter „Releases" zeigt weiter die alte Version als „Latest").
 

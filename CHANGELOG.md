@@ -5,6 +5,31 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.8.0] - 2026-05-18 — Strukturnavigation: Folding, Inhaltsverzeichnis und Backlinks
+
+Großes Feature-Release rund um die Strukturnavigation langer Markdown-Dokumente und ihre Vernetzung untereinander. Umgesetzt als Epic [3E-0002](Projektmanagement/Aufgaben/3E-0002-strukturnavigation.md) in den Tasks [4T-0013](Projektmanagement/Aufgaben/4T-0013-code-folding-headings.md), [4T-0014](Projektmanagement/Aufgaben/4T-0014-outline-panel.md) und [4T-0015](Projektmanagement/Aufgaben/4T-0015-backlinks-panel.md), inklusive Abschluss-Sammeltask [4T-0026](Projektmanagement/Aufgaben/4T-0026-changelog-release-080.md).
+
+### Neu
+
+- **Heading- und Block-Folding mit Hierarchie-Spuren im Quellcode** ([4T-0013](Projektmanagement/Aufgaben/4T-0013-code-folding-headings.md)): Eigener Gutter am linken Rand des Quellcode-Pane mit einer 10-px-Spur pro tatsächlich vorkommender Heading-Ebene und Block-Verschachtelungstiefe. Auf der Start-Zeile sitzt ein klickbarer Pfeil (`⌄` offen, `›` zugeklappt); darunter zeigt eine senkrechte Linie die Reichweite der Region. Faltbar sind ATX- und Setext-Überschriften sowie mehrzeilige Listen, Blockquotes, Fenced-Code-Blöcke, HTML-Blöcke und Tabellen. Tastenkürzel `Strg+Umschalt+[` (Einklappen) und `Strg+Umschalt+]` (Entfalten) wirken am Cursor und funktionieren auch bei ausgeblendeter Spalte. Die Spurenanzahl wächst dynamisch mit der Datei mit; die Folding-Region selbst kommt aus dem CodeMirror-Markdown-Sprachpaket.
+- **Statusbar-Button und Menüpunkt „Gliederung"** (4T-0013): pro Tab umschaltbar, persistent. Default ist eingeblendet.
+- **Inhaltsverzeichnis-Sidebar pro Spalte** ([4T-0014](Projektmanagement/Aufgaben/4T-0014-outline-panel.md)): linke Sidebar mit klickbarem Heading-Baum, der die Heading-Stufen 1 bis 6 als Einrückung abbildet. Klick auf den Heading-Text setzt den Cursor in die zugehörige Zeile und entfaltet die Region falls nötig; im Render-Modus scrollt der Render-Pane zum Anker. Klick auf den Falt-Indikator links davon toggelt nur das Folding, ohne den Cursor zu bewegen. Die aktuell sichtbare Sektion wird optisch hervorgehoben — im Edit/Geteilt-Modus folgt sie der Cursor-Zeile, im Render-Modus dem obersten vollständig sichtbaren Heading. Toggle per Statusbar-Button „Inhalt", Menüpunkt `Ansicht → Inhaltsverzeichnis` oder `Strg+Umschalt+O`. Default versteckt; einmal eingeblendet bleibt der Status pro Spalte persistent.
+- **Backlinks-Sidebar pro Spalte** ([4T-0015](Projektmanagement/Aufgaben/4T-0015-backlinks-panel.md)): zweite Sektion in der linken Sidebar, zeigt eingehende `[[Wiki-Links]]` und relative Markdown-Links auf die aktive Datei, gruppiert pro Quelldatei mit Zeile, optionalem Anker und Text-Snippet. Suchraum ist der Ordner der aktiven Datei plus zwei zusätzliche Unterordner-Ebenen; Watcher per `chokidar` hält den Index live, neue Links erscheinen innerhalb weniger Sekunden ohne Zutun. Klick auf einen Treffer öffnet die Quelldatei (oder aktiviert den existierenden Tab, wenn schon offen) und setzt den Cursor auf die Trefferzeile. Hard-Cap bei mehr als 2000 Markdown-Dateien oder 50 MB Gesamtgröße im Suchraum, mit lokalisiertem Hinweis. Toggle per Statusbar-Button „Backlinks", Menüpunkt `Ansicht → Backlinks` oder `Strg+Umschalt+B`. Default versteckt, Status pro Spalte persistent.
+- **Hilfe-Dialog** ([4T-0026](Projektmanagement/Aufgaben/4T-0026-changelog-release-080.md)): vier neue Funktions-Einträge (Heading-/Block-Folding, Inhaltsverzeichnis, Backlinks, dokument-interne Anker-Links) und vier neue Tastenkürzel (Strg+Umschalt+`[`/`]`/`O`/`B`).
+
+### Geändert
+
+- **Ansicht-Menü neu sortiert** (4T-0014, 4T-0026): Im Block unter den View-Modi steht nun in dieser Reihenfolge Inhaltsverzeichnis, Backlinks, Gliederung, Zeilennummern, Zeilenumbruch. Statusbar-Toggles links der View-Modi folgen derselben Reihenfolge: Inhalt, Backlinks, Gliederung, Nummern, Umbruch.
+- **Sidebar-Sichtbarkeit ist gemeinsame Logik** (4T-0014, 4T-0015): Sobald mindestens eine der beiden Sektionen (Inhaltsverzeichnis oder Backlinks) eingeblendet ist, erscheint die Sidebar inklusive Splitter. Sind beide aus, verschwindet die Spalte komplett und der Editor-/Render-Bereich nutzt die volle Spaltenbreite.
+
+### Behoben
+
+- **Anker-Links innerhalb eines Dokuments im Render-Pane** (4T-0014, Seiteneffekt der Einbindung von `markdown-it-anchor`): Links der Form `[Text](#abschnitt)` haben seit Release 0.1 nicht gescrollt, weil markdown-it ohne entsprechendes Plugin keine IDs auf `<h1>..<h6>` setzte. Mit der neuen Plugin-Einbindung bekommen Headings ab 0.8.0 GitHub-kompatible Slug-IDs, und Dokument-interne Anker-Links funktionieren erstmals erwartungsgemäß.
+
+### i18n
+
+- Insgesamt rund 35 neue Keys über die fünf unterstützten Sprachen (DE, EN, FR, ES, IT) — Outline- und Backlinks-Panel-Inhalte, Statusbar-Toggle-Labels, Empty-States, Suchpfad-Tooltips, Hilfe-Dialog-Texte.
+
 ## [0.7.1] - 2026-05-18 — Fenster-Position und -Größe beim Schließen des letzten Fensters
 
 Bugfix-Release. Die seit 0.4.0 vorgesehene und in 0.6.0 dokumentierte Funktion „Fenster-Position und -Größe merken" hat seit dem Multi-Window-Umbau in 0.5.0 für den Sonderfall „letztes Fenster" nicht mehr funktioniert: SCG Markdown startete immer auf dem Hauptmonitor mit Default-Größe, unabhängig davon, wo das einzige offene Fenster zuletzt geschlossen wurde. Zusätzlich wurde während des Testens ein zweiter Bug aufgedeckt, der die wiederhergestellte Größe auf Multi-Monitor-Setups mit unterschiedlicher DPI-Skalierung um den Skalierungsfaktor verzerrt hat. Beide behoben als Task [4T-0025](Projektmanagement/Aufgaben/4T-0025-fenster-position-beim-letzten-fenster.md).
