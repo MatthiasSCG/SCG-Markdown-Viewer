@@ -11,6 +11,18 @@
       <section class="pane-group active-pane" data-pane="0">
         <div class="tabbar"></div>
         <div class="content view-split">
+          <aside class="pane-sidebar" hidden>
+            <section class="sidebar-section sidebar-outline">
+              <header class="sidebar-section-header">
+                <h2 class="sidebar-section-title" data-i18n="outline.title">Inhaltsverzeichnis</h2>
+              </header>
+              <div class="sidebar-section-body">
+                <ul class="outline-tree" role="tree"></ul>
+                <div class="outline-empty" hidden data-i18n="outline.empty">Keine Überschriften in diesem Dokument</div>
+              </div>
+            </section>
+          </aside>
+          <div class="splitter sidebar-splitter" aria-hidden="true" hidden></div>
           <section class="pane pane-source">
             <div class="pane-source-editor"></div>
           </section>
@@ -24,6 +36,18 @@
       <section class="pane-group" data-pane="1" hidden>
         <div class="tabbar"></div>
         <div class="content view-split">
+          <aside class="pane-sidebar" hidden>
+            <section class="sidebar-section sidebar-outline">
+              <header class="sidebar-section-header">
+                <h2 class="sidebar-section-title" data-i18n="outline.title">Inhaltsverzeichnis</h2>
+              </header>
+              <div class="sidebar-section-body">
+                <ul class="outline-tree" role="tree"></ul>
+                <div class="outline-empty" hidden data-i18n="outline.empty">Keine Überschriften in diesem Dokument</div>
+              </div>
+            </section>
+          </aside>
+          <div class="splitter sidebar-splitter" aria-hidden="true" hidden></div>
           <section class="pane pane-source">
             <div class="pane-source-editor"></div>
           </section>
@@ -38,6 +62,8 @@
     <footer class="statusbar">
       <div class="statusbar-left">
         <div class="source-toggles" role="group">
+          <button id="btn-outline" class="btn-toggle" data-i18n="outline.toggle" data-i18n-title="outline.toggleTitle">Inhalt</button>
+          <button id="btn-fold-gutter" class="btn-toggle" data-i18n="source.foldGutter" data-i18n-title="source.foldGutterTitle">Gliederung</button>
           <button id="btn-numbers" class="btn-toggle" data-i18n="source.numbers" data-i18n-title="source.numbersTitle">Nummern</button>
           <button id="btn-wrap" class="btn-toggle" data-i18n="source.wrap" data-i18n-title="source.wrapTitle">Umbruch</button>
         </div>

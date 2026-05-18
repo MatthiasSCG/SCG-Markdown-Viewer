@@ -47,7 +47,7 @@ Folding und Outline arbeiten rein dokumentenintern. Backlinks ist das einzige Fe
 ## Untergeordnete Tasks
 
 - [x] [4T-0013 — Code-Folding nach Überschriften im Editor](4T-0013-code-folding-headings.md)
-- [ ] [4T-0014 — Outline-Panel mit Heading-Baum, klickbar und scroll-synchron](4T-0014-outline-panel.md)
+- [x] [4T-0014 — Outline-Panel mit Heading-Baum, klickbar und scroll-synchron](4T-0014-outline-panel.md)
 - [ ] [4T-0015 — Backlinks-Panel mit Tiefen-begrenzter Indexierung](4T-0015-backlinks-panel.md)
 
 ## Architekturentscheidungen

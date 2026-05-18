@@ -156,6 +156,15 @@ Umgesetzt im Renderer, ohne Eingriff in den Main-Prozess.
 
 - `package.json` von `0.7.1` auf `0.8.0` angehoben (Zielversion des Epics 3E-0002).
 
+**Gliederungs-Toggle (Statusbar + Menü)** — als Nachzügler zu 4T-0013 nach dem Test ergänzt:
+
+- Neues Property `tab.showFoldGutter` (Default `true`) und neues `Compartment` `editorCompartments.foldGutter`. Das Compartment enthält die rein visuellen Extensions `headingFoldGutter` und `foldGutterWidthSync`; **`foldStructureField` bleibt absichtlich außerhalb**, weil das Outline-Panel aus 4T-0014 die Heading-Liste daraus liest und unabhängig vom Toggle-Zustand funktionieren muss. `codeFolding()` bleibt ebenfalls dauerhaft aktiv, damit die Tastenkürzel `Strg+Umschalt+[`/`]` auch ohne Spalte greifen.
+- Statusbar-Button `#btn-fold-gutter` mit Label `Gliederung` (i18n-Key `source.foldGutter`) im `.source-toggles`-Block, eingereiht zwischen `Inhalt` und `Nummern`.
+- Menüeintrag `Ansicht → Gliederung` als `checkbox`, im gemeinsamen Block mit `Inhaltsverzeichnis`, `Zeilennummern`, `Zeilenumbruch`. Reihenfolge: Inhaltsverzeichnis → Gliederung → Zeilennummern → Zeilenumbruch.
+- `toggleShowFoldGutter()` analog zu `toggleShowLineNumbers()`: setzt das Property, reconfiguriert das Compartment via `syncEditorForPane`, aktualisiert Statusbar-Button und Menü-Häkchen, persistiert über die TabSettings.
+- Persistenz pro Tab (TabSettings) — wandert mit beim Tab-Verschieben in andere Fenster und überlebt App-Neustarts.
+- i18n-Keys `source.foldGutter`, `source.foldGutterTitle`, `menu.view.foldGutter` in allen fünf Sprachen.
+
 **Bewusst nicht in 4T-0013:**
 
-- Hilfe-Dialog-Erweiterung, i18n-Keys, CHANGELOG-Eintrag, Release-Notes — folgen im Sammeltask am Epic-Ende (siehe 3E-0002, Reihenfolge 4).
+- Hilfe-Dialog-Erweiterung, CHANGELOG-Eintrag, Release-Notes — folgen im Sammeltask am Epic-Ende (siehe 3E-0002, Reihenfolge 4).

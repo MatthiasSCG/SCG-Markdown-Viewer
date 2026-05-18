@@ -7,6 +7,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const MarkdownIt = require('markdown-it');
 const taskLists = require('markdown-it-task-lists');
+const markdownItAnchor = require('markdown-it-anchor');
 
 // markdown-it mit GFM-naher Konfiguration.
 const md = new MarkdownIt({
@@ -16,6 +17,29 @@ const md = new MarkdownIt({
   breaks: false,
 });
 md.use(taskLists, { enabled: false, label: true });
+
+// 4T-0014: Heading-IDs (GitHub-kompatibler Slug) auf <h1>..<h6> setzen.
+// Wird vom Outline-Panel als Sprungziel im Render-Pane verwendet und
+// repariert nebenbei seit-Release-0.1 latent kaputte [Text](#slug)-Anker.
+// Slug-Funktion folgt der GitHub-Konvention: lowercased, Whitespace zu '-',
+// alles ausser [\p{L}\p{N}\-_] entfernt. Diakritika werden via NFKD-Normalize
+// und Stripping der Combining-Marks entfernt, damit "Lösungsansatz" zu
+// 'losungsansatz' wird (passend zu GitHubs Slug-Erwartung).
+function githubLikeSlug(text) {
+  const normalized = text
+    .toString()
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^\p{L}\p{N}\-_]/gu, '');
+  return normalized || 'section';
+}
+md.use(markdownItAnchor, {
+  slugify: githubLikeSlug,
+  tabIndex: false,
+  permalink: false,
+});
 
 // Wiki-Link-Plugin: [[Ziel]] und [[Ziel|Label]] -> <a href="Ziel.md">Label</a>.
 // Wenn das Ziel bereits eine Endung hat, wird .md nicht doppelt angehängt.
@@ -131,6 +155,9 @@ contextBridge.exposeInMainWorld('api', {
     const html = md.render(text || '');
     return resolveImagesForBase(html, basePath);
   },
+  // 4T-0014: Slug-Berechnung im Renderer-Modul verfuegbar machen,
+  // damit das Outline-Panel im Render-Modus den passenden DOM-Anker findet.
+  slugifyHeading: (text) => githubLikeSlug(String(text || '')),
 
   // Multi-Window
   openNewWindow: (initialTabs) => ipcRenderer.invoke('window:openNew', initialTabs),
@@ -157,6 +184,12 @@ contextBridge.exposeInMainWorld('api', {
   onMenuSave: (cb) => ipcRenderer.on('menu:save', () => cb()),
   onMenuSaveAs: (cb) => ipcRenderer.on('menu:saveAs', () => cb()),
   onMenuToggleAutoSave: (cb) => ipcRenderer.on('menu:toggleAutoSave', () => cb()),
+  // 4T-0013: Menue-Eintrag "Ansicht -> Gliederung" sendet diesen Event;
+  // Renderer toggelt die Sichtbarkeit der Folding-Spuren im aktiven Tab.
+  onMenuToggleFoldGutter: (cb) => ipcRenderer.on('menu:toggleFoldGutter', () => cb()),
+  // 4T-0014: Menue-Eintrag "Ansicht -> Inhaltsverzeichnis" sendet diesen
+  // Event; Renderer toggelt die Outline-Sichtbarkeit der aktiven Spalte.
+  onMenuToggleOutline: (cb) => ipcRenderer.on('menu:toggleOutline', () => cb()),
   onMenuOpenHelp: (cb) => ipcRenderer.on('menu:openHelp', () => cb()),
   onMenuOpenAbout: (cb) => ipcRenderer.on('menu:openAbout', () => cb()),
   onMenuToggleRestoreSession: (cb) => ipcRenderer.on('menu:toggleRestoreSession', () => cb()),

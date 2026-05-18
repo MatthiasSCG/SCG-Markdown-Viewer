@@ -161,6 +161,20 @@ function buildMenu(win, state, actions) {
         },
         { type: 'separator' },
         {
+          label: t('menu.view.outline'),
+          type: 'checkbox',
+          checked: !!(state && state.outlineVisible),
+          accelerator: 'CmdOrCtrl+Shift+O',
+          click: send('menu:toggleOutline'),
+        },
+        {
+          label: t('menu.view.foldGutter'),
+          type: 'checkbox',
+          checked: !!(state && state.foldGutter),
+          enabled: togglesEnabled,
+          click: send('menu:toggleFoldGutter'),
+        },
+        {
           label: t('menu.view.lineNumbers'),
           type: 'checkbox',
           checked: !!(state && state.lineNumbers),

@@ -447,6 +447,9 @@ const MIME_TAB = 'application/x-mdv-tab';
 const DEFAULT_VIEW_MODE = 'rendered';
 const DEFAULT_WRAP_LINES = false;
 const DEFAULT_SHOW_LINE_NUMBERS = true;
+// 4T-0013: Heading-Folding-Gutter (Gliederung) default eingeschaltet. Pro Tab
+// toggelbar analog zu showLineNumbers.
+const DEFAULT_SHOW_FOLD_GUTTER = true;
 
 // --- State ------------------------------------------------------------------
 // Eine Pane: { tabs: [...], activeIndex }
@@ -466,6 +469,15 @@ const state = {
   // im Titel und steuert Solo-vs-Multi-Modus im Tab-Kontextmenue.
   displayNumber: 1,
   totalWindowCount: 1,
+  // 4T-0014: Outline-Sidebar pro Spalte. visibleByPane: sichtbar/versteckt
+  // (Default versteckt). width: Sidebar-Breite in Pixel (geteilt zwischen den
+  // Spalten). activeLineByPane: aktuell aktive Heading-Zeile pro Spalte,
+  // wird fuer die Hervorhebung in der Outline gespeichert.
+  outline: {
+    visibleByPane: [false, false],
+    width: 260,
+    activeLineByPane: [0, 0],
+  },
 };
 
 // Dialog-Tracking fuer Auto-Save: solange ein modaler Dialog (Schliessen-
@@ -498,6 +510,7 @@ function createTab(path, content, settings = {}) {
     viewMode: settings.viewMode || DEFAULT_VIEW_MODE,
     wrapLines: settings.wrapLines ?? DEFAULT_WRAP_LINES,
     showLineNumbers: settings.showLineNumbers ?? DEFAULT_SHOW_LINE_NUMBERS,
+    showFoldGutter: settings.showFoldGutter ?? DEFAULT_SHOW_FOLD_GUTTER,
     // Edit-Modus pro Tab; nicht persistiert ueber Neustarts.
     editMode: false,
     // Dirty-Flag: true sobald content vom originalContent abweicht.
@@ -538,6 +551,11 @@ function getPaneEls(paneIdx) {
     renderedEl: root.querySelector('.pane-rendered'),
     renderedHtml: root.querySelector('.markdown-body'),
     innerSplitter: root.querySelector('.splitter.inner-splitter'),
+    sidebar: root.querySelector('.pane-sidebar'),
+    sidebarSplitter: root.querySelector('.splitter.sidebar-splitter'),
+    outlineTree: root.querySelector('.outline-tree'),
+    outlineEmpty: root.querySelector('.outline-empty'),
+    outlineTitle: root.querySelector('.sidebar-outline .sidebar-section-title'),
   };
 }
 
@@ -564,7 +582,20 @@ const editorCompartments = {
   readOnly: new Compartment(),
   lineNumbers: new Compartment(),
   lineWrap: new Compartment(),
+  // 4T-0013: Gliederung (Folding-Gutter inkl. Struktur-Field und Width-Sync)
+  // toggelbar pro Tab. codeFolding() bleibt dauerhaft aktiv, damit die
+  // Tastenkuerzel Strg+Umschalt+[/] auch bei ausgeblendetem Gutter wirken.
+  foldGutter: new Compartment(),
 };
+
+// Extension-Bundle fuer die Gliederung — wird per Compartment ein-/ausgeschaltet.
+// foldStructureField bleibt bewusst AUSSERHALB, weil das Outline-Panel
+// (4T-0014) seine Heading-Liste daraus liest; das Feld muss auch dann
+// verfuegbar sein, wenn die Gliederungs-Spalte ausgeblendet ist.
+const foldGutterExtensions = [
+  headingFoldGutter,
+  foldGutterWidthSync,
+];
 
 let pendingPreviewUpdate = null;
 
@@ -583,9 +614,14 @@ function createEditorState(opts = {}) {
       // sonst nicht im State waere. foldKeymap bindet Strg+Umschalt+[ (Fold)
       // und Strg+Umschalt+] (Unfold) an den Cursor.
       codeFolding(),
+      // foldStructureField dauerhaft aktiv, weil das Outline-Panel (4T-0014)
+      // seine Heading-Liste daraus liest. Nur die visuelle Spalte
+      // (headingFoldGutter + foldGutterWidthSync) wird ueber das Compartment
+      // ein-/ausgeschaltet.
       foldStructureField,
-      headingFoldGutter,
-      foldGutterWidthSync,
+      editorCompartments.foldGutter.of(
+        opts.showFoldGutter !== false ? foldGutterExtensions : [],
+      ),
       foldChangeNotifier,
       editorCompartments.lineNumbers.of(opts.lineNumbers ? cmLineNumbers() : []),
       editorCompartments.lineWrap.of(opts.wrapLines ? EditorView.lineWrapping : []),
@@ -596,22 +632,32 @@ function createEditorState(opts = {}) {
       drawSelection(),
       searchHighlightField,
       EditorView.updateListener.of((update) => {
-        if (!update.docChanged) return;
         const pIdx = paneEditors.indexOf(update.view);
         if (pIdx < 0) return;
         const pane = state.panes[pIdx];
         if (!pane || pane.activeIndex < 0) return;
         const tab = pane.tabs[pane.activeIndex];
         if (!tab) return;
-        tab.content = update.state.doc.toString();
-        const wasDirty = tab.dirty;
-        tab.dirty = tab.content !== tab.originalContent;
-        if (wasDirty !== tab.dirty) {
-          renderTabbar(pIdx);
-          updateWindowTitle();
+        if (update.docChanged) {
+          tab.content = update.state.doc.toString();
+          const wasDirty = tab.dirty;
+          tab.dirty = tab.content !== tab.originalContent;
+          if (wasDirty !== tab.dirty) {
+            renderTabbar(pIdx);
+            updateWindowTitle();
+          }
+          if (tab.viewMode === 'split') schedulePreviewUpdate(pIdx);
+          scheduleAutoSave();
+          // 4T-0014: Outline rendert bei jeder Doc-Aenderung neu (Debounce
+          // 200 ms), damit die Hierarchie immer aktuell ist.
+          if (state.outline.visibleByPane[pIdx]) scheduleOutlineRender(pIdx);
         }
-        if (tab.viewMode === 'split') schedulePreviewUpdate(pIdx);
-        scheduleAutoSave();
+        // 4T-0014: Cursor-Bewegung triggert Aktiv-Sektion-Update mit
+        // 100 ms Debounce. Selection-Change reicht — Doc-Change-Pfad oben
+        // setzt ohnehin neu auf, weil die Heading-Struktur sich aendern kann.
+        if (update.selectionSet && state.outline.visibleByPane[pIdx]) {
+          scheduleOutlineActiveUpdate(pIdx);
+        }
       }),
     ],
   });
@@ -647,6 +693,7 @@ function syncEditorForPane(paneIdx) {
         editorCompartments.readOnly.reconfigure(EditorState.readOnly.of(true)),
         editorCompartments.lineNumbers.reconfigure([]),
         editorCompartments.lineWrap.reconfigure([]),
+        editorCompartments.foldGutter.reconfigure([]),
       ],
     });
     if (els && els.sourceEditor) els.sourceEditor.classList.add('read-only');
@@ -665,10 +712,19 @@ function syncEditorForPane(paneIdx) {
       editorCompartments.readOnly.reconfigure(EditorState.readOnly.of(!tab.editMode)),
       editorCompartments.lineNumbers.reconfigure(tab.showLineNumbers ? cmLineNumbers() : []),
       editorCompartments.lineWrap.reconfigure(tab.wrapLines ? EditorView.lineWrapping : []),
+      editorCompartments.foldGutter.reconfigure(tab.showFoldGutter ? foldGutterExtensions : []),
     ],
   });
   if (els && els.sourceEditor) {
     els.sourceEditor.classList.toggle('read-only', !tab.editMode);
+  }
+  // 4T-0014: Bei Tab-Wechsel die Outline der Pane an die neue Heading-
+  // Struktur anpassen (sofern sichtbar). renderOutline ist guenstig genug,
+  // um direkt zu laufen ohne weiteres Debounce.
+  if (state.outline && state.outline.visibleByPane[paneIdx]) {
+    renderOutline(paneIdx);
+    computeOutlineActiveLine(paneIdx);
+    applyOutlineActiveHighlight(paneIdx);
   }
 }
 
@@ -735,6 +791,11 @@ function renderPreviewForPane(paneIdx) {
   const els = getPaneEls(paneIdx);
   if (!els.renderedHtml) return;
   els.renderedHtml.innerHTML = api.renderMarkdown(tab.content, tab.path);
+  // 4T-0014: Aktive Outline-Sektion neu ermitteln, weil DOM-Heading-Knoten
+  // im Render-Pane jetzt frische BoundingClientRects haben.
+  if (state.outline && state.outline.visibleByPane[paneIdx]) {
+    scheduleOutlineActiveUpdate(paneIdx);
+  }
 }
 
 // Setzt den Fenstertitel auf "[•] <Dateiname> — SCG Markdown" passend zum
@@ -757,6 +818,358 @@ function updateWindowTitle() {
   if (api && typeof api.notifyWindowMeta === 'function') {
     api.notifyWindowMeta({ activeTabName: name, tabCount });
   }
+}
+
+// --- Outline-Sidebar (4T-0014) ---------------------------------------------
+// Persistente Inhaltsverzeichnis-Sicht pro Pane. Quelle ist das foldStructure-
+// Field aus 4T-0013 (gleicher syntaxTree wie das Code-Folding). Klick auf den
+// Heading-Text springt im Editor zur Zeile oder scrollt im Render-Pane zum
+// Anker; Klick auf den Falt-Indikator toggelt nur die Editor-Region. Aktive
+// Sektion folgt der Cursor-Zeile (Edit/Geteilt) bzw. der Scroll-Position
+// (Render).
+
+const OUTLINE_RENDER_DEBOUNCE_MS = 200;
+const OUTLINE_ACTIVE_DEBOUNCE_MS = 100;
+const OUTLINE_DEFAULT_WIDTH = 260;
+const OUTLINE_MIN_WIDTH = 180;
+const OUTLINE_MAX_WIDTH = 500;
+const OUTLINE_INDENT_PX = 12;
+
+const outlineRenderTimers = []; // paneIdx -> timeout id
+const outlineActiveTimers = []; // paneIdx -> timeout id
+
+function getOutlineHeadings(paneIdx) {
+  const view = paneEditors[paneIdx];
+  if (!view) return [];
+  const struct = view.state.field(foldStructureField, false);
+  return struct && Array.isArray(struct.headings) ? struct.headings : [];
+}
+
+function scheduleOutlineRender(paneIdx) {
+  if (outlineRenderTimers[paneIdx]) clearTimeout(outlineRenderTimers[paneIdx]);
+  outlineRenderTimers[paneIdx] = setTimeout(() => {
+    outlineRenderTimers[paneIdx] = null;
+    renderOutline(paneIdx);
+  }, OUTLINE_RENDER_DEBOUNCE_MS);
+}
+
+function renderOutline(paneIdx) {
+  const els = getPaneEls(paneIdx);
+  if (!els || !els.outlineTree) return;
+  const headings = getOutlineHeadings(paneIdx);
+  els.outlineTree.innerHTML = '';
+  if (headings.length === 0) {
+    if (els.outlineEmpty) els.outlineEmpty.hidden = false;
+    return;
+  }
+  if (els.outlineEmpty) els.outlineEmpty.hidden = true;
+  const view = paneEditors[paneIdx];
+  const doc = view ? view.state.doc : null;
+  for (const h of headings) {
+    const li = document.createElement('li');
+    li.className = 'outline-entry';
+    li.style.paddingLeft = ((h.level - 1) * OUTLINE_INDENT_PX) + 'px';
+    li.dataset.line = String(h.fromLine);
+    li.dataset.level = String(h.level);
+
+    const fold = document.createElement('span');
+    fold.className = 'outline-fold';
+    fold.dataset.action = 'fold';
+    const folded = view ? isHeadingRegionFolded(view, h.fromLine) : false;
+    fold.textContent = folded ? '›' : '⌄';
+    li.appendChild(fold);
+
+    const label = document.createElement('span');
+    label.className = 'outline-label';
+    label.dataset.action = 'jump';
+    const text = doc ? extractHeadingText(doc, h.fromLine) : `Heading ${h.fromLine}`;
+    label.textContent = text;
+    label.title = text;
+    li.appendChild(label);
+
+    els.outlineTree.appendChild(li);
+  }
+  applyOutlineActiveHighlight(paneIdx);
+}
+
+// Extrahiert den Text einer Heading-Zeile aus dem Doc, mit ATX- bzw. Setext-
+// Bereinigung. Trailing '#' bei ATX werden mit entfernt.
+function extractHeadingText(doc, lineNumber) {
+  if (lineNumber < 1 || lineNumber > doc.lines) return '';
+  const lineObj = doc.line(lineNumber);
+  let raw = lineObj.text;
+  const atx = /^\s{0,3}#{1,6}\s+(.*?)\s*#*\s*$/.exec(raw);
+  if (atx) return atx[1].trim();
+  return raw.trim();
+}
+
+// Setzt die is-active-Klasse auf dem Outline-Eintrag, der die aktuell aktive
+// Heading-Zeile traegt. Aktive Zeile wird ueber state.outline.activeLineByPane
+// gehalten; aufruf nach Cursor-/Scroll-Sync oder Outline-Rerender.
+function applyOutlineActiveHighlight(paneIdx) {
+  const els = getPaneEls(paneIdx);
+  if (!els || !els.outlineTree) return;
+  const activeLine = state.outline.activeLineByPane[paneIdx] || 0;
+  const entries = els.outlineTree.querySelectorAll('.outline-entry');
+  let activeEntry = null;
+  entries.forEach((entry) => {
+    const ln = parseInt(entry.dataset.line, 10);
+    entry.classList.remove('is-active');
+    if (ln === activeLine) activeEntry = entry;
+  });
+  if (activeEntry) {
+    activeEntry.classList.add('is-active');
+    if (typeof activeEntry.scrollIntoView === 'function') {
+      const rect = activeEntry.getBoundingClientRect();
+      const body = activeEntry.closest('.sidebar-section-body');
+      if (body) {
+        const bodyRect = body.getBoundingClientRect();
+        if (rect.top < bodyRect.top || rect.bottom > bodyRect.bottom) {
+          activeEntry.scrollIntoView({ block: 'nearest' });
+        }
+      }
+    }
+  }
+}
+
+function scheduleOutlineActiveUpdate(paneIdx) {
+  if (outlineActiveTimers[paneIdx]) clearTimeout(outlineActiveTimers[paneIdx]);
+  outlineActiveTimers[paneIdx] = setTimeout(() => {
+    outlineActiveTimers[paneIdx] = null;
+    computeOutlineActiveLine(paneIdx);
+    applyOutlineActiveHighlight(paneIdx);
+  }, OUTLINE_ACTIVE_DEBOUNCE_MS);
+}
+
+// Ermittelt die aktive Heading-Zeile fuer eine Pane. Im Edit-/Geteilt-Modus
+// das zuletzt durchschrittene Heading (fromLine <= Cursor-Zeile), im Render-
+// Modus das oberste vollstaendig sichtbare Heading.
+function computeOutlineActiveLine(paneIdx) {
+  const pane = state.panes[paneIdx];
+  if (!pane || pane.activeIndex < 0) {
+    state.outline.activeLineByPane[paneIdx] = 0;
+    return;
+  }
+  const tab = pane.tabs[pane.activeIndex];
+  if (!tab) {
+    state.outline.activeLineByPane[paneIdx] = 0;
+    return;
+  }
+  const headings = getOutlineHeadings(paneIdx);
+  if (headings.length === 0) {
+    state.outline.activeLineByPane[paneIdx] = 0;
+    return;
+  }
+  if (tab.viewMode === 'rendered') {
+    state.outline.activeLineByPane[paneIdx] = computeActiveLineFromRender(paneIdx, headings);
+  } else {
+    state.outline.activeLineByPane[paneIdx] = computeActiveLineFromCursor(paneIdx, headings);
+  }
+}
+
+function computeActiveLineFromCursor(paneIdx, headings) {
+  const view = paneEditors[paneIdx];
+  if (!view) return headings[0].fromLine;
+  const cursorPos = view.state.selection.main.head;
+  const cursorLine = view.state.doc.lineAt(cursorPos).number;
+  let active = headings[0].fromLine;
+  for (const h of headings) {
+    if (h.fromLine <= cursorLine) active = h.fromLine;
+    else break;
+  }
+  return active;
+}
+
+function computeActiveLineFromRender(paneIdx, headings) {
+  const els = getPaneEls(paneIdx);
+  if (!els || !els.renderedHtml) return headings[0].fromLine;
+  const scrollEl = els.renderedEl;
+  if (!scrollEl) return headings[0].fromLine;
+  const scrollRect = scrollEl.getBoundingClientRect();
+  const hElements = els.renderedHtml.querySelectorAll('h1, h2, h3, h4, h5, h6');
+  if (hElements.length === 0) return headings[0].fromLine;
+  // Mapping der DOM-Headings auf die foldStructureField-Headings in Reihenfolge.
+  // Beide Listen folgen der Dokument-Reihenfolge, daher Index-basiertes Mapping.
+  let activeIdx = 0;
+  for (let i = 0; i < hElements.length && i < headings.length; i++) {
+    const rect = hElements[i].getBoundingClientRect();
+    if (rect.top < scrollRect.top + 8) activeIdx = i;
+    else break;
+  }
+  return headings[activeIdx].fromLine;
+}
+
+function applyOutlineFoldIndicator(paneIdx, lineNumber) {
+  const els = getPaneEls(paneIdx);
+  if (!els || !els.outlineTree) return;
+  const entry = els.outlineTree.querySelector(`.outline-entry[data-line="${lineNumber}"]`);
+  if (!entry) return;
+  const fold = entry.querySelector('.outline-fold');
+  if (!fold) return;
+  const view = paneEditors[paneIdx];
+  if (!view) return;
+  fold.textContent = isHeadingRegionFolded(view, lineNumber) ? '›' : '⌄';
+}
+
+function refreshAllOutlineFoldIndicators(paneIdx) {
+  const els = getPaneEls(paneIdx);
+  if (!els || !els.outlineTree) return;
+  const view = paneEditors[paneIdx];
+  if (!view) return;
+  els.outlineTree.querySelectorAll('.outline-entry').forEach((entry) => {
+    const ln = parseInt(entry.dataset.line, 10);
+    const fold = entry.querySelector('.outline-fold');
+    if (fold && Number.isFinite(ln)) {
+      fold.textContent = isHeadingRegionFolded(view, ln) ? '›' : '⌄';
+    }
+  });
+}
+
+// Sprung-Klick: setzt Cursor auf Heading-Zeile, entfaltet Region falls noetig,
+// und scrollt im Render-Pane zum entsprechenden Anker.
+function jumpToHeading(paneIdx, lineNumber) {
+  const view = paneEditors[paneIdx];
+  if (view) {
+    if (isHeadingRegionFolded(view, lineNumber)) {
+      unfoldHeadingRegion(view, lineNumber);
+    }
+    const doc = view.state.doc;
+    if (lineNumber >= 1 && lineNumber <= doc.lines) {
+      const lineObj = doc.line(lineNumber);
+      view.dispatch({
+        selection: { anchor: lineObj.from },
+        effects: EditorView.scrollIntoView(lineObj.from, { y: 'start' }),
+      });
+      view.focus();
+    }
+  }
+  const pane = state.panes[paneIdx];
+  const tab = pane && pane.activeIndex >= 0 ? pane.tabs[pane.activeIndex] : null;
+  if (tab && tab.viewMode !== 'source') {
+    const els = getPaneEls(paneIdx);
+    if (els && els.renderedHtml && view) {
+      const text = extractHeadingText(view.state.doc, lineNumber);
+      const slug = typeof api.slugifyHeading === 'function'
+        ? api.slugifyHeading(text)
+        : text.toLowerCase().replace(/\s+/g, '-');
+      const anchor = els.renderedHtml.querySelector(
+        `[id="${CSS.escape(slug)}"]`,
+      );
+      if (anchor) anchor.scrollIntoView({ block: 'start' });
+    }
+  }
+}
+
+function toggleHeadingFoldFromOutline(paneIdx, lineNumber) {
+  const view = paneEditors[paneIdx];
+  if (!view) return;
+  if (isHeadingRegionFolded(view, lineNumber)) {
+    unfoldHeadingRegion(view, lineNumber);
+  } else {
+    foldHeadingRegion(view, lineNumber);
+  }
+}
+
+function bindOutlineEvents(paneIdx) {
+  const els = getPaneEls(paneIdx);
+  if (!els || !els.outlineTree) return;
+  els.outlineTree.addEventListener('click', (ev) => {
+    const target = ev.target instanceof Element ? ev.target : null;
+    if (!target) return;
+    const entry = target.closest('.outline-entry');
+    if (!entry) return;
+    const action = target.dataset.action;
+    const lineNumber = parseInt(entry.dataset.line, 10);
+    if (!Number.isFinite(lineNumber)) return;
+    if (action === 'fold') {
+      toggleHeadingFoldFromOutline(paneIdx, lineNumber);
+    } else {
+      jumpToHeading(paneIdx, lineNumber);
+    }
+  });
+}
+
+function applyOutlineVisibility(paneIdx) {
+  const els = getPaneEls(paneIdx);
+  if (!els || !els.sidebar) return;
+  const visible = !!state.outline.visibleByPane[paneIdx];
+  els.sidebar.hidden = !visible;
+  if (els.sidebarSplitter) els.sidebarSplitter.hidden = !visible;
+  if (visible) {
+    els.sidebar.style.width = state.outline.width + 'px';
+    renderOutline(paneIdx);
+    computeOutlineActiveLine(paneIdx);
+    applyOutlineActiveHighlight(paneIdx);
+  }
+  updateOutlineToggleButton();
+}
+
+function updateOutlineToggleButton() {
+  const btn = document.getElementById('btn-outline');
+  if (!btn) return;
+  const visible = !!state.outline.visibleByPane[state.activePaneIndex];
+  btn.classList.toggle('active', visible);
+  btn.setAttribute('aria-pressed', visible ? 'true' : 'false');
+}
+
+async function toggleOutlinePanel(paneIdx) {
+  if (paneIdx < 0 || paneIdx >= state.panes.length) return;
+  const next = !state.outline.visibleByPane[paneIdx];
+  state.outline.visibleByPane[paneIdx] = next;
+  applyOutlineVisibility(paneIdx);
+  await persistOutlineSettings();
+  // Menue-Haken synchron halten (gilt fuer aktive Spalte).
+  if (paneIdx === state.activePaneIndex && typeof reportMenuStateNow === 'function') {
+    reportMenuStateNow();
+  }
+}
+
+async function persistOutlineSettings() {
+  await api.setSetting('outline.visibleColumn0', !!state.outline.visibleByPane[0]);
+  await api.setSetting('outline.visibleColumn1', !!state.outline.visibleByPane[1]);
+  await api.setSetting('outline.width', state.outline.width);
+}
+
+async function loadOutlineSettings() {
+  const v0 = await api.getSetting('outline.visibleColumn0');
+  const v1 = await api.getSetting('outline.visibleColumn1');
+  const w = await api.getSetting('outline.width');
+  state.outline.visibleByPane[0] = !!v0;
+  state.outline.visibleByPane[1] = !!v1;
+  if (typeof w === 'number' && Number.isFinite(w)) {
+    state.outline.width = Math.min(OUTLINE_MAX_WIDTH, Math.max(OUTLINE_MIN_WIDTH, w));
+  }
+}
+
+// Splitter-Logik fuer die Sidebar (Drag horizontal).
+function bindSidebarSplitter(paneIdx) {
+  const els = getPaneEls(paneIdx);
+  if (!els || !els.sidebarSplitter || !els.sidebar) return;
+  els.sidebarSplitter.addEventListener('mousedown', (ev) => {
+    ev.preventDefault();
+    const startX = ev.clientX;
+    const startW = els.sidebar.getBoundingClientRect().width;
+    function onMove(e) {
+      const dx = e.clientX - startX;
+      const next = Math.min(OUTLINE_MAX_WIDTH, Math.max(OUTLINE_MIN_WIDTH, startW + dx));
+      state.outline.width = next;
+      // Beide Sidebars an die gleiche Breite anpassen, damit die Spalten
+      // konsistent bleiben (gemeinsame width-Persistenz).
+      for (let i = 0; i < state.panes.length; i++) {
+        const e2 = getPaneEls(i);
+        if (e2 && e2.sidebar && !e2.sidebar.hidden) {
+          e2.sidebar.style.width = next + 'px';
+        }
+      }
+    }
+    function onUp() {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      persistOutlineSettings();
+    }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  });
 }
 
 // --- Initialer Main-Zustand -------------------------------------------------
@@ -835,6 +1248,9 @@ async function init() {
   // Fenster-Aufbau).
   state.restoreSession = await api.getSetting('restoreSession');
   state.autoSave = !!(await api.getSetting('autoSave'));
+
+  // 4T-0014: Outline-Sichtbarkeit und -Breite aus den Settings laden.
+  await loadOutlineSettings();
 
   // Bindings
   bindUi();
@@ -933,7 +1349,32 @@ function bindUi() {
 
   $('#btn-wrap').addEventListener('click', toggleWrapLines);
   $('#btn-numbers').addEventListener('click', toggleShowLineNumbers);
+  $('#btn-fold-gutter').addEventListener('click', toggleShowFoldGutter);
   if (btnEdit) btnEdit.addEventListener('click', toggleEditMode);
+
+  // 4T-0014: Statusbar-Toggle fuer Outline-Panel der aktiven Spalte.
+  const btnOutline = $('#btn-outline');
+  if (btnOutline) {
+    btnOutline.addEventListener('click', () => toggleOutlinePanel(state.activePaneIndex));
+  }
+  // 4T-0014: Tastenkuerzel Strg+Umschalt+O toggelt das Outline-Panel.
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey && !e.altKey && (e.key === 'O' || e.key === 'o')) {
+      e.preventDefault();
+      toggleOutlinePanel(state.activePaneIndex);
+    }
+  });
+  // 4T-0014: Folding-Aenderungen aus dem Editor (Gutter, Tastenkuerzel,
+  // programmatisch) in die Outline durchreichen. Pfeil-Indikator wird gezielt
+  // aktualisiert, ohne den gesamten Baum neu zu rendern.
+  document.addEventListener('scg:foldchange', (ev) => {
+    const pIdx = ev && ev.detail && typeof ev.detail.paneIdx === 'number'
+      ? ev.detail.paneIdx
+      : -1;
+    if (pIdx < 0) return;
+    if (!state.outline.visibleByPane[pIdx]) return;
+    refreshAllOutlineFoldIndicators(pIdx);
+  });
 
   langSelect.addEventListener('change', async (e) => {
     const newLang = e.target.value;
@@ -1069,6 +1510,9 @@ function bindUi() {
   api.onMenuViewChange((mode) => setViewMode(mode));
   api.onMenuToggleLineNumbers(() => toggleShowLineNumbers());
   api.onMenuToggleWordWrap(() => toggleWrapLines());
+  if (typeof api.onMenuToggleFoldGutter === 'function') {
+    api.onMenuToggleFoldGutter(() => toggleShowFoldGutter());
+  }
   api.onMenuSave(() => saveCurrentTab());
   api.onMenuSaveAs(() => saveCurrentTabAs());
   api.onMenuToggleAutoSave(async () => {
@@ -1082,6 +1526,15 @@ function bindUi() {
     state.restoreSession = !state.restoreSession;
     await api.setSetting('restoreSession', state.restoreSession);
   });
+  // 4T-0014: Menue-Eintrag "Ansicht -> Inhaltsverzeichnis" toggelt die
+  // Outline-Sichtbarkeit der aktiv fokussierten Spalte; der Menue-Haken
+  // wird ueber reportMenuStateNow() im Anschluss an den Toggle aktualisiert.
+  if (typeof api.onMenuToggleOutline === 'function') {
+    api.onMenuToggleOutline(async () => {
+      await toggleOutlinePanel(state.activePaneIndex);
+      reportMenuStateNow();
+    });
+  }
 
   // Window-Close-Anfrage vom Main-Prozess. Wir pruefen alle dirtigen Tabs in
   // diesem Fenster und fragen pro Tab nach (Speichern/Verwerfen/Abbrechen).
@@ -1130,7 +1583,16 @@ function bindPaneEvents() {
     const sourceEl = root.querySelector('.pane-source');
     const renderedEl = root.querySelector('.pane-rendered');
     sourceEl.addEventListener('scroll', () => saveScroll(idx));
-    renderedEl.addEventListener('scroll', () => saveScroll(idx));
+    renderedEl.addEventListener('scroll', () => {
+      saveScroll(idx);
+      // 4T-0014: aktive Sektion folgt im Render-Modus dem Scroll-Stand.
+      if (state.outline.visibleByPane[idx]) {
+        scheduleOutlineActiveUpdate(idx);
+      }
+    });
+
+    bindOutlineEvents(idx);
+    bindSidebarSplitter(idx);
 
     initInnerSplitter(idx);
 
@@ -1255,11 +1717,13 @@ function activatePane(paneIdx) {
   if (state.activePaneIndex === paneIdx) {
     updateActivePaneClasses();
     syncToolbarToActiveTab();
+    updateOutlineToggleButton();
     return;
   }
   state.activePaneIndex = paneIdx;
   updateActivePaneClasses();
   syncToolbarToActiveTab();
+  updateOutlineToggleButton();
   // Bei aktiver Suche im neuen Pane neu suchen.
   refreshSearchIfVisible();
 }
@@ -1275,6 +1739,7 @@ function syncToolbarToActiveTab() {
   const viewMode = tab ? tab.viewMode : DEFAULT_VIEW_MODE;
   const wrap = tab ? tab.wrapLines : DEFAULT_WRAP_LINES;
   const numbers = tab ? tab.showLineNumbers : DEFAULT_SHOW_LINE_NUMBERS;
+  const foldGutter = tab ? tab.showFoldGutter : DEFAULT_SHOW_FOLD_GUTTER;
 
   document.querySelectorAll('.view-btn').forEach((b) => {
     b.classList.toggle('active', b.dataset.view === viewMode);
@@ -1283,8 +1748,13 @@ function syncToolbarToActiveTab() {
   const sourceVisible = viewMode === 'source' || viewMode === 'split';
   const wrapBtn = $('#btn-wrap');
   const numbersBtn = $('#btn-numbers');
+  const foldGutterBtn = $('#btn-fold-gutter');
   wrapBtn.classList.toggle('active', wrap);
   numbersBtn.classList.toggle('active', numbers);
+  if (foldGutterBtn) {
+    foldGutterBtn.classList.toggle('active', foldGutter);
+    foldGutterBtn.disabled = !sourceVisible || !tab;
+  }
   wrapBtn.disabled = !sourceVisible || !tab;
   numbersBtn.disabled = !sourceVisible || !tab;
   if (btnEdit) {
@@ -1305,8 +1775,13 @@ function reportMenuStateNow() {
     viewMode,
     lineNumbers: tab ? !!tab.showLineNumbers : true,
     wordWrap: tab ? !!tab.wrapLines : false,
+    // 4T-0013: Haekchen-Stand fuer das Gliederungs-Toggle im Ansicht-Menue.
+    foldGutter: tab ? !!tab.showFoldGutter : DEFAULT_SHOW_FOLD_GUTTER,
     togglesEnabled: viewMode === 'source' || viewMode === 'split',
     hasActiveTab: !!tab,
+    // 4T-0014: Haekchen im "Ansicht -> Inhaltsverzeichnis"-Menue spiegelt
+    // die Sichtbarkeit der Outline in der aktiv fokussierten Spalte.
+    outlineVisible: !!state.outline.visibleByPane[state.activePaneIndex],
   });
 }
 
@@ -1453,6 +1928,7 @@ function singlePaneSnapshotFromTab(tab) {
       viewMode: tab.viewMode,
       wrapLines: tab.wrapLines,
       showLineNumbers: tab.showLineNumbers,
+      showFoldGutter: tab.showFoldGutter,
     }],
   }];
 }
@@ -1493,6 +1969,7 @@ function buildTabPayload(tab) {
       viewMode: tab.viewMode,
       wrapLines: tab.wrapLines,
       showLineNumbers: tab.showLineNumbers,
+      showFoldGutter: tab.showFoldGutter,
       editMode: !!tab.editMode,
     },
     untitledIndex: tab.untitledIndex || null,
@@ -1723,6 +2200,11 @@ function applyAllLayouts() {
   syncToolbarToActiveTab();
   renderAllPanes();
   updateEmptyState();
+  // 4T-0014: Outline-Sichtbarkeit pro Pane anwenden (versteckt -> sichtbar
+  // oder umgekehrt; Inhalte werden bei sichtbarer Sidebar gerendert).
+  for (let i = 0; i < state.panes.length; i++) {
+    applyOutlineVisibility(i);
+  }
 }
 
 function saveScroll(paneIdx) {
@@ -1856,6 +2338,19 @@ function toggleShowLineNumbers() {
   syncToolbarToActiveTab();
   persistState();
   refreshSearchIfVisible();
+}
+
+// 4T-0013: Gliederung (Heading-Folding-Gutter) pro Tab toggeln. Analog zu
+// toggleShowLineNumbers; reconfiguriert das foldGutter-Compartment ueber
+// syncEditorForPane und synchronisiert Statusbar-Button und Menue-Haken.
+function toggleShowFoldGutter() {
+  const tab = activeTab();
+  if (!tab) return;
+  tab.showFoldGutter = !tab.showFoldGutter;
+  syncEditorForPane(state.activePaneIndex);
+  syncToolbarToActiveTab();
+  reportMenuStateNow();
+  persistState();
 }
 
 // Erzeugt einen leeren "Unbenannt"-Tab im aktiven Pane (Datei → Neu / Strg+N).
@@ -2073,6 +2568,7 @@ function buildPanesSnapshot() {
         viewMode: p.tabs[i].viewMode,
         wrapLines: p.tabs[i].wrapLines,
         showLineNumbers: p.tabs[i].showLineNumbers,
+        showFoldGutter: p.tabs[i].showFoldGutter,
       })),
     };
   });

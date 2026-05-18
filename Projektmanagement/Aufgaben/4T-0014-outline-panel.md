@@ -1,6 +1,6 @@
 # 4T-0014 — Outline-Panel mit Heading-Baum, klickbar und scroll-synchron
 
-**Status**: Offen
+**Status**: Test bestanden
 **Epic**: [3E-0002 — Strukturnavigation: Folding, Outline und Backlinks](3E-0002-strukturnavigation.md)
 **Zielversion**: 0.8.0
 
@@ -159,3 +159,62 @@ Bei einer Datei ohne Headings erscheint ein lokalisierter Hinweistext:
 - **Settings-Schema-Design**: bleibt als Detail-Design-Punkt während der Umsetzung offen, ob `outline.visible.column0/1` direkt im Settings-Schema landet oder über einen verschachtelten `sidebar`-Bereich aufgebaut wird. Mit dem Backlinks-Panel aus 4T-0015 abstimmen.
 
 ## Lösung
+
+**Sidebar-Container** in `src/renderer/index.html`:
+
+- Pro `.pane-group` ein `<aside class="pane-sidebar">` als ersten Inhalt im `.content`-Flex-Container, gefolgt von einem `<div class="splitter sidebar-splitter">`. Beide sind initial `hidden`.
+- Innerhalb der Sidebar eine Sektion `.sidebar-outline` mit Header (Titel via `data-i18n="outline.title"`) und Body. Der Body enthält die `<ul class="outline-tree">`-Liste und einen versteckten `<div class="outline-empty">` für den Empty-State.
+- Statusbar-Button `#btn-outline` mit Listen-SVG-Icon links neben den Source-Toggles (Tooltip via `data-i18n-title="outline.toggleTitle"`).
+
+**Styling** in `src/renderer/styles.css`:
+
+- `.pane-sidebar`: 260 px Default-Breite, min 180 px, max 500 px, eigene Hintergrundfarbe `--bg-alt`, rechte Trennlinie.
+- `.sidebar-splitter`: 4 px breit, col-resize. Hover-Highlight in Akzentfarbe.
+- `.outline-entry`: Flex-Row mit Falt-Indikator und Heading-Label. Aktive Sektion (`.is-active`) erhält 3 px breiten Akzent-Balken am linken Rand plus Hintergrund-Schattierung.
+- `.outline-fold` und `.outline-label` sind eigenständige Klick-Bereiche (Pfeil-Indikator vs. Sprung-Klick) mit separaten Hover-States.
+
+**Renderer-Modul** in `src/renderer/renderer.js`:
+
+- `state.outline = { visibleByPane: [false, false], width: 260, activeLineByPane: [0, 0] }`.
+- `getOutlineHeadings(paneIdx)`: Liefert direkt die `headings`-Liste aus dem `foldStructureField` aus 4T-0013, kein zweiter syntaxTree-Pass.
+- `renderOutline(paneIdx)`: Baut das `<ul>` neu, ein `<li>` pro Heading, `padding-left = (level - 1) * 12 px`. Lange Titel werden per CSS-`text-overflow: ellipsis` gekürzt; Tooltip via `title`-Attribut zeigt den vollen Text. Folding-Status auf dem Pfeil-Indikator stammt aus `isHeadingRegionFolded()` (4T-0013).
+- `scheduleOutlineRender(paneIdx)`: 200 ms Debounce auf Doc-Änderungen, kein Flackern beim Tippen.
+- `computeOutlineActiveLine(paneIdx)`: Im Edit-/Geteilt-Modus zuletzt durchschrittenes Heading (`fromLine <= Cursor-Zeile`), im Render-Modus oberstes Heading-DOM, dessen `getBoundingClientRect().top` über dem Scroll-Top liegt.
+- `applyOutlineActiveHighlight(paneIdx)` setzt `is-active` auf dem passenden Eintrag und scrollt ihn ggf. in den sichtbaren Bereich (nur wenn er außerhalb der Sidebar-Viewport-Box ist).
+- `scheduleOutlineActiveUpdate(paneIdx)`: 100 ms Debounce auf Cursor-/Scroll-Updates.
+- `jumpToHeading(paneIdx, line)`: Cursor-Sprung im Editor (entfaltet vorher gefaltete Regionen über `unfoldHeadingRegion`), plus `scrollIntoView` im Render-Pane via `getElementById(slug)`.
+- `toggleHeadingFoldFromOutline(paneIdx, line)`: nutzt die Read/Write-API aus 4T-0013, ohne Cursor-Bewegung.
+- `bindOutlineEvents(paneIdx)`: Click-Delegation auf `.outline-tree`. `data-action="fold"` bzw. `data-action="jump"` am Ziel-Span steuert das Verhalten.
+- `applyOutlineVisibility(paneIdx)`: Schaltet `hidden` an Sidebar und Splitter, setzt die persistierte Breite, rendert die Outline und aktualisiert die Aktiv-Sektion.
+- `toggleOutlinePanel(paneIdx)`: persistiert und triggert Menü-Häkchen-Sync via `reportMenuStateNow`.
+- `bindSidebarSplitter(paneIdx)`: Drag-Logik für die Sidebar-Breite. Beide Pane-Sidebars werden synchron breit gehalten (`state.outline.width`), Persistenz nach Drag-Ende.
+- Folding-Sync: Globaler `document.addEventListener('scg:foldchange', ...)`, ruft `refreshAllOutlineFoldIndicators(paneIdx)` auf — gezielte Indikator-Aktualisierung, kein Re-Render des Baums.
+- View-Update-Listener im `createEditorState` wurde erweitert: bei `update.selectionSet` läuft die Aktive-Sektion-Synchronisation; bei `update.docChanged` läuft zusätzlich `scheduleOutlineRender`.
+
+**Anker-Slugs** in `src/main/preload.js`:
+
+- `markdown-it-anchor` (^9.2.0) als neue Dependency.
+- Eigene `githubLikeSlug`-Funktion (NFKD-Normalize, Diakritika strippen, Whitespace → `-`, alles außer `[\p{L}\p{N}\-_]` entfernen). Erzeugt z.B. aus „Lösungsansatz" den Slug `losungsansatz`.
+- Über `contextBridge` als `api.slugifyHeading()` an den Renderer exponiert, damit der Outline-Sprung im Render-Modus den passenden Anker findet.
+
+**Menü, Statusbar, Tastenkürzel:**
+
+- `src/main/menu.js`: Neuer Menüeintrag `Ansicht → Inhaltsverzeichnis` als `checkbox` mit Accelerator `CmdOrCtrl+Shift+O`. Steht zusammen mit `Gliederung`, `Zeilennummern` und `Zeilenumbruch` in einem gemeinsamen Block nach dem View-Modi-Separator (Reihenfolge: Inhaltsverzeichnis → Gliederung → Zeilennummern → Zeilenumbruch).
+- `src/main/main.js`: `outlineVisible` im `getMenuState` aufgenommen, wird aus dem Renderer-State gespiegelt.
+- `src/main/preload.js`: `onMenuToggleOutline`-Listener.
+- `src/renderer/renderer.js`: `Ctrl+Shift+O`-Keydown-Handler auf `document` als globaler Shortcut. Statusbar-Button-Klick und Menü-Event rufen alle dieselbe `toggleOutlinePanel()`-Funktion auf. `reportMenuStateNow` spiegelt `outlineVisible` der aktiv fokussierten Spalte.
+- Statusbar-Button trägt die Beschriftung `Inhalt` (lokalisiert über den i18n-Key `outline.toggle`) — analog zu `Gliederung`, `Nummern`, `Umbruch`. Eingereiht als erster Button im `.source-toggles`-Block.
+
+**Persistenz** in den Settings:
+
+- `outline.visibleColumn0`, `outline.visibleColumn1` (boolean): Sichtbarkeit pro Spalte. Default bei frischer Installation: versteckt.
+- `outline.width` (number): Sidebar-Breite, geteilt zwischen beiden Spalten, gehalten zwischen 180 und 500 px.
+
+**i18n** in allen fünf Sprachen:
+
+- `menu.view.outline`, `outline.title`, `outline.empty`, `outline.toggleTitle`.
+
+**Bewusst nicht in 4T-0014:**
+
+- Backlinks-Sektion und gemeinsame Sidebar-Visibility-Logik → 4T-0015.
+- Hilfe-Dialog, CHANGELOG, Release-Notes → Sammeltask am Epic-Ende.

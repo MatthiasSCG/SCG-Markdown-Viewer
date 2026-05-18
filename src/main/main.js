@@ -345,6 +345,10 @@ function getMenuState(id) {
     restoreSession: !!(store && store.get('restoreSession')),
     autoSave: !!(store && store.get('autoSave')),
     recentFiles: (store && store.get('recentFiles')) || [],
+    // 4T-0014: Haekchen-Stand fuer das Outline-Toggle im Ansicht-Menue.
+    outlineVisible: !!base.outlineVisible,
+    // 4T-0013: Haekchen-Stand fuer das Gliederungs-Toggle im Ansicht-Menue.
+    foldGutter: base.foldGutter !== undefined ? base.foldGutter : true,
   };
 }
 
