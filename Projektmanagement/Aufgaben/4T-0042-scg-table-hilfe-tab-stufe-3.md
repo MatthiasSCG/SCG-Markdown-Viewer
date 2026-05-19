@@ -1,6 +1,6 @@
 # 4T-0042 — Hilfe-Tab um Verschachtelung und HTML-Export erweitern
 
-**Status**: Erledigt — 2026-05-19, gepushed
+**Status**: Erledigt — 2026-05-19, gepushed (Commit `8b4431d`)
 **Epic**: [3E-0008 — SCG Table Stufe 3](3E-0008-scg-table-konverter-verschachtelung.md)
 **Zielversion**: 0.14.0
 

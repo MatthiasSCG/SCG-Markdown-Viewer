@@ -1,6 +1,6 @@
 # 4T-0043 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.14.0
 
-**Status**: Offen
+**Status**: Erledigt — 2026-05-19, gepushed
 **Epic**: [3E-0008 — SCG Table Stufe 3](3E-0008-scg-table-konverter-verschachtelung.md)
 **Zielversion**: 0.14.0
 
@@ -92,4 +92,23 @@ Gemäß [CLAUDE.md — Release-Prozess](../../CLAUDE.md#release-prozess-tag--git
 
 ## Lösung
 
-(wird nach Abschluss der Umsetzung gefüllt)
+Umgesetzt am 2026-05-19, Test bestanden, Release v0.14.0 auf GitHub veröffentlicht.
+
+### Doku-Änderungen
+
+- **[CHANGELOG.md](../../CHANGELOG.md)**: neuer Block `## [0.14.0] - 2026-05-19 — SCG Table: Verschachtelung und HTML-Export`. Subsektionen Neu (vier Bullets: Verschachtelte SCG-Tabellen, HTML-Export, Marker-Mechanismus, Hilfe-Tab-Erweiterung + Funktions-Eintrag), Geändert (Versions-Bump, Parser-Refactoring, mdPortable-Instanz, Datei-Menü-Erweiterung), i18n (drei neue JSON-Keys plus erweiterte Hilfe-Markdown-Dateien).
+- **[README.md](../../README.md)**:
+  - Status-Sektion neu auf 0.14.0 mit Schwerpunkt Verschachtelung, HTML-Export und Marker-Mechanismus. Aufsetzend-auf-Kette um 0.13.0-Schritt ergänzt.
+  - Markdown-Umfang-Bullet zu „SCG Table" erweitert um Hinweise auf Verschachtelung (bis drei Ebenen) und den Export-Menü-Pfad.
+- **`dist/release-notes-0.14.0.md`** (gitignored): Release-Notes für GitHub mit Download-Tabelle, „Was ist neu seit v0.13.0" (drei Hauptabschnitte plus „Verbessert"), System-Anforderungen, SmartScreen-Hinweis und Rückwärtskompatibilitäts-Hinweis.
+
+### Bewusst nicht geändert
+
+- **`help.feature.scgTable`-Beschreibung** in den fünf i18n-JSON-Dateien blieb unverändert. Der Eintrag verweist auf den Hilfe-Tab, der die volle Funktion inklusive Verschachtelung und Export dokumentiert.
+- **Hilfe-Dialog Funktions-Eintrag für exportPortable** wurde bereits in [4T-0042](4T-0042-scg-table-hilfe-tab-stufe-3.md) als Scope-Erweiterung mit umgesetzt, daher hier nicht mehr.
+
+### Release
+
+- Commit `4T-0043: Doku-Stand fuer 0.14.0 (Epic 3E-0008 abgeschlossen)` mit allen Doku-Änderungen plus den offen gebliebenen Status-Updates aus [4T-0042](4T-0042-scg-table-hilfe-tab-stufe-3.md) (Hash-Vermerk).
+- Tag `v0.14.0` auf diesem Commit, auf GitHub gepushed.
+- GitHub-Release [v0.14.0](https://github.com/MatthiasSCG/SCG-Markdown/releases/tag/v0.14.0) als `--latest` markiert mit vier Assets: Setup-EXE, Portable-EXE, `latest.yml` und Setup-Blockmap.

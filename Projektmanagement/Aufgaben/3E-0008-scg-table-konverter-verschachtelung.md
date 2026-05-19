@@ -1,9 +1,10 @@
 # 3E-0008 — SCG Table Stufe 3: HTML-Konverter und verschachtelte Tabellen
 
-**Status**: Offen
-**Zielversion**: 0.14.0 (vorläufig — Versions-Zuordnung wird beim Epic-Start fixiert)
-**Vorgängerversion**: 0.13.0 (oder die Version, in der Stufe 2 ausgeliefert wird)
+**Status**: Erledigt — 2026-05-19, in v0.14.0 ausgeliefert
+**Zielversion**: 0.14.0
+**Vorgängerversion**: 0.13.0
 **Aufsetzend auf**: [3E-0006 — SCG Table Stufe 1](3E-0006-scg-table.md), [3E-0007 — SCG Table Stufe 2](3E-0007-scg-table-spans-ausrichtung.md)
+**Release**: [v0.14.0](https://github.com/MatthiasSCG/SCG-Markdown/releases/tag/v0.14.0)
 
 ## Ziel
 
@@ -50,8 +51,8 @@ Beide Punkte stehen funktional unabhängig voneinander, werden aber im selben Ep
 
 - [x] [4T-0040 — Verschachtelte SCG-Tabellen](4T-0040-scg-table-verschachtelung.md) — erledigt, Commit `ef6c746`, gepushed
 - [x] [4T-0041 — HTML-Konverter: Export portables Markdown](4T-0041-scg-table-html-konverter.md) — erledigt, Commit `191cfb2`, gepushed
-- [ ] [4T-0042 — Hilfe-Tab um Verschachtelung und HTML-Export erweitern](4T-0042-scg-table-hilfe-tab-stufe-3.md)
-- [ ] [4T-0043 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.14.0](4T-0043-changelog-release-0140.md)
+- [x] [4T-0042 — Hilfe-Tab um Verschachtelung und HTML-Export erweitern](4T-0042-scg-table-hilfe-tab-stufe-3.md) — erledigt, Commit `8b4431d`, gepushed
+- [x] [4T-0043 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.14.0](4T-0043-changelog-release-0140.md) — erledigt, gepushed, v0.14.0 veröffentlicht
 
 ## Architekturentscheidungen
 

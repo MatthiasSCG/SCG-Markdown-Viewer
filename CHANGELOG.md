@@ -5,6 +5,32 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.14.0] - 2026-05-19 — SCG Table: Verschachtelung und HTML-Export
+
+Feature-Release. Erweitert SCG-Tabellen (eingeführt in [3E-0006](Projektmanagement/Aufgaben/3E-0006-scg-table.md), Spans/Ausrichtung in [3E-0007](Projektmanagement/Aufgaben/3E-0007-scg-table-spans-ausrichtung.md)) um Verschachtelung bis drei Ebenen tief und einen HTML-Konverter für externe Markdown-Renderer. Umgesetzt als Epic [3E-0008](Projektmanagement/Aufgaben/3E-0008-scg-table-konverter-verschachtelung.md) in den Tasks [4T-0040](Projektmanagement/Aufgaben/4T-0040-scg-table-verschachtelung.md) (Verschachtelung), [4T-0041](Projektmanagement/Aufgaben/4T-0041-scg-table-html-konverter.md) (HTML-Konverter), [4T-0042](Projektmanagement/Aufgaben/4T-0042-scg-table-hilfe-tab-stufe-3.md) (Hilfe-Tab) und Abschluss-Sammeltask [4T-0043](Projektmanagement/Aufgaben/4T-0043-changelog-release-0140.md).
+
+### Neu
+
+- **Verschachtelte SCG-Tabellen** ([4T-0040](Projektmanagement/Aufgaben/4T-0040-scg-table-verschachtelung.md)): Eine Zelle kann selbst eine SCG-Tabelle enthalten, bis zu drei Ebenen tief. CommonMark-konforme Fence-Längen-Regel (jede äußere Fence mindestens eine Backtick mehr als die nächste innere). Rekursionstiefen-Counter mit Limit 3 schützt vor pathologischen Eingaben; ab der vierten Ebene fällt die innerste Tabelle auf Code-Block-Render zurück. **Bonus-Wirkung**: Fence-Tracking im Parser repariert latent eine Stufe-1-Schwäche, bei der ein Code-Block in einer Zelle mit scg-table-ähnlichen Markern zerrissen wurde.
+- **HTML-Export „Datei → Exportieren → Portables Markdown…"** ([4T-0041](Projektmanagement/Aufgaben/4T-0041-scg-table-html-konverter.md)): Konvertiert SCG-Tabellen in einer `.md`-Datei zu inline HTML-Tabellen, sodass sie auch in fremden Markdown-Renderern (GitHub-Vorschau, VS Code, andere Editoren) als echte Tabellen erscheinen. Save-As-Dialog mit Vorbelegung `<basename>-portable.md`. HTML-Output ist HTML5-konform: `colspan`/`rowspan`/`scope` als Attribute, Ausrichtung als `style="text-align: …; vertical-align: …"`, `<caption>` für Tabellen-Beschriftung. Inline-Formatierung in Zellen wird über eine zweite markdown-it-Instanz (`html: true`) zu HTML konvertiert. Original-Datei bleibt unverändert.
+- **Marker `<!-- scg-portable -->`** für die Viewer-Anzeige der exportierten Datei: der Konverter fügt den Marker am Datei-Anfang ein, der Viewer erkennt ihn und schaltet die Datei in einen HTML-fähigen Render-Modus. Damit rendert die exportierte Datei auch im eigenen Viewer als Tabelle. Reguläre `.md`-Dateien rendern unverändert mit `html: false` — kein Sicherheitsrisiko-Anstieg.
+- **Hilfe-Tab um Sektion „Verschachtelte Tabellen und HTML-Export" erweitert** ([4T-0042](Projektmanagement/Aufgaben/4T-0042-scg-table-hilfe-tab-stufe-3.md)): Fence-Längen-Tabelle, gerendetes Verschachtelungs-Beispiel, Bedienungs-Beschreibung des Konverters, Marker-Mechanismus mit Sicherheits-Hinweis. In allen fünf Sprachen.
+- **Funktions-Eintrag im Hilfe-Dialog** (4T-0042, Scope-Erweiterung im Test): neuer Eintrag `help.feature.exportPortable` in der Gruppe „Datei und Sitzung" mit Querverweis auf den SCG-Table-Tab.
+
+### Geändert
+
+- **Versions-Bump** 0.13.0 → 0.14.0 ([package.json](package.json)).
+- **Parser-Refactoring**: `parseScgTableBlock` als gemeinsame Hilfsfunktion für Viewer-Renderer und HTML-Konverter aus [src/main/preload.js](src/main/preload.js) extrahiert.
+- **Zweite md-Instanz `mdPortable`** mit `html: true` für den HTML-Konverter-Pfad und für die Anzeige von Dateien mit `<!-- scg-portable -->`-Marker.
+- **Datei-Menü** um Submenü „Exportieren → Portables Markdown…" erweitert ([src/main/menu.js](src/main/menu.js)).
+
+### i18n
+
+- 3 neue Keys über die fünf unterstützten Sprachen (DE, EN, FR, ES, IT):
+  - `menu.file.export` (Submenü-Label) und `menu.file.exportPortable` (Eintrag-Label) je Sprache.
+  - `help.feature.exportPortable` (Funktions-Eintrag im Hilfe-Dialog) je Sprache.
+- Hilfe-Markdown-Dateien (`src/i18n/help/scg-table.{de,en,fr,es,it}.md`) um die Verschachtelung-und-HTML-Export-Sektion erweitert.
+
 ## [0.13.0] - 2026-05-19 — SCG Table: Spans, Ausrichtung und Accessibility
 
 Feature-Release. Erweitert SCG-Tabellen (eingeführt in [3E-0006](Projektmanagement/Aufgaben/3E-0006-scg-table.md)) um Zell-Attribute für Layout-Steuerung. Umgesetzt als Epic [3E-0007](Projektmanagement/Aufgaben/3E-0007-scg-table-spans-ausrichtung.md) in den Tasks [4T-0037](Projektmanagement/Aufgaben/4T-0037-scg-table-spans-ausrichtung-parser.md) (Parser- und Renderer-Erweiterung), [4T-0038](Projektmanagement/Aufgaben/4T-0038-scg-table-hilfe-tab-stufe-2.md) (Hilfe-Tab erweitert) und Abschluss-Sammeltask [4T-0039](Projektmanagement/Aufgaben/4T-0039-changelog-release-0130.md).

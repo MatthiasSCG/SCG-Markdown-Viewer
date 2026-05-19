@@ -219,10 +219,14 @@ Zusätzlich:
   Zellen können mit Attributen (`colspan`, `rowspan`, `align`,
   `valign`) für Layout-Steuerung versehen werden; `<th>`-Zellen
   erhalten automatisch das passende `scope`-Attribut für Screen-
-  Reader. In fremden Markdown-Renderern (GitHub-Vorschau, VS Code etc.)
-  bleibt der Block als regulärer Code-Block lesbar (Graceful
-  Degradation). Ausführliche Doku mit Syntax-Tabelle und Beispielen
-  im Hilfe-Tab „SCG Table".
+  Reader. SCG-Tabellen können bis zu drei Ebenen ineinander
+  verschachtelt werden. Über `Datei → Exportieren → Portables
+  Markdown…` lassen sie sich in inline HTML-Tabellen konvertieren,
+  damit die Datei auch in fremden Markdown-Renderern (GitHub-Vorschau,
+  VS Code etc.) als echte Tabelle erscheint; in der unkonvertierten
+  Form bleibt der Block dort als regulärer Code-Block lesbar
+  (Graceful Degradation). Ausführliche Doku mit Syntax-Tabelle und
+  Beispielen im Hilfe-Tab „SCG Table".
 
 Ein PDF-Export ist für ein späteres Release vorgesehen (in 0.10.0 begonnen
 und zurückgestellt, siehe [4T-0024](Projektmanagement/Aufgaben/4T-0024-pdf-export.md)).
@@ -377,26 +381,27 @@ die Multi-Resolution-`icon.ico` (16/24/32/48/64/128/256 px) und
 
 ## Status
 
-Version `0.13.0` — SCG-Tabellen erweitert um Zell-Attribute. Zellen
-können mit `colspan`, `rowspan`, `align` (`left`/`center`/`right`) und
-`valign` (`top`/`middle`/`bottom`) versehen werden, um über mehrere
-Spalten oder Zeilen zu greifen und den Zellinhalt auszurichten.
-Strikte Whitelist auf diese vier Attribute verhindert XSS-Risiken aus
-dem Quelltext; freie `style`- oder `class`-Attribute werden
-stillschweigend ignoriert. Header-Zellen bekommen automatisch das
-passende `scope`-Attribut für Screen-Reader. Der Hilfe-Tab „SCG Table"
-wurde um eine Sektion „Spans und Ausrichtung" mit Übersichts-Tabelle
-und Beispiel ergänzt.
+Version `0.14.0` — SCG-Tabellen erweitert um Verschachtelung und
+HTML-Export. Eine Zelle kann selbst eine SCG-Tabelle enthalten, bis
+zu drei Ebenen tief. Über `Datei → Exportieren → Portables Markdown…`
+lässt sich eine Variante der Datei erzeugen, in der SCG-Tabellen
+durch inline HTML-Tabellen ersetzt sind; sie rendert dann auch in
+fremden Markdown-Renderern (GitHub-Vorschau, VS Code etc.) als echte
+Tabelle. Damit der Export auch im eigenen Viewer als Tabelle erscheint
+(statt als Quelltext mit `<table>`-Tags), trägt die exportierte Datei
+am Anfang den Marker `<!-- scg-portable -->`. Reguläre `.md`-Dateien
+rendern weiterhin ohne HTML-Auswertung; das Sicherheitsniveau bleibt
+unverändert.
 
-Aufsetzend auf SCG Table aus 0.12.0 (mehrzeilige Block-Zellen mit
-geschachtelten Listen, Code-Blöcken etc.), Theme-Wahl, Statusbar-Icons
-und Update-Erkennung aus 0.11.0, Render-Lift aus 0.10.0 (Syntax-
-Highlighting, KaTeX, Mermaid), Editor-UX und -Komfort aus 0.9.0
-(Listen-Indent, Zoom, Schriftart, Fokus-Modus, Markdown-Linter),
-Strukturnavigation aus 0.8.0 (Folding, Inhaltsverzeichnis, Backlinks)
-und Multi-Window-Bedienung aus 0.7.0. Funktional vollständig für den
-aktuellen Funktionsumfang, inklusive Windows-Build (Installer +
-Portable).
+Aufsetzend auf Spans und Ausrichtung aus 0.13.0, SCG Table aus 0.12.0
+(mehrzeilige Block-Zellen mit geschachtelten Listen, Code-Blöcken
+etc.), Theme-Wahl, Statusbar-Icons und Update-Erkennung aus 0.11.0,
+Render-Lift aus 0.10.0 (Syntax-Highlighting, KaTeX, Mermaid),
+Editor-UX und -Komfort aus 0.9.0 (Listen-Indent, Zoom, Schriftart,
+Fokus-Modus, Markdown-Linter), Strukturnavigation aus 0.8.0 (Folding,
+Inhaltsverzeichnis, Backlinks) und Multi-Window-Bedienung aus 0.7.0.
+Funktional vollständig für den aktuellen Funktionsumfang, inklusive
+Windows-Build (Installer + Portable).
 
 ## Lizenz
 
