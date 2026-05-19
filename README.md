@@ -215,11 +215,14 @@ Zusätzlich:
   mit Sprach-Tag `scg-table` für Tabellen mit mehrzeiligen Block-Zellen.
   Geschachtelte Listen, mehrere Absätze, Code-Blöcke und Bilder
   innerhalb einer Zelle sind erlaubt. Syntax MediaWiki-nah (`{|`, `|-`,
-  `|`, `!`, `|+`, `|}`); rekursives Markdown-Rendering pro Zelle. In
-  fremden Markdown-Renderern (GitHub-Vorschau, VS Code etc.) bleibt der
-  Block als regulärer Code-Block lesbar (Graceful Degradation).
-  Ausführliche Doku mit Syntax-Tabelle und Beispielen im Hilfe-Tab
-  „SCG Table".
+  `|`, `!`, `|+`, `|}`); rekursives Markdown-Rendering pro Zelle.
+  Zellen können mit Attributen (`colspan`, `rowspan`, `align`,
+  `valign`) für Layout-Steuerung versehen werden; `<th>`-Zellen
+  erhalten automatisch das passende `scope`-Attribut für Screen-
+  Reader. In fremden Markdown-Renderern (GitHub-Vorschau, VS Code etc.)
+  bleibt der Block als regulärer Code-Block lesbar (Graceful
+  Degradation). Ausführliche Doku mit Syntax-Tabelle und Beispielen
+  im Hilfe-Tab „SCG Table".
 
 Ein PDF-Export ist für ein späteres Release vorgesehen (in 0.10.0 begonnen
 und zurückgestellt, siehe [4T-0024](Projektmanagement/Aufgaben/4T-0024-pdf-export.md)).
@@ -374,26 +377,26 @@ die Multi-Resolution-`icon.ico` (16/24/32/48/64/128/256 px) und
 
 ## Status
 
-Version `0.12.0` — SCG Table: Markdown-Erweiterung für Tabellen mit
-mehrzeiligen Block-Zellen. Ein Fenced-Code-Block mit Sprach-Tag
-`scg-table` rendert eine HTML-Tabelle, in deren Zellen geschachtelte
-Listen, mehrere Absätze, Code-Blöcke, Inline-Formatierung, Wiki-Links
-und Bilder erlaubt sind. Die Syntax orientiert sich an MediaWiki
-(`{| … |- … |}`); in fremden Markdown-Renderern bleibt der Block als
-lesbarer Code-Block sichtbar (Graceful Degradation). Ausführliche Doku
-mit Beispielen im neuen dritten Tab des Hilfe-Dialogs („SCG Table"
-neben „Funktionen" und „Tastenkürzel"). Stufe 1 des Epics
-[3E-0006](Projektmanagement/Aufgaben/3E-0006-scg-table.md); `colspan`,
-`rowspan`, Spaltenausrichtung und ein HTML-Konverter für externe
-Renderer folgen in späteren Releases.
+Version `0.13.0` — SCG-Tabellen erweitert um Zell-Attribute. Zellen
+können mit `colspan`, `rowspan`, `align` (`left`/`center`/`right`) und
+`valign` (`top`/`middle`/`bottom`) versehen werden, um über mehrere
+Spalten oder Zeilen zu greifen und den Zellinhalt auszurichten.
+Strikte Whitelist auf diese vier Attribute verhindert XSS-Risiken aus
+dem Quelltext; freie `style`- oder `class`-Attribute werden
+stillschweigend ignoriert. Header-Zellen bekommen automatisch das
+passende `scope`-Attribut für Screen-Reader. Der Hilfe-Tab „SCG Table"
+wurde um eine Sektion „Spans und Ausrichtung" mit Übersichts-Tabelle
+und Beispiel ergänzt.
 
-Aufsetzend auf Theme-Wahl, Statusbar-Icons und Update-Erkennung aus
-0.11.0, Render-Lift aus 0.10.0 (Syntax-Highlighting, KaTeX, Mermaid),
-Editor-UX und -Komfort aus 0.9.0 (Listen-Indent, Zoom, Schriftart,
-Fokus-Modus, Markdown-Linter), Strukturnavigation aus 0.8.0 (Folding,
-Inhaltsverzeichnis, Backlinks) und Multi-Window-Bedienung aus 0.7.0.
-Funktional vollständig für den aktuellen Funktionsumfang, inklusive
-Windows-Build (Installer + Portable).
+Aufsetzend auf SCG Table aus 0.12.0 (mehrzeilige Block-Zellen mit
+geschachtelten Listen, Code-Blöcken etc.), Theme-Wahl, Statusbar-Icons
+und Update-Erkennung aus 0.11.0, Render-Lift aus 0.10.0 (Syntax-
+Highlighting, KaTeX, Mermaid), Editor-UX und -Komfort aus 0.9.0
+(Listen-Indent, Zoom, Schriftart, Fokus-Modus, Markdown-Linter),
+Strukturnavigation aus 0.8.0 (Folding, Inhaltsverzeichnis, Backlinks)
+und Multi-Window-Bedienung aus 0.7.0. Funktional vollständig für den
+aktuellen Funktionsumfang, inklusive Windows-Build (Installer +
+Portable).
 
 ## Lizenz
 

@@ -1,9 +1,10 @@
 # 3E-0007 — SCG Table Stufe 2: colspan, rowspan, Spaltenausrichtung
 
-**Status**: Offen
-**Zielversion**: 0.13.0 (vorläufig — Versions-Zuordnung wird beim Epic-Start fixiert)
+**Status**: Erledigt — 2026-05-19, in v0.13.0 ausgeliefert
+**Zielversion**: 0.13.0
 **Vorgängerversion**: 0.12.0
 **Aufsetzend auf**: [3E-0006 — SCG Table Stufe 1](3E-0006-scg-table.md)
+**Release**: [v0.13.0](https://github.com/MatthiasSCG/SCG-Markdown/releases/tag/v0.13.0)
 
 ## Ziel
 
@@ -41,8 +42,8 @@ Ohne Stufe 2 bleibt die scg-table-Funktion auf einfache rechteckige Strukturen m
 ## Untergeordnete Tasks
 
 - [x] [4T-0037 — Parser- und Renderer-Erweiterung (Spans, Ausrichtung, Accessibility-scope)](4T-0037-scg-table-spans-ausrichtung-parser.md) — erledigt, Commit `5e374cd`, gepushed
-- [ ] [4T-0038 — Hilfe-Tab um Stufe-2-Doku erweitern](4T-0038-scg-table-hilfe-tab-stufe-2.md)
-- [ ] [4T-0039 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.13.0](4T-0039-changelog-release-0130.md)
+- [x] [4T-0038 — Hilfe-Tab um Stufe-2-Doku erweitern](4T-0038-scg-table-hilfe-tab-stufe-2.md) — erledigt, Commit `e893b1c`, gepushed
+- [x] [4T-0039 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.13.0](4T-0039-changelog-release-0130.md) — erledigt, gepushed, v0.13.0 veröffentlicht
 
 ## Architekturentscheidungen
 

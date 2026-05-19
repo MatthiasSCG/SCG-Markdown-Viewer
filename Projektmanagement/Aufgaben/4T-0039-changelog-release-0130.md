@@ -1,6 +1,6 @@
 # 4T-0039 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.13.0
 
-**Status**: Offen
+**Status**: Erledigt — 2026-05-19, gepushed
 **Epic**: [3E-0007 — SCG Table Stufe 2](3E-0007-scg-table-spans-ausrichtung.md)
 **Zielversion**: 0.13.0
 
@@ -106,4 +106,23 @@ Nach erfolgreichem Release alle zugehörigen Vorgänge auf `Erledigt`:
 
 ## Lösung
 
-(wird nach Abschluss der Umsetzung gefüllt)
+Umgesetzt am 2026-05-19, Test bestanden, Release v0.13.0 auf GitHub veröffentlicht.
+
+### Doku-Änderungen
+
+- **[CHANGELOG.md](../../CHANGELOG.md)**: neuer Block `## [0.13.0] - 2026-05-19 — SCG Table: Spans, Ausrichtung und Accessibility`. Subsektionen Neu (drei Bullets: Zell-Attribute, Accessibility-`scope`, Hilfe-Tab-Erweiterung), Geändert (Versions-Bump und CSS-Klassen), i18n (keine neuen JSON-Keys, nur Markdown-Hilfe-Inhalte erweitert).
+- **[README.md](../../README.md)**:
+  - Status-Sektion neu geschrieben auf 0.13.0 mit Schwerpunkt Zell-Attribute, Whitelist-Sicherheit und Accessibility-`scope`. Aufsetzend-auf-Kette um 0.12.0-Schritt ergänzt.
+  - Markdown-Umfang-Bullet zu „SCG Table" erweitert um Erwähnung von `colspan`/`rowspan`/`align`/`valign` und automatischer `scope`-Setzung.
+  - Stufen-Begriff aus User-Sicht raus (alte 0.12.0-Sektion erwähnte „Stufe 1 des Epics"; neuer Text ohne Stufen-Verweis).
+- **`dist/release-notes-0.13.0.md`** (gitignored): Release-Notes für GitHub mit Download-Tabelle, „Was ist neu seit v0.12.0" (zwei Hauptabschnitte plus „Verbessert"), System-Anforderungen, SmartScreen-Hinweis und Hinweis zur Rückwärtskompatibilität (bestehende Tabellen ohne Attribute rendern unverändert).
+
+### Bewusst nicht geändert
+
+- **`help.feature.scgTable`-Beschreibung** in den fünf i18n-JSON-Dateien blieb unverändert. Der Eintrag verweist auf den Hilfe-Tab, und der Tab dokumentiert die volle Funktion inklusive Spans und Ausrichtung. Den kurzen Funktions-Eintrag aufzublähen wäre redundant zur Hilfe-Tab-Doku.
+
+### Release
+
+- Commit `4T-0039: Doku-Stand fuer 0.13.0 (Epic 3E-0007 abgeschlossen)` mit allen Doku-Änderungen plus den offen gebliebenen Status-Updates aus [4T-0038](4T-0038-scg-table-hilfe-tab-stufe-2.md) (Hash-Vermerk in Epic-Liste).
+- Tag `v0.13.0` auf diesem Commit, auf GitHub gepushed.
+- GitHub-Release [v0.13.0](https://github.com/MatthiasSCG/SCG-Markdown/releases/tag/v0.13.0) als `--latest` markiert mit vier Assets: Setup-EXE, Portable-EXE, `latest.yml` und Setup-Blockmap.

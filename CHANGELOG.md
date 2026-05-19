@@ -5,6 +5,25 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.13.0] - 2026-05-19 — SCG Table: Spans, Ausrichtung und Accessibility
+
+Feature-Release. Erweitert SCG-Tabellen (eingeführt in [3E-0006](Projektmanagement/Aufgaben/3E-0006-scg-table.md)) um Zell-Attribute für Layout-Steuerung. Umgesetzt als Epic [3E-0007](Projektmanagement/Aufgaben/3E-0007-scg-table-spans-ausrichtung.md) in den Tasks [4T-0037](Projektmanagement/Aufgaben/4T-0037-scg-table-spans-ausrichtung-parser.md) (Parser- und Renderer-Erweiterung), [4T-0038](Projektmanagement/Aufgaben/4T-0038-scg-table-hilfe-tab-stufe-2.md) (Hilfe-Tab erweitert) und Abschluss-Sammeltask [4T-0039](Projektmanagement/Aufgaben/4T-0039-changelog-release-0130.md).
+
+### Neu
+
+- **Zell-Attribute in SCG-Tabellen** ([4T-0037](Projektmanagement/Aufgaben/4T-0037-scg-table-spans-ausrichtung-parser.md)): `colspan`, `rowspan`, `align` (`left`/`center`/`right`) und `valign` (`top`/`middle`/`bottom`) als Whitelist-Attribute am Zellenanfang (`| attr="val" attr="val" | Inhalt`). Strikte Wert-Validierung; freie `style="…"`-, `class="…"`- oder `onclick="…"`-Attribute werden stillschweigend ignoriert (kein XSS-Risiko aus dem Quelltext). `align`/`valign` werden auf CSS-Klassen (`.align-*`/`.valign-*`) gemappt, nicht auf das deprecated HTML4-`align`-Attribut, damit die CSS-Hoheit beim App-Stylesheet bleibt.
+- **Accessibility-Verbesserung für Header-Zellen** ([4T-0037](Projektmanagement/Aufgaben/4T-0037-scg-table-spans-ausrichtung-parser.md)): `<th>` in der Header-Zeile bekommt automatisch `scope="col"`, `<th>` als Zeilen-Header (`!` am Anfang einer Datenzeile) bekommt `scope="row"`. Damit verbinden Screen-Reader Datenzellen mit ihren Headern.
+- **Hilfe-Tab um Spans-und-Ausrichtung-Sektion erweitert** ([4T-0038](Projektmanagement/Aufgaben/4T-0038-scg-table-hilfe-tab-stufe-2.md)): Neue Sektion „Spans und Ausrichtung" im Tab „SCG Table" mit Übersichts-Tabelle der vier Attribute, Beispiel „Aufwandsschätzung" mit gerenderter Tabelle, Tipps-Subblock und Accessibility-Hinweis. In allen fünf Sprachen.
+
+### Geändert
+
+- **Versions-Bump** 0.12.0 → 0.13.0 ([package.json](package.json)).
+- **CSS-Klassen** `.scg-table .align-{left|center|right}` und `.valign-{top|middle|bottom}` in [src/renderer/styles.css](src/renderer/styles.css).
+
+### i18n
+
+- Keine neuen i18n-JSON-Keys. Die Hilfe-Inhalte sind als Markdown-Dateien organisiert (`src/i18n/help/scg-table.{de,en,fr,es,it}.md`); diese wurden um die Spans-und-Ausrichtung-Sektion erweitert.
+
 ## [0.12.0] - 2026-05-19 — SCG Table: mehrzeilige Block-Zellen in Tabellen
 
 Feature-Release, der eine Markdown-Erweiterung für Tabellen mit mehrzeiligen Block-Zellen einführt. Umgesetzt als Epic [3E-0006](Projektmanagement/Aufgaben/3E-0006-scg-table.md) in den Tasks [4T-0034](Projektmanagement/Aufgaben/4T-0034-scg-table-parser.md) (Parser und Renderer), [4T-0036](Projektmanagement/Aufgaben/4T-0036-scg-table-hilfe-tab.md) (Hilfe-Tab mit ausführlicher Doku) und Abschluss-Sammeltask [4T-0035](Projektmanagement/Aufgaben/4T-0035-changelog-release-0120.md). Stufe 1 des Epics; `colspan`/`rowspan`/Ausrichtung und ein HTML-Konverter für externe Renderer folgen in späteren Folge-Epics.

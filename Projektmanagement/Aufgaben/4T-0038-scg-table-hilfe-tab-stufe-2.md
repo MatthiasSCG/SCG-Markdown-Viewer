@@ -1,6 +1,6 @@
 # 4T-0038 — Hilfe-Tab um Stufe-2-Doku erweitern
 
-**Status**: Erledigt — 2026-05-19, gepushed
+**Status**: Erledigt — 2026-05-19, gepushed (Commit `e893b1c`)
 **Epic**: [3E-0007 — SCG Table Stufe 2](3E-0007-scg-table-spans-ausrichtung.md)
 **Zielversion**: 0.13.0
 
