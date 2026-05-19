@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>4T-0031 — Icon-Mockup für Statusbar-Buttons</title>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --bg-alt: #f5f5f5;
+        --bg-toolbar: #fafafa;
+        --fg: #1f1f1f;
+        --fg-muted: #6a6a6a;
+        --border: #e0e0e0;
+        --border-strong: #c8c8c8;
+        --accent: #0a66c2;
+        --accent-fg: #ffffff;
+        --hover: #efefef;
+        --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+      [data-theme="dark"] {
+        --bg: #1e1e1e;
+        --bg-alt: #252526;
+        --bg-toolbar: #2a2a2a;
+        --fg: #e6e6e6;
+        --fg-muted: #9d9d9d;
+        --border: #3a3a3a;
+        --border-strong: #4d4d4d;
+        --accent: #4ea2ff;
+        --accent-fg: #0b1f33;
+        --hover: #333333;
+        --shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: var(--bg-toolbar);
+        border-bottom: 1px solid var(--border);
+        padding: 16px 24px;
+        box-shadow: var(--shadow);
+      }
+      header h1 {
+        margin: 0 0 4px 0;
+        font-size: 18px;
+        font-weight: 600;
+      }
+      header p {
+        margin: 0;
+        font-size: 13px;
+        color: var(--fg-muted);
+      }
+      .controls {
+        margin-top: 12px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .theme-btn {
+        background: var(--bg-alt);
+        color: var(--fg);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 6px 14px;
+        font: inherit;
+        cursor: pointer;
+      }
+      .theme-btn:hover { background: var(--hover); }
+      .theme-btn.active {
+        background: var(--accent);
+        color: var(--accent-fg);
+        border-color: var(--accent);
+      }
+      main {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 24px;
+        padding: 20px 0;
+        border-bottom: 1px solid var(--border);
+      }
+      .row:last-child { border-bottom: none; }
+      .row-label h2 {
+        margin: 0 0 4px 0;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .row-label .id {
+        font-family: Consolas, "Cascadia Code", monospace;
+        font-size: 12px;
+        color: var(--fg-muted);
+      }
+      .row-label .desc {
+        margin: 8px 0 0 0;
+        font-size: 12px;
+        color: var(--fg-muted);
+      }
+      .row-label .today {
+        margin-top: 12px;
+        padding: 6px 10px;
+        background: var(--bg-alt);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        font-size: 12px;
+        display: inline-block;
+      }
+      .variants {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+      .variant {
+        background: var(--bg-alt);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .variant-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        font-size: 12px;
+      }
+      .variant-head .num {
+        font-weight: 600;
+      }
+      .variant-head .name {
+        font-family: Consolas, "Cascadia Code", monospace;
+        color: var(--fg-muted);
+      }
+      .variant-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 0;
+      }
+      .variant-row-label {
+        font-size: 11px;
+        color: var(--fg-muted);
+        text-align: center;
+      }
+
+      /* Statusbar-Button-Stile aus styles.css */
+      .btn-toggle {
+        background: var(--bg-alt);
+        color: var(--fg);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 5px 10px;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 32px;
+        min-height: 28px;
+      }
+      .btn-toggle:hover { background: var(--hover); }
+      .btn-toggle.active {
+        background: var(--accent);
+        color: var(--accent-fg);
+        border-color: var(--accent);
+      }
+      .btn-toggle svg { width: 16px; height: 16px; display: block; }
+
+      .view-toggle {
+        display: inline-flex;
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .view-btn {
+        background: var(--bg-alt);
+        color: var(--fg);
+        border: none;
+        padding: 5px 12px;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+        border-right: 1px solid var(--border);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 36px;
+        min-height: 28px;
+      }
+      .view-btn:last-child { border-right: none; }
+      .view-btn:hover { background: var(--hover); }
+      .view-btn.active {
+        background: var(--accent);
+        color: var(--accent-fg);
+      }
+      .view-btn svg { width: 16px; height: 16px; display: block; }
+
+      .preview-bar {
+        margin-top: 24px;
+        padding: 12px 16px;
+        background: var(--bg-toolbar);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .preview-bar h3 {
+        margin: 0 12px 0 0;
+        font-size: 14px;
+      }
+      .preview-section {
+        padding: 16px 24px;
+        background: var(--bg-alt);
+        border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+      }
+      .preview-row {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .preview-row:last-child { margin-bottom: 0; }
+      .preview-label {
+        font-size: 12px;
+        color: var(--fg-muted);
+        min-width: 110px;
+      }
+      .preview-spacer { flex: 1; }
+      .footer-note {
+        margin-top: 32px;
+        padding: 16px;
+        background: var(--bg-alt);
+        border-left: 3px solid var(--accent);
+        border-radius: 4px;
+        font-size: 13px;
+      }
+      .footer-note strong { color: var(--accent); }
+      a.lucide-link {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      a.lucide-link:hover { text-decoration: underline; }
+    </style>
+  </head>
+  <body data-theme="light">
+    <header>
+      <h1>Icon-Mockup für 4T-0031 — Statusbar-Buttons</h1>
+      <p>
+        Acht Buttons unten links in der Statusbar, je drei Icon-Varianten zur Auswahl. Alle Icons aus
+        <a class="lucide-link" href="https://lucide.dev" target="_blank">Lucide</a> (MIT-Lizenz).
+        Pro Button bitte eine Variante wählen oder „keine passend" notieren.
+      </p>
+      <div class="controls">
+        <span>Theme:</span>
+        <button class="theme-btn active" data-theme-set="light">Hell</button>
+        <button class="theme-btn" data-theme-set="dark">Dunkel</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- btn-outline -->
+      <section class="row">
+        <div class="row-label">
+          <h2>Inhalt</h2>
+          <div class="id">btn-outline</div>
+          <p class="desc">Inhaltsverzeichnis-Sidebar ein-/ausblenden.</p>
+          <div class="today">Heute: „Inhalt"</div>
+        </div>
+        <div class="variants">
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 1</span><span class="name">list-tree</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle" title="inaktiv"><i data-lucide="list-tree"></i></button>
+              <button class="btn-toggle active" title="aktiv"><i data-lucide="list-tree"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 2</span><span class="name">align-left</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="align-left"></i></button>
+              <button class="btn-toggle active"><i data-lucide="align-left"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 3</span><span class="name">text-quote</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="text-quote"></i></button>
+              <button class="btn-toggle active"><i data-lucide="text-quote"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- btn-backlinks -->
+      <section class="row">
+        <div class="row-label">
+          <h2>Backlinks</h2>
+          <div class="id">btn-backlinks</div>
+          <p class="desc">Backlinks-Sidebar ein-/ausblenden.</p>
+          <div class="today">Heute: „Backlinks"</div>
+        </div>
+        <div class="variants">
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 1</span><span class="name">link-2</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="link-2"></i></button>
+              <button class="btn-toggle active"><i data-lucide="link-2"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 2</span><span class="name">corner-up-left</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="corner-up-left"></i></button>
+              <button class="btn-toggle active"><i data-lucide="corner-up-left"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 3</span><span class="name">git-branch</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="git-branch"></i></button>
+              <button class="btn-toggle active"><i data-lucide="git-branch"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- btn-fold-gutter -->
+      <section class="row">
+        <div class="row-label">
+          <h2>Gliederung</h2>
+          <div class="id">btn-fold-gutter</div>
+          <p class="desc">Code-Folding-Spalte im Editor ein-/ausblenden.</p>
+          <div class="today">Heute: „Gliederung"</div>
+        </div>
+        <div class="variants">
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 1</span><span class="name">fold-vertical</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="fold-vertical"></i></button>
+              <button class="btn-toggle active"><i data-lucide="fold-vertical"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 2</span><span class="name">chevrons-down-up</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="chevrons-down-up"></i></button>
+              <button class="btn-toggle active"><i data-lucide="chevrons-down-up"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 3</span><span class="name">unfold-vertical</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="unfold-vertical"></i></button>
+              <button class="btn-toggle active"><i data-lucide="unfold-vertical"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- btn-numbers -->
+      <section class="row">
+        <div class="row-label">
+          <h2>Nummern</h2>
+          <div class="id">btn-numbers</div>
+          <p class="desc">Zeilennummern im Editor ein-/ausblenden.</p>
+          <div class="today">Heute: „Nummern"</div>
+        </div>
+        <div class="variants">
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 1</span><span class="name">list-ordered</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="list-ordered"></i></button>
+              <button class="btn-toggle active"><i data-lucide="list-ordered"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 2</span><span class="name">hash</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="hash"></i></button>
+              <button class="btn-toggle active"><i data-lucide="hash"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 3</span><span class="name">whole-word</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="whole-word"></i></button>
+              <button class="btn-toggle active"><i data-lucide="whole-word"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- btn-wrap -->
+      <section class="row">
+        <div class="row-label">
+          <h2>Umbruch</h2>
+          <div class="id">btn-wrap</div>
+          <p class="desc">Zeilenumbruch im Editor an/aus.</p>
+          <div class="today">Heute: „Umbruch"</div>
+        </div>
+        <div class="variants">
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 1</span><span class="name">wrap-text</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="wrap-text"></i></button>
+              <button class="btn-toggle active"><i data-lucide="wrap-text"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 2</span><span class="name">corner-down-left</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="corner-down-left"></i></button>
+              <button class="btn-toggle active"><i data-lucide="corner-down-left"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 3</span><span class="name">pilcrow</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="pilcrow"></i></button>
+              <button class="btn-toggle active"><i data-lucide="pilcrow"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- view-source -->
+      <section class="row">
+        <div class="row-label">
+          <h2>Quellcode</h2>
+          <div class="id">view=source</div>
+          <p class="desc">Ansichts-Modus: nur Quellcode-Pane sichtbar.</p>
+          <div class="today">Heute: „Quellcode"</div>
+        </div>
+        <div class="variants">
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 1</span><span class="name">code</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="code"></i></button>
+              <button class="btn-toggle active"><i data-lucide="code"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 2</span><span class="name">panel-left</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="panel-left"></i></button>
+              <button class="btn-toggle active"><i data-lucide="panel-left"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 3</span><span class="name">file-code-2</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="file-code-2"></i></button>
+              <button class="btn-toggle active"><i data-lucide="file-code-2"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- view-split -->
+      <section class="row">
+        <div class="row-label">
+          <h2>Geteilt</h2>
+          <div class="id">view=split</div>
+          <p class="desc">Ansichts-Modus: Quellcode und Render-Pane geteilt.</p>
+          <div class="today">Heute: „Geteilt"</div>
+        </div>
+        <div class="variants">
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 1</span><span class="name">columns-2</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="columns-2"></i></button>
+              <button class="btn-toggle active"><i data-lucide="columns-2"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 2</span><span class="name">panels-right-bottom</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="panels-right-bottom"></i></button>
+              <button class="btn-toggle active"><i data-lucide="panels-right-bottom"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 3</span><span class="name">square-split-horizontal</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="square-split-horizontal"></i></button>
+              <button class="btn-toggle active"><i data-lucide="square-split-horizontal"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- view-rendered -->
+      <section class="row">
+        <div class="row-label">
+          <h2>Gerendert</h2>
+          <div class="id">view=rendered</div>
+          <p class="desc">Ansichts-Modus: nur Render-Pane sichtbar.</p>
+          <div class="today">Heute: „Gerendert"</div>
+        </div>
+        <div class="variants">
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 1</span><span class="name">eye</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="eye"></i></button>
+              <button class="btn-toggle active"><i data-lucide="eye"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 2</span><span class="name">panel-right</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="panel-right"></i></button>
+              <button class="btn-toggle active"><i data-lucide="panel-right"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+          <div class="variant">
+            <div class="variant-head"><span class="num">Variante 3</span><span class="name">file-text</span></div>
+            <div class="variant-row">
+              <button class="btn-toggle"><i data-lucide="file-text"></i></button>
+              <button class="btn-toggle active"><i data-lucide="file-text"></i></button>
+            </div>
+            <div class="variant-row-label">inaktiv &nbsp; aktiv</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Live-Vorschau aller Buttons in Reihe -->
+      <div class="preview-section">
+        <h3 style="margin: 0 0 12px 0; font-size: 15px;">Vorschau: Statusbar-Reihe mit jeweils Variante 1</h3>
+        <div class="preview-row">
+          <span class="preview-label">Wie heute:</span>
+          <button class="btn-toggle">Inhalt</button>
+          <button class="btn-toggle active">Backlinks</button>
+          <button class="btn-toggle">Gliederung</button>
+          <button class="btn-toggle active">Nummern</button>
+          <button class="btn-toggle">Umbruch</button>
+          <div class="view-toggle">
+            <button class="view-btn">Quellcode</button>
+            <button class="view-btn">Geteilt</button>
+            <button class="view-btn active">Gerendert</button>
+          </div>
+        </div>
+        <div class="preview-row">
+          <span class="preview-label">Mit Variante 1:</span>
+          <button class="btn-toggle" title="Inhalt"><i data-lucide="list-tree"></i></button>
+          <button class="btn-toggle active" title="Backlinks"><i data-lucide="link-2"></i></button>
+          <button class="btn-toggle" title="Gliederung"><i data-lucide="fold-vertical"></i></button>
+          <button class="btn-toggle active" title="Nummern"><i data-lucide="list-ordered"></i></button>
+          <button class="btn-toggle" title="Umbruch"><i data-lucide="wrap-text"></i></button>
+          <div class="view-toggle">
+            <button class="view-btn" title="Quellcode"><i data-lucide="code"></i></button>
+            <button class="view-btn" title="Geteilt"><i data-lucide="columns-2"></i></button>
+            <button class="view-btn active" title="Gerendert"><i data-lucide="eye"></i></button>
+          </div>
+        </div>
+        <div class="preview-row">
+          <span class="preview-label">Mit Variante 2:</span>
+          <button class="btn-toggle" title="Inhalt"><i data-lucide="align-left"></i></button>
+          <button class="btn-toggle active" title="Backlinks"><i data-lucide="corner-up-left"></i></button>
+          <button class="btn-toggle" title="Gliederung"><i data-lucide="chevrons-down-up"></i></button>
+          <button class="btn-toggle active" title="Nummern"><i data-lucide="hash"></i></button>
+          <button class="btn-toggle" title="Umbruch"><i data-lucide="corner-down-left"></i></button>
+          <div class="view-toggle">
+            <button class="view-btn" title="Quellcode"><i data-lucide="panel-left"></i></button>
+            <button class="view-btn" title="Geteilt"><i data-lucide="panels-right-bottom"></i></button>
+            <button class="view-btn active" title="Gerendert"><i data-lucide="panel-right"></i></button>
+          </div>
+        </div>
+        <div class="preview-row">
+          <span class="preview-label">Mit Variante 3:</span>
+          <button class="btn-toggle" title="Inhalt"><i data-lucide="text-quote"></i></button>
+          <button class="btn-toggle active" title="Backlinks"><i data-lucide="git-branch"></i></button>
+          <button class="btn-toggle" title="Gliederung"><i data-lucide="unfold-vertical"></i></button>
+          <button class="btn-toggle active" title="Nummern"><i data-lucide="whole-word"></i></button>
+          <button class="btn-toggle" title="Umbruch"><i data-lucide="pilcrow"></i></button>
+          <div class="view-toggle">
+            <button class="view-btn" title="Quellcode"><i data-lucide="file-code-2"></i></button>
+            <button class="view-btn" title="Geteilt"><i data-lucide="square-split-horizontal"></i></button>
+            <button class="view-btn active" title="Gerendert"><i data-lucide="file-text"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-note">
+        <strong>Hinweis:</strong> Icons werden zur Laufzeit aus dem Lucide-CDN
+        (<code>unpkg.com</code>) geladen. Für die Auswahl ist eine Internet-Verbindung nötig.
+        In der App selbst werden die ausgewählten Icons als Inline-SVG eingebettet,
+        ohne CDN-Abhängigkeit. Wenn ein Icon nicht erscheint: möglicherweise Name in
+        neuerer Lucide-Version umbenannt, dann bitte melden, ich liefere Ersatz.
+      </div>
+    </main>
+
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script>
+      lucide.createIcons();
+
+      document.querySelectorAll('.theme-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const theme = btn.dataset.themeSet;
+          document.body.setAttribute('data-theme', theme);
+          document.querySelectorAll('.theme-btn').forEach((b) => b.classList.remove('active'));
+          btn.classList.add('active');
+        });
+      });
+    </script>
+  </body>
+</html>
