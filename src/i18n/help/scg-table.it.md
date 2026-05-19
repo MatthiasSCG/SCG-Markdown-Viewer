@@ -115,6 +115,79 @@ npm init -y
 |}
 ````
 
+## Span e allineamento
+
+Dalla versione 0.13.0, le celle possono avere attributi per estendersi su più colonne o righe e per allineare il contenuto della cella.
+
+### Panoramica degli attributi
+
+| Attributo | Valori consentiti              | Effetto                                                       |
+|-----------|--------------------------------|---------------------------------------------------------------|
+| `colspan` | intero positivo                | La cella si estende su più colonne                            |
+| `rowspan` | intero positivo                | La cella si estende su più righe                              |
+| `align`   | `left` / `center` / `right`    | Allineamento orizzontale del contenuto della cella            |
+| `valign`  | `top` / `middle` / `bottom`    | Allineamento verticale in celle-blocco multilinea             |
+
+Gli attributi si trovano tra due barre verticali all'inizio della cella: `| attr="val" attr="val" | contenuto`.
+
+### Esempio con colspan, rowspan e align
+
+Sorgente:
+
+````markdown
+```scg-table
+{|
+|+ Stima dell'impegno
+|-
+! Area
+! Attività
+! align="right" | Ore
+|-
+| rowspan="2" | Progettazione
+| Raccolta dei requisiti
+| align="right" | 8
+|-
+| Bozza del layout
+| align="right" | 4
+|-
+| colspan="2" align="center" | Subtotale
+| align="right" | 12
+|}
+```
+````
+
+Risultato:
+
+```scg-table
+{|
+|+ Stima dell'impegno
+|-
+! Area
+! Attività
+! align="right" | Ore
+|-
+| rowspan="2" | Progettazione
+| Raccolta dei requisiti
+| align="right" | 8
+|-
+| Bozza del layout
+| align="right" | 4
+|-
+| colspan="2" align="center" | Subtotale
+| align="right" | 12
+|}
+```
+
+### Suggerimenti su span e allineamento
+
+- Gli attributi possono apparire in qualsiasi ordine: `| colspan="2" align="center" | contenuto` e `| align="center" colspan="2" | contenuto` sono equivalenti.
+- I valori non validi vengono ignorati silenziosamente (ad esempio `colspan="abc"`, `align="sopra"`).
+- Le celle senza blocco di attributi vengono renderizzate come prima.
+
+### Accessibilità
+
+Le celle di intestazione (`!`) ricevono automaticamente l'attributo `scope` appropriato: `scope="col"` per le intestazioni nella riga di intestazione, `scope="row"` per le intestazioni all'interno delle righe di dati. Questo permette ai lettori di schermo di associare le celle di dati con le loro intestazioni.
+
 ## Suggerimenti
 
 **`|-` è obbligatorio tra le righe della tabella.** Senza `|-`, le celle `|` successive vengono interpretate come ulteriori celle della stessa riga, non come una nuova riga. Inciampo più frequente all'inizio.
@@ -133,7 +206,7 @@ I file `.md` con blocchi `scg-table` si visualizzano come tabelle solo in questo
 
 ## Prospettiva
 
-Questa fase copre la sintassi di base. Estensioni pianificate:
+Estensioni pianificate:
 
-- **Fase 2**: `colspan` e `rowspan`, allineamento delle colonne (sinistra / centro / destra), semplici attributi di cella.
-- **Fase 3**: convertitore `scg-table` → tabella HTML inline per la massima portabilità in renderer Markdown di terze parti.
+- **Convertitore HTML e tabelle annidate**: convertitore `scg-table` → tabella HTML inline per la massima portabilità in renderer Markdown di terze parti, più tabelle SCG annidate nelle celle.
+- **Ordinamento, evidenziazione dello stato e allineamento predefinito**: tabelle ordinabili, evidenziazione dello stato (errore/avviso/ok) tramite classi semantiche e allineamento predefinito per colonna.

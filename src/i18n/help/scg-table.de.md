@@ -115,6 +115,79 @@ npm init -y
 |}
 ````
 
+## Spans und Ausrichtung
+
+Ab Version 0.13.0 lassen sich Zellen mit Attributen versehen, um über mehrere Spalten oder Zeilen zu greifen und den Zellinhalt auszurichten.
+
+### Übersicht der Attribute
+
+| Attribut  | Erlaubte Werte               | Wirkung                                                |
+|-----------|------------------------------|--------------------------------------------------------|
+| `colspan` | positive Ganzzahl            | Zelle erstreckt sich über mehrere Spalten              |
+| `rowspan` | positive Ganzzahl            | Zelle erstreckt sich über mehrere Zeilen               |
+| `align`   | `left` / `center` / `right`  | horizontale Ausrichtung des Zellinhalts                |
+| `valign`  | `top` / `middle` / `bottom`  | vertikale Ausrichtung in mehrzeiligen Block-Zellen     |
+
+Attribute stehen zwischen zwei Pipes am Zellenanfang: `| attr="val" attr="val" | Inhalt`.
+
+### Beispiel mit colspan, rowspan und align
+
+Quelltext:
+
+````markdown
+```scg-table
+{|
+|+ Aufwandsschätzung
+|-
+! Bereich
+! Aufgabe
+! align="right" | Stunden
+|-
+| rowspan="2" | Entwurf
+| Anforderungen sammeln
+| align="right" | 8
+|-
+| Layout-Skizze
+| align="right" | 4
+|-
+| colspan="2" align="center" | Zwischensumme
+| align="right" | 12
+|}
+```
+````
+
+Ergebnis:
+
+```scg-table
+{|
+|+ Aufwandsschätzung
+|-
+! Bereich
+! Aufgabe
+! align="right" | Stunden
+|-
+| rowspan="2" | Entwurf
+| Anforderungen sammeln
+| align="right" | 8
+|-
+| Layout-Skizze
+| align="right" | 4
+|-
+| colspan="2" align="center" | Zwischensumme
+| align="right" | 12
+|}
+```
+
+### Tipps zu Spans und Ausrichtung
+
+- Attribute können in beliebiger Reihenfolge stehen: `| colspan="2" align="center" | Inhalt` und `| align="center" colspan="2" | Inhalt` sind gleichwertig.
+- Ungültige Werte werden stillschweigend ignoriert (z.B. `colspan="abc"`, `align="oben"`).
+- Zellen ohne Attribut-Block rendern unverändert wie bisher.
+
+### Accessibility
+
+Header-Zellen (`!`) bekommen automatisch das passende `scope`-Attribut: `scope="col"` für Header in der Tabellen-Header-Zeile, `scope="row"` für Header innerhalb von Datenzeilen. Damit verbinden Screen-Reader Datenzellen mit ihren Headern.
+
 ## Tipps
 
 **`|-` ist Pflicht zwischen Tabellenzeilen.** Ohne `|-` werden Folge-`|`-Zellen als weitere Zellen derselben Zeile interpretiert, nicht als neue Zeile. Häufigster Stolperstein beim Einstieg.
@@ -133,7 +206,7 @@ npm init -y
 
 ## Ausblick
 
-Diese Stufe deckt die Basis-Syntax ab. Geplante Erweiterungen:
+Geplante Erweiterungen:
 
-- **Stufe 2**: `colspan` und `rowspan`, Spaltenausrichtung (links / zentriert / rechts), einfache Zell-Attribute.
-- **Stufe 3**: Konverter `scg-table` → HTML-Tabelle inline für maximale Portabilität in fremden Markdown-Renderern.
+- **HTML-Konverter und verschachtelte Tabellen**: Konverter `scg-table` → HTML-Tabelle inline für maximale Portabilität in fremden Markdown-Renderern, plus verschachtelte SCG-Tabellen in Zellen.
+- **Sortierung, Status-Hervorhebung und Spalten-Default**: sortierbare Tabellen, Status-Hervorhebung (Fehler/Warnung/OK) über semantische Klassen und Standard-Ausrichtung pro Spalte.

@@ -1,6 +1,6 @@
 # 4T-0037 — Parser- und Renderer-Erweiterung für scg-table Stufe 2 (Spans, Ausrichtung, Accessibility-scope)
 
-**Status**: Wartet auf Test
+**Status**: Erledigt — 2026-05-19, gepushed (Commit `5e374cd`)
 **Epic**: [3E-0007 — SCG Table Stufe 2](3E-0007-scg-table-spans-ausrichtung.md)
 **Zielversion**: 0.13.0
 

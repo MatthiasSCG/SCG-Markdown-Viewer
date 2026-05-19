@@ -115,6 +115,79 @@ npm init -y
 |}
 ````
 
+## Spans et alignement
+
+À partir de la version 0.13.0, les cellules peuvent porter des attributs pour s'étendre sur plusieurs colonnes ou lignes et pour aligner leur contenu.
+
+### Aperçu des attributs
+
+| Attribut  | Valeurs autorisées             | Effet                                                       |
+|-----------|--------------------------------|-------------------------------------------------------------|
+| `colspan` | entier positif                 | La cellule s'étend sur plusieurs colonnes                   |
+| `rowspan` | entier positif                 | La cellule s'étend sur plusieurs lignes                     |
+| `align`   | `left` / `center` / `right`    | Alignement horizontal du contenu de la cellule              |
+| `valign`  | `top` / `middle` / `bottom`    | Alignement vertical dans les cellules-bloc multilignes      |
+
+Les attributs se placent entre deux barres verticales en début de cellule : `| attr="val" attr="val" | contenu`.
+
+### Exemple avec colspan, rowspan et align
+
+Source :
+
+````markdown
+```scg-table
+{|
+|+ Estimation de charge
+|-
+! Domaine
+! Tâche
+! align="right" | Heures
+|-
+| rowspan="2" | Conception
+| Collecter les exigences
+| align="right" | 8
+|-
+| Esquisse du layout
+| align="right" | 4
+|-
+| colspan="2" align="center" | Sous-total
+| align="right" | 12
+|}
+```
+````
+
+Résultat :
+
+```scg-table
+{|
+|+ Estimation de charge
+|-
+! Domaine
+! Tâche
+! align="right" | Heures
+|-
+| rowspan="2" | Conception
+| Collecter les exigences
+| align="right" | 8
+|-
+| Esquisse du layout
+| align="right" | 4
+|-
+| colspan="2" align="center" | Sous-total
+| align="right" | 12
+|}
+```
+
+### Astuces pour les spans et l'alignement
+
+- Les attributs peuvent apparaître dans n'importe quel ordre : `| colspan="2" align="center" | contenu` et `| align="center" colspan="2" | contenu` sont équivalents.
+- Les valeurs invalides sont ignorées silencieusement (par exemple `colspan="abc"`, `align="haut"`).
+- Les cellules sans bloc d'attributs s'affichent comme avant.
+
+### Accessibilité
+
+Les cellules d'en-tête (`!`) reçoivent automatiquement l'attribut `scope` approprié : `scope="col"` pour les en-têtes de la ligne d'en-tête, `scope="row"` pour les en-têtes au sein des lignes de données. Cela permet aux lecteurs d'écran d'associer les cellules de données à leurs en-têtes.
+
 ## Astuces
 
 **`|-` est obligatoire entre les lignes du tableau.** Sans `|-`, les cellules `|` suivantes sont interprétées comme des cellules supplémentaires de la même ligne, pas comme une nouvelle ligne. Piège le plus fréquent au début.
@@ -133,7 +206,7 @@ Les fichiers `.md` avec des blocs `scg-table` ne s'affichent comme tableaux que 
 
 ## Perspectives
 
-Cette étape couvre la syntaxe de base. Extensions prévues :
+Extensions prévues :
 
-- **Étape 2** : `colspan` et `rowspan`, alignement des colonnes (gauche / centre / droite), attributs simples de cellule.
-- **Étape 3** : convertisseur `scg-table` → tableau HTML en ligne pour une portabilité maximale dans les rendus Markdown tiers.
+- **Convertisseur HTML et tableaux imbriqués** : convertisseur `scg-table` → tableau HTML en ligne pour une portabilité maximale dans les rendus Markdown tiers, plus tableaux SCG imbriqués dans les cellules.
+- **Tri, mise en évidence des statuts et alignement par défaut** : tableaux triables, mise en évidence des statuts (erreur/avertissement/ok) via classes sémantiques et alignement par défaut par colonne.

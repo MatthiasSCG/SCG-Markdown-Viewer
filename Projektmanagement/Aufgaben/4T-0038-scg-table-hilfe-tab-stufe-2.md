@@ -1,6 +1,6 @@
 # 4T-0038 — Hilfe-Tab um Stufe-2-Doku erweitern
 
-**Status**: Offen
+**Status**: Erledigt — 2026-05-19, gepushed
 **Epic**: [3E-0007 — SCG Table Stufe 2](3E-0007-scg-table-spans-ausrichtung.md)
 **Zielversion**: 0.13.0
 
@@ -91,4 +91,36 @@ wird in der 0.13.0-Version:
 
 ## Lösung
 
-(wird nach Abschluss der Umsetzung gefüllt)
+Umgesetzt am 2026-05-19, Test bestanden.
+
+### Inhaltliche Änderungen pro Sprachdatei
+
+In allen fünf Hilfe-Inhaltsdateien (`src/i18n/help/scg-table.{de,en,fr,es,it}.md`) wurde eine neue Sektion eingefügt zwischen „Erweitertes Beispiel mit Listen und Code-Block" und „Tipps". Inhalt:
+
+- **Einleitungssatz** mit Versionshinweis 0.13.0.
+- **Übersichts-Tabelle** der vier Attribute (`colspan`, `rowspan`, `align`, `valign`) mit erlaubten Werten und Wirkung — als Pipe-Tabelle.
+- **Beispiel** „Aufwandsschätzung" mit `rowspan="2"`, `align="right"` und `colspan="2" align="center"`. Erst der Quelltext-Block (Vier-Backtick-Außenfence), darunter die echte gerenderte Tabelle.
+- **Tipps-Sub-Block** mit drei Bullets: beliebige Reihenfolge der Attribute, stillschweigend ignorierte ungültige Werte, Verhalten ohne Attribut-Block.
+- **Accessibility-Sub-Block** mit Erklärung der automatischen `scope`-Setzung auf `<th>`.
+
+Ausblick-Sektion am Dateiende: Stufe-2-Bullet entfernt (jetzt umgesetzt), Stufe-3-Bullet um „verschachtelte SCG-Tabellen" ergänzt, neue Stufe-4-Beschreibung hinzugefügt.
+
+### Iteration auf User-Wunsch
+
+Im ersten Wurf trug die neue Sektion noch einen „Stufe 2"-Präfix im Heading (analog zu den Folge-Stufen-Begriffen aus dem PM). Der Nutzer hat das im Test-Schritt zurückgewiesen: aus User-Sicht sind die Stufen-Begriffe verwirrend, weil sie sich auf projekt-interne Entwicklungs-Phasen beziehen, die für die Bedienung irrelevant sind. Anpassung in einer zweiten Iteration:
+
+- **Heading** „Stufe 2: Spans und Ausrichtung" → „Spans und Ausrichtung" (analog in allen fünf Sprachen).
+- **Sub-Heading** „Tipps zu Stufe 2" → „Tipps zu Spans und Ausrichtung".
+- **Bullet** „Stufe 1 bleibt unverändert: …" → „Zellen ohne Attribut-Block rendern unverändert wie bisher."
+- **Ausblick-Bullets**: Stufen-Nummern durch beschreibende Namen ersetzt — „HTML-Konverter und verschachtelte Tabellen" und „Sortierung, Status-Hervorhebung und Spalten-Default".
+
+Aus der User-Hilfe ist damit kein Stufen-Begriff mehr sichtbar. Aus PM-Sicht bleibt die Stufen-Logik in den Epic- und Task-Dokumenten erhalten — das ist eine andere Ebene und passt so.
+
+### Smoke-Test (2026-05-19)
+
+- Hilfe-Dialog → Tab „SCG Table" → neue Sektion sichtbar an der richtigen Stelle (zwischen Erweitertem Beispiel und Tipps).
+- Übersichts-Tabelle rendert korrekt als Pipe-Tabelle.
+- Stufe-2-Beispiel rendert mit echtem `colspan`, `rowspan` und `align`.
+- Sprachwechsel im laufenden Betrieb aktualisiert den Tab-Inhalt; alle fünf Sprachen zeigen die neue Sektion mit korrekten Übersetzungen.
+- Ausblick zeigt nur noch zwei beschreibende Bullets, keine Stufen-Nummern.
+- Bestehender Stufe-1-Inhalt unverändert.

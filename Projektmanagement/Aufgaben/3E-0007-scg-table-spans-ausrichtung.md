@@ -40,7 +40,7 @@ Ohne Stufe 2 bleibt die scg-table-Funktion auf einfache rechteckige Strukturen m
 
 ## Untergeordnete Tasks
 
-- [ ] [4T-0037 — Parser- und Renderer-Erweiterung (Spans, Ausrichtung, Accessibility-scope)](4T-0037-scg-table-spans-ausrichtung-parser.md)
+- [x] [4T-0037 — Parser- und Renderer-Erweiterung (Spans, Ausrichtung, Accessibility-scope)](4T-0037-scg-table-spans-ausrichtung-parser.md) — erledigt, Commit `5e374cd`, gepushed
 - [ ] [4T-0038 — Hilfe-Tab um Stufe-2-Doku erweitern](4T-0038-scg-table-hilfe-tab-stufe-2.md)
 - [ ] [4T-0039 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.13.0](4T-0039-changelog-release-0130.md)
 

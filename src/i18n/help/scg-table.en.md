@@ -115,6 +115,79 @@ npm init -y
 |}
 ````
 
+## Spans and alignment
+
+From version 0.13.0, cells can carry attributes for spanning multiple columns or rows and for aligning cell content.
+
+### Attribute overview
+
+| Attribute | Allowed values                | Effect                                                  |
+|-----------|-------------------------------|---------------------------------------------------------|
+| `colspan` | positive integer              | Cell spans multiple columns                             |
+| `rowspan` | positive integer              | Cell spans multiple rows                                |
+| `align`   | `left` / `center` / `right`   | Horizontal alignment of cell content                    |
+| `valign`  | `top` / `middle` / `bottom`   | Vertical alignment in multi-line block cells            |
+
+Attributes appear between two pipes at the cell start: `| attr="val" attr="val" | content`.
+
+### Example with colspan, rowspan and align
+
+Source:
+
+````markdown
+```scg-table
+{|
+|+ Effort estimate
+|-
+! Area
+! Task
+! align="right" | Hours
+|-
+| rowspan="2" | Design
+| Gather requirements
+| align="right" | 8
+|-
+| Layout sketch
+| align="right" | 4
+|-
+| colspan="2" align="center" | Subtotal
+| align="right" | 12
+|}
+```
+````
+
+Result:
+
+```scg-table
+{|
+|+ Effort estimate
+|-
+! Area
+! Task
+! align="right" | Hours
+|-
+| rowspan="2" | Design
+| Gather requirements
+| align="right" | 8
+|-
+| Layout sketch
+| align="right" | 4
+|-
+| colspan="2" align="center" | Subtotal
+| align="right" | 12
+|}
+```
+
+### Tips for spans and alignment
+
+- Attributes may appear in any order: `| colspan="2" align="center" | content` and `| align="center" colspan="2" | content` are equivalent.
+- Invalid values are silently ignored (e.g. `colspan="abc"`, `align="up"`).
+- Cells without an attribute block render as before.
+
+### Accessibility
+
+Header cells (`!`) automatically receive the appropriate `scope` attribute: `scope="col"` for headers in the table header row, `scope="row"` for headers inside data rows. This lets screen readers associate data cells with their headers.
+
 ## Tips
 
 **`|-` is required between table rows.** Without `|-` any following `|` cells are interpreted as additional cells in the same row, not a new row. Most common beginner pitfall.
@@ -133,7 +206,7 @@ npm init -y
 
 ## Outlook
 
-This stage covers the basic syntax. Planned extensions:
+Planned extensions:
 
-- **Stage 2**: `colspan` and `rowspan`, column alignment (left / center / right), simple cell attributes.
-- **Stage 3**: converter `scg-table` → inline HTML table for maximum portability in third-party Markdown renderers.
+- **HTML converter and nested tables**: converter `scg-table` → inline HTML table for maximum portability in third-party Markdown renderers, plus nested SCG tables in cells.
+- **Sorting, status highlighting and column-default**: sortable tables, status highlighting (error/warning/ok) via semantic classes, and column-default alignment.
