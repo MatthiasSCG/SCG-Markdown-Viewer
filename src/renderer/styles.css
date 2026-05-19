@@ -859,6 +859,18 @@ select {
 .markdown-body .scg-table th > p:first-child { margin-top: 0; }
 .markdown-body .scg-table td > p:last-child,
 .markdown-body .scg-table th > p:last-child { margin-bottom: 0; }
+
+/* 4T-0037: Stufe-2-Ausrichtung. align-* und valign-* sind die CSS-Klassen,
+   die der scg-table-Renderer aus den Whitelist-Attributen align="..." und
+   valign="..." erzeugt. Spezifitaet (0,3,0) schlaegt die Default-Regel fuer
+   td/th (0,2,1), das valign-* ueberschreibt das Stufe-1-Default vertical-
+   align: top. */
+.markdown-body .scg-table .align-left   { text-align: left; }
+.markdown-body .scg-table .align-center { text-align: center; }
+.markdown-body .scg-table .align-right  { text-align: right; }
+.markdown-body .scg-table .valign-top    { vertical-align: top; }
+.markdown-body .scg-table .valign-middle { vertical-align: middle; }
+.markdown-body .scg-table .valign-bottom { vertical-align: bottom; }
 .markdown-body img { max-width: 100%; height: auto; }
 .markdown-body hr {
   border: none;

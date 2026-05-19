@@ -180,13 +180,83 @@ md.use(wikiLinksPlugin);
 // mit Caption (|+), Header-Zellen (!), Datenzellen (|), Zeilen-Trenner (|-)
 // und mehrzeiligem Markdown-Inhalt pro Zelle.
 //
+// 4T-0037 (Epic 3E-0007, Stufe 2): Zell-Attribute mit strikter Whitelist
+// (colspan, rowspan, align, valign) und Accessibility-scope auf <th>.
+// Attribut-Block am Zellenanfang durch zweites '|' getrennt:
+//   | colspan="2" align="center" | Inhalt
+// Werte werden strikt validiert; ungueltige Werte stillschweigend ignoriert.
+// align/valign werden auf CSS-Klassen (.align-*, .valign-*) gemappt, nicht
+// auf das deprecated HTML4-align-Attribut. Damit bleibt die CSS-Hoheit beim
+// App-Stylesheet (Light-/Dark-Theme-konsistent).
+//
 // Integration: ueberschreibt md.renderer.rules.fence am Ende der md-Setup-
 // Kette. Bei lang === 'scg-table' uebernimmt renderScgTable; sonst delegiert
 // der Override an den Default-Renderer, sodass Code-Highlighting via
 // highlight.js (siehe highlight-Callback im Konstruktor) unangetastet bleibt.
 //
-// Bewusst nicht in Stufe 1 (siehe Epic 3E-0006): Shorthand ||/!!, Tabellen-
-// und Zell-Level-Attribute, colspan/rowspan, Verschachtelung von scg-table.
+// Bewusst noch nicht implementiert (geplante Folge-Stufen):
+// - Shorthand ||/!! fuer mehrere Zellen pro Quellzeile.
+// - Verschachtelte scg-table und HTML-Konverter fuer Portabilitaet → 3E-0008.
+// - Sortierbare Tabellen, Status-Hervorhebung, Spalten-Default → 3E-0009.
+
+// 4T-0037: Erkennt einen optionalen Attribut-Block am Zellenanfang und gibt
+// gefilterte attrs (Whitelist) plus den verbleibenden Zellinhalt zurueck.
+// Erkennt nur dann einen Attribut-Block, wenn der Teil vor dem ersten '|'
+// dem Muster `name="value" name="value"...` entspricht. So bleiben Zellen
+// ohne Attribut-Block (Stufe-1-Verhalten) unveraendert; insbesondere wird
+// ein '|' im Zellinhalt nicht versehentlich als Attribut-Trenner gedeutet.
+function parseScgTableCellAttrs(rawText) {
+  const pipeIdx = rawText.indexOf('|');
+  if (pipeIdx < 0) return { attrs: {}, content: rawText };
+  const head = rawText.slice(0, pipeIdx).trim();
+  if (head === '') return { attrs: {}, content: rawText };
+  // Head muss ausschliesslich aus name="value"-Paaren bestehen, ggf. durch
+  // Whitespace getrennt. Sonst ist es kein Attribut-Block.
+  if (!/^(\w+="[^"]*")(\s+\w+="[^"]*")*$/.test(head)) {
+    return { attrs: {}, content: rawText };
+  }
+  const tail = rawText.slice(pipeIdx + 1).trimStart();
+  const attrs = {};
+  const tokenRegex = /(\w+)="([^"]*)"/g;
+  let match;
+  while ((match = tokenRegex.exec(head)) !== null) {
+    const name = match[1].toLowerCase();
+    const value = match[2];
+    if (name === 'colspan' || name === 'rowspan') {
+      // Nur positive Ganzzahlen ohne fuehrendes/folgendes Whitespace.
+      if (/^[1-9]\d*$/.test(value)) attrs[name] = value;
+    } else if (name === 'align') {
+      if (value === 'left' || value === 'center' || value === 'right') {
+        attrs[name] = value;
+      }
+    } else if (name === 'valign') {
+      if (value === 'top' || value === 'middle' || value === 'bottom') {
+        attrs[name] = value;
+      }
+    }
+    // Andere Attribut-Namen werden stillschweigend ignoriert (Whitelist).
+  }
+  return { attrs, content: tail };
+}
+
+// 4T-0037: Baut den HTML-Attribut-String fuer eine Zelle aus dem
+// gefilterten attrs-Object plus scope-Setzung fuer Header-Zellen.
+// Rueckgabe inklusive fuehrendem Leerzeichen, wenn Attribute vorhanden,
+// sonst leerer String.
+function buildScgTableCellAttrs(attrs, cellType, isHeaderRow) {
+  const parts = [];
+  if (attrs.colspan) parts.push(`colspan="${attrs.colspan}"`);
+  if (attrs.rowspan) parts.push(`rowspan="${attrs.rowspan}"`);
+  const classes = [];
+  if (attrs.align) classes.push(`align-${attrs.align}`);
+  if (attrs.valign) classes.push(`valign-${attrs.valign}`);
+  if (classes.length > 0) parts.push(`class="${classes.join(' ')}"`);
+  if (cellType === 'th') {
+    parts.push(isHeaderRow ? 'scope="col"' : 'scope="row"');
+  }
+  return parts.length > 0 ? ' ' + parts.join(' ') : '';
+}
+
 function renderScgTable(content) {
   const lines = String(content || '').split(/\r?\n/);
   let i = 0;
@@ -219,10 +289,11 @@ function renderScgTable(content) {
     commitRow();
     currentRow = { cells: [] };
   };
-  const startCell = (type, initial) => {
+  // 4T-0037: startCell nimmt zusaetzlich einen attrs-Parameter (Default {}).
+  const startCell = (type, initial, attrs) => {
     commitCell();
     if (!currentRow) currentRow = { cells: [] };
-    currentCell = { type, content: initial || '' };
+    currentCell = { type, content: initial || '', attrs: attrs || {} };
   };
 
   for (; i < lines.length; i++) {
@@ -242,11 +313,14 @@ function renderScgTable(content) {
       continue;
     }
     if (trimmed.startsWith('!')) {
-      startCell('th', trimmed.slice(1).trimStart());
+      // 4T-0037: Attribut-Block parsen, falls vorhanden.
+      const { attrs, content: cellContent } = parseScgTableCellAttrs(trimmed.slice(1).trimStart());
+      startCell('th', cellContent, attrs);
       continue;
     }
     if (trimmed.startsWith('|')) {
-      startCell('td', trimmed.slice(1).trimStart());
+      const { attrs, content: cellContent } = parseScgTableCellAttrs(trimmed.slice(1).trimStart());
+      startCell('td', cellContent, attrs);
       continue;
     }
     // Andere Zeile: gehoert zum laufenden Zellinhalt. Original-Zeile (nicht
@@ -276,13 +350,15 @@ function buildScgTableHtml(caption, rows) {
   }
   if (theadRow) {
     out.push('<thead>');
-    out.push(renderScgTableRow(theadRow));
+    // 4T-0037: isHeaderRow=true -> th bekommt scope="col".
+    out.push(renderScgTableRow(theadRow, true));
     out.push('</thead>');
   }
   if (bodyRows.length > 0) {
     out.push('<tbody>');
     for (const row of bodyRows) {
-      out.push(renderScgTableRow(row));
+      // 4T-0037: isHeaderRow=false -> th bekommt scope="row".
+      out.push(renderScgTableRow(row, false));
     }
     out.push('</tbody>');
   }
@@ -290,19 +366,22 @@ function buildScgTableHtml(caption, rows) {
   return out.join('');
 }
 
-function renderScgTableRow(row) {
+function renderScgTableRow(row, isHeaderRow) {
   const out = ['<tr>'];
   for (const cell of row.cells) {
     const tag = cell.type === 'th' ? 'th' : 'td';
+    // 4T-0037: HTML-Attribute aus dem Whitelist-gefilterten attrs-Object
+    // plus scope-Setzung (col fuer thead-th, row fuer th in tbody).
+    const attrsHtml = buildScgTableCellAttrs(cell.attrs || {}, cell.type, isHeaderRow);
     const trimmed = cell.content.trim();
     if (trimmed === '') {
-      out.push(`<${tag}></${tag}>`);
+      out.push(`<${tag}${attrsHtml}></${tag}>`);
     } else if (!/\n/.test(trimmed)) {
       // Einzeiliger Inhalt: Inline-Render ohne <p>-Wrapper.
-      out.push(`<${tag}>${md.renderInline(trimmed)}</${tag}>`);
+      out.push(`<${tag}${attrsHtml}>${md.renderInline(trimmed)}</${tag}>`);
     } else {
       // Mehrzeiliger Inhalt: Block-Render fuer Listen, Codebloecke, Absaetze.
-      out.push(`<${tag}>${md.render(trimmed)}</${tag}>`);
+      out.push(`<${tag}${attrsHtml}>${md.render(trimmed)}</${tag}>`);
     }
   }
   out.push('</tr>');
