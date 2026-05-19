@@ -302,13 +302,19 @@ function extractScgTableStatusClass(text) {
 // gefilterten attrs-Object plus scope-Setzung fuer Header-Zellen.
 // 4T-0044: Optional eine Status-Klasse, die als CSS-Klasse status-<value>
 // an die Zelle gehaengt wird.
-function buildScgTableCellAttrs(attrs, cellType, isHeaderRow, statusClass) {
+// 4T-0045: Optional ein Spalten-Default-align (vom Tabellen-Header
+// `+cols="..."`), das greift, wenn die Zelle keinen eigenen align hat.
+function buildScgTableCellAttrs(attrs, cellType, isHeaderRow, statusClass, columnDefault) {
   const parts = [];
   if (attrs.colspan) parts.push(`colspan="${attrs.colspan}"`);
   if (attrs.rowspan) parts.push(`rowspan="${attrs.rowspan}"`);
   const classes = [];
   if (statusClass) classes.push(`status-${statusClass}`);
-  if (attrs.align) classes.push(`align-${attrs.align}`);
+  if (attrs.align) {
+    classes.push(`align-${attrs.align}`);
+  } else if (columnDefault) {
+    classes.push(`align-${columnDefault}`);
+  }
   if (attrs.valign) classes.push(`valign-${attrs.valign}`);
   if (classes.length > 0) parts.push(`class="${classes.join(' ')}"`);
   if (cellType === 'th') {
@@ -327,6 +333,23 @@ function buildScgTableCellAttrs(attrs, cellType, isHeaderRow, statusClass) {
 let scgTableRecursionDepth = 0;
 const SCG_TABLE_MAX_DEPTH = 3;
 
+// 4T-0045 (Epic 3E-0009): Tabellen-Header-Attribute auf der {| - Zeile parsen.
+// Aktuell unterstuetzt:
+//   +cols="left center right"   -> Spalten-Default-Ausrichtung pro Spalte
+// Ungueltige Werte werden auf null abgebildet (kein Default fuer diese Spalte).
+// Gibt ein Object mit columnDefaults zurueck (Array, leer wenn nichts gefunden).
+function parseScgTableHeaderAttrs(headerLine) {
+  const result = { columnDefaults: [] };
+  const colsMatch = String(headerLine || '').match(/\+cols="([^"]*)"/);
+  if (colsMatch) {
+    result.columnDefaults = colsMatch[1].split(/\s+/).filter(Boolean).map((v) => {
+      if (v === 'left' || v === 'center' || v === 'right') return v;
+      return null;
+    });
+  }
+  return result;
+}
+
 // 4T-0041 (Epic 3E-0008): Parser-Logik aus renderScgTable ausgelagert, damit
 // Viewer-Renderer und HTML-Konverter dieselbe Parser-Logik teilen. Liefert
 // { caption, rows } oder null bei beschaedigtem Block (kein '{|'-Anfang).
@@ -340,6 +363,8 @@ function parseScgTableBlock(content) {
   if (i >= lines.length || !lines[i].trimStart().startsWith('{|')) {
     return null;
   }
+  // 4T-0045: Tabellen-Header-Attribute auf der {| - Zeile parsen (z.B. +cols).
+  const headerAttrs = parseScgTableHeaderAttrs(lines[i].trimStart());
   i++;
 
   let caption = null;
@@ -442,7 +467,7 @@ function parseScgTableBlock(content) {
   }
   commitRow();
 
-  return { caption, rows };
+  return { caption, rows, columnDefaults: headerAttrs.columnDefaults };
 }
 
 function renderScgTable(content) {
@@ -453,13 +478,13 @@ function renderScgTable(content) {
   try {
     const parsed = parseScgTableBlock(content);
     if (!parsed) return null;
-    return buildScgTableHtml(parsed.caption, parsed.rows);
+    return buildScgTableHtml(parsed.caption, parsed.rows, parsed.columnDefaults);
   } finally {
     scgTableRecursionDepth--;
   }
 }
 
-function buildScgTableHtml(caption, rows) {
+function buildScgTableHtml(caption, rows, columnDefaults) {
   // thead, wenn die erste Zeile ausschliesslich Header-Zellen enthaelt.
   let theadRow = null;
   let bodyRows = rows;
@@ -474,14 +499,14 @@ function buildScgTableHtml(caption, rows) {
   if (theadRow) {
     out.push('<thead>');
     // 4T-0037: isHeaderRow=true -> th bekommt scope="col".
-    out.push(renderScgTableRow(theadRow, true));
+    out.push(renderScgTableRow(theadRow, true, columnDefaults));
     out.push('</thead>');
   }
   if (bodyRows.length > 0) {
     out.push('<tbody>');
     for (const row of bodyRows) {
       // 4T-0037: isHeaderRow=false -> th bekommt scope="row".
-      out.push(renderScgTableRow(row, false));
+      out.push(renderScgTableRow(row, false, columnDefaults));
     }
     out.push('</tbody>');
   }
@@ -489,14 +514,22 @@ function buildScgTableHtml(caption, rows) {
   return out.join('');
 }
 
-function renderScgTableRow(row, isHeaderRow) {
+function renderScgTableRow(row, isHeaderRow, columnDefaults) {
   const out = ['<tr>'];
+  let colIdx = 0;
   for (const cell of row.cells) {
     const tag = cell.type === 'th' ? 'th' : 'td';
     // 4T-0044: Zell-Status gewinnt gegen Zeilen-Status. Beide werden als
     // CSS-Klasse status-<value> via buildScgTableCellAttrs gesetzt.
     const effectiveStatus = cell.statusClass || row.statusClass || null;
-    const attrsHtml = buildScgTableCellAttrs(cell.attrs || {}, cell.type, isHeaderRow, effectiveStatus);
+    // 4T-0045: Spalten-Default-Ausrichtung greift, wenn die Zelle keinen
+    // eigenen align hat. Bei colspan > 1 wird kein Default angewendet
+    // (Zelle ueberspannt mehrere Spalten mit ggf. unterschiedlichen
+    // Defaults; eindeutige Wahl nicht moeglich).
+    const span = parseInt((cell.attrs && cell.attrs.colspan) || '1', 10) || 1;
+    const colDefault = span > 1 ? null : (columnDefaults && columnDefaults[colIdx]) || null;
+    const attrsHtml = buildScgTableCellAttrs(cell.attrs || {}, cell.type, isHeaderRow, effectiveStatus, colDefault);
+    colIdx += span;
     const trimmed = cell.content.trim();
     if (trimmed === '') {
       out.push(`<${tag}${attrsHtml}></${tag}>`);
@@ -546,13 +579,13 @@ function convertScgTableBlockToHtml(content) {
   try {
     const parsed = parseScgTableBlock(content);
     if (!parsed) return null;
-    return buildScgTablePortableHtml(parsed.caption, parsed.rows);
+    return buildScgTablePortableHtml(parsed.caption, parsed.rows, parsed.columnDefaults);
   } finally {
     scgTablePortableDepth--;
   }
 }
 
-function buildScgTablePortableHtml(caption, rows) {
+function buildScgTablePortableHtml(caption, rows, columnDefaults) {
   let theadRow = null;
   let bodyRows = rows;
   if (rows.length > 0 && rows[0].cells.every((c) => c.type === 'th')) {
@@ -565,13 +598,13 @@ function buildScgTablePortableHtml(caption, rows) {
   }
   if (theadRow) {
     out.push('<thead>');
-    out.push(renderScgTablePortableRow(theadRow, true));
+    out.push(renderScgTablePortableRow(theadRow, true, columnDefaults));
     out.push('</thead>');
   }
   if (bodyRows.length > 0) {
     out.push('<tbody>');
     for (const row of bodyRows) {
-      out.push(renderScgTablePortableRow(row, false));
+      out.push(renderScgTablePortableRow(row, false, columnDefaults));
     }
     out.push('</tbody>');
   }
@@ -579,14 +612,20 @@ function buildScgTablePortableHtml(caption, rows) {
   return out.join('');
 }
 
-function renderScgTablePortableRow(row, isHeaderRow) {
+function renderScgTablePortableRow(row, isHeaderRow, columnDefaults) {
   const out = ['<tr>'];
+  let colIdx = 0;
   for (const cell of row.cells) {
     const tag = cell.type === 'th' ? 'th' : 'td';
     // 4T-0044: Zell-Status gewinnt gegen Zeilen-Status; im Portable als
     // Inline-Style mit Light-Theme-Farben (SCG_STATUS_INLINE_COLORS).
     const effectiveStatus = cell.statusClass || row.statusClass || null;
-    const attrsHtml = buildScgTablePortableCellAttrs(cell.attrs || {}, cell.type, isHeaderRow, effectiveStatus);
+    // 4T-0045: Spalten-Default-Ausrichtung greift, wenn die Zelle keinen
+    // eigenen align hat und kein colspan ueber mehrere Spalten reicht.
+    const span = parseInt((cell.attrs && cell.attrs.colspan) || '1', 10) || 1;
+    const colDefault = span > 1 ? null : (columnDefaults && columnDefaults[colIdx]) || null;
+    const attrsHtml = buildScgTablePortableCellAttrs(cell.attrs || {}, cell.type, isHeaderRow, effectiveStatus, colDefault);
+    colIdx += span;
     const cellHtml = renderScgTableCellForPortable(cell.content);
     out.push(`<${tag}${attrsHtml}>${cellHtml}</${tag}>`);
   }
@@ -594,15 +633,18 @@ function renderScgTablePortableRow(row, isHeaderRow) {
   return out.join('');
 }
 
-function buildScgTablePortableCellAttrs(attrs, cellType, isHeaderRow, statusClass) {
+function buildScgTablePortableCellAttrs(attrs, cellType, isHeaderRow, statusClass, columnDefault) {
   const parts = [];
   if (attrs.colspan) parts.push(`colspan="${attrs.colspan}"`);
   if (attrs.rowspan) parts.push(`rowspan="${attrs.rowspan}"`);
   // 4T-0041: Ausrichtung als Inline-Style (HTML5-konform), nicht als CSS-
   // Klasse. Damit funktioniert die Ausrichtung auch in fremden Renderern,
   // die unsere App-CSS nicht kennen.
+  // 4T-0045: Wenn die Zelle keine eigene align hat, greift der Spalten-
+  // Default; bei colspan > 1 wurde colDefault im Renderer auf null gesetzt.
   const styles = [];
-  if (attrs.align) styles.push(`text-align: ${attrs.align}`);
+  const effectiveAlign = attrs.align || columnDefault || null;
+  if (effectiveAlign) styles.push(`text-align: ${effectiveAlign}`);
   if (attrs.valign) styles.push(`vertical-align: ${attrs.valign}`);
   // 4T-0044: Status-Hintergrund/Vordergrund als Inline-Style aus der
   // Farb-Map. Externe Renderer kennen unsere status-*-CSS-Klassen nicht.

@@ -1,6 +1,6 @@
 # 4T-0044 — Status-Hervorhebung in SCG-Tabellen
 
-**Status**: Erledigt — 2026-05-19, gepushed
+**Status**: Erledigt — 2026-05-19, gepushed (Commit `ae35e45`)
 **Epic**: [3E-0009 — SCG Table Stufe 4](3E-0009-scg-table-sortierung-status.md)
 **Zielversion**: 0.15.0
 

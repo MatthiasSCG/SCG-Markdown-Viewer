@@ -57,7 +57,7 @@ Drei tabellenweit wirkende MediaWiki-/Komfort-Funktionen, die in den Stufen 1–
 
 ## Untergeordnete Tasks
 
-- [ ] [4T-0044 — Status-Hervorhebung in SCG-Tabellen](4T-0044-scg-table-status-hervorhebung.md)
+- [x] [4T-0044 — Status-Hervorhebung in SCG-Tabellen](4T-0044-scg-table-status-hervorhebung.md) — erledigt, Commit `ae35e45`, gepushed
 - [ ] [4T-0045 — Spalten-Default-Ausrichtung](4T-0045-scg-table-spalten-default.md)
 - [ ] [4T-0046 — Sortierbare SCG-Tabellen](4T-0046-scg-table-sortierbar.md)
 - [ ] [4T-0047 — Hilfe-Tab um Sortierung, Status-Hervorhebung und Spalten-Default erweitern](4T-0047-scg-table-hilfe-tab-stufe-4.md)

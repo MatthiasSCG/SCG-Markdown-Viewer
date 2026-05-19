@@ -1,6 +1,6 @@
 # 4T-0045 — Spalten-Default-Ausrichtung in SCG-Tabellen
 
-**Status**: Offen
+**Status**: Erledigt — 2026-05-19, gepushed
 **Epic**: [3E-0009 — SCG Table Stufe 4](3E-0009-scg-table-sortierung-status.md)
 **Zielversion**: 0.15.0
 
@@ -92,4 +92,33 @@ Im `buildScgTableHtmlPortable` (4T-0041) muss der Spalten-Default berücksichtig
 
 ## Lösung
 
-(wird nach Abschluss der Umsetzung gefüllt)
+Umgesetzt am 2026-05-19, Test bestanden.
+
+### Code-Änderungen in [src/main/preload.js](../../src/main/preload.js)
+
+- Neue Hilfsfunktion `parseScgTableHeaderAttrs(headerLine)` erkennt `+cols="…"` auf der `{|`-Zeile mit Whitelist-Filter auf `left`/`center`/`right`; ungültige Werte werden auf `null` abgebildet (kein Default für diese Spalte).
+- `parseScgTableBlock` ruft die Hilfsfunktion direkt nach dem `{|`-Match auf und gibt zusätzlich `columnDefaults` im Return-Object zurück.
+- Pipeline: `renderScgTable`/`convertScgTableBlockToHtml` → `buildScgTableHtml`/`buildScgTablePortableHtml` → `renderScgTableRow`/`renderScgTablePortableRow` reichen `columnDefaults` durch.
+- **Spalten-Index-Tracking** in `renderScgTableRow`/`renderScgTablePortableRow`: pro Zeile ein `colIdx`-Zähler. Bei `colspan>1` wird kein Default angewendet (`colDefault = null`), und `colIdx` springt um `span` Positionen weiter.
+- `buildScgTableCellAttrs`/`buildScgTablePortableCellAttrs` erweitert um `columnDefault`-Parameter: bei fehlender `align`-Attribut greift der Default — Viewer setzt CSS-Klasse `align-<value>`, Portable setzt Inline-Style `text-align: <value>`.
+
+### Implementierungsdetails
+
+- **Mismatch-Toleranz**: bei weniger Werten als Spalten haben überzählige Spalten keinen Default (`columnDefaults[colIdx]` ist `undefined`). Bei mehr Werten als Spalten werden überzählige stillschweigend ignoriert.
+- **Ungültige Werte**: in `parseScgTableHeaderAttrs` werden ungültige Werte auf `null` gemappt. Im Renderer ist `colDefault = columnDefaults[colIdx] || null`, also wirkt `null` wie „kein Default".
+- **colspan-Edge-Case**: bei `colspan="2"` würde eine Zelle zwei Spalten mit möglicherweise unterschiedlichen Defaults überspannen. Vereinfachung: kein Default für Span-Zellen; User setzt bei Bedarf explizit `align`. `colIdx` springt korrekt um `span` Positionen, damit die nächste Zelle den richtigen Default bekommt.
+- **rowspan**: das Tracking läuft pro Quellzeile, nicht pro echte Spalten-Position. Bei seltenen Konstrukten (rowspan + cols-Default) können falsche Defaults entstehen — als Risiko im Epic dokumentiert.
+
+### Smoke-Test (2026-05-19)
+
+Sieben Test-Abschnitte im Render-Pane geprüft:
+
+1. Spalten-Default ohne Zell-Override.
+2. Zell-Override gewinnt gegen Default.
+3. `colspan` deaktiviert den Default für die Span-Zelle.
+4. Mismatch — zu wenige Werte: nur die ersten Spalten haben Default.
+5. Mismatch — zu viele Werte: überzählige werden ignoriert.
+6. Ungültiger Wert (`top`) wird ignoriert, diese Spalte ohne Default.
+7. Kombination mit Status-Klassen aus 4T-0044 funktioniert.
+
+Alle Punkte bestanden.
