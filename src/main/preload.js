@@ -175,6 +175,156 @@ function wikiLinksPlugin(mdInstance) {
 }
 md.use(wikiLinksPlugin);
 
+// 4T-0034: scg-table — MediaWiki-aehnliche Tabellen-Syntax als Fenced-Code-
+// Block mit Sprach-Tag 'scg-table'. Stufe 1 des Epics 3E-0006: Basis-Tabelle
+// mit Caption (|+), Header-Zellen (!), Datenzellen (|), Zeilen-Trenner (|-)
+// und mehrzeiligem Markdown-Inhalt pro Zelle.
+//
+// Integration: ueberschreibt md.renderer.rules.fence am Ende der md-Setup-
+// Kette. Bei lang === 'scg-table' uebernimmt renderScgTable; sonst delegiert
+// der Override an den Default-Renderer, sodass Code-Highlighting via
+// highlight.js (siehe highlight-Callback im Konstruktor) unangetastet bleibt.
+//
+// Bewusst nicht in Stufe 1 (siehe Epic 3E-0006): Shorthand ||/!!, Tabellen-
+// und Zell-Level-Attribute, colspan/rowspan, Verschachtelung von scg-table.
+function renderScgTable(content) {
+  const lines = String(content || '').split(/\r?\n/);
+  let i = 0;
+  // Erste signifikante Zeile muss '{|' sein
+  while (i < lines.length && lines[i].trim() === '') i++;
+  if (i >= lines.length || !lines[i].trimStart().startsWith('{|')) {
+    return null;
+  }
+  i++;
+
+  let caption = null;
+  const rows = [];
+  let currentRow = null;
+  let currentCell = null;
+
+  const commitCell = () => {
+    if (currentCell) {
+      currentRow.cells.push(currentCell);
+      currentCell = null;
+    }
+  };
+  const commitRow = () => {
+    commitCell();
+    if (currentRow && currentRow.cells.length > 0) {
+      rows.push(currentRow);
+    }
+    currentRow = null;
+  };
+  const startRow = () => {
+    commitRow();
+    currentRow = { cells: [] };
+  };
+  const startCell = (type, initial) => {
+    commitCell();
+    if (!currentRow) currentRow = { cells: [] };
+    currentCell = { type, content: initial || '' };
+  };
+
+  for (; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trimStart();
+    if (trimmed.startsWith('|}')) {
+      commitRow();
+      break;
+    }
+    if (trimmed.startsWith('|-')) {
+      startRow();
+      continue;
+    }
+    if (trimmed.startsWith('|+')) {
+      // Caption: alles nach '|+' bis Zeilenende. Stufe 1 nur einzeilig.
+      caption = trimmed.slice(2).trim();
+      continue;
+    }
+    if (trimmed.startsWith('!')) {
+      startCell('th', trimmed.slice(1).trimStart());
+      continue;
+    }
+    if (trimmed.startsWith('|')) {
+      startCell('td', trimmed.slice(1).trimStart());
+      continue;
+    }
+    // Andere Zeile: gehoert zum laufenden Zellinhalt. Original-Zeile (nicht
+    // getrimmt) anhaengen, damit Listen-Einrueckung etc. erhalten bleibt.
+    if (currentCell) {
+      currentCell.content += (currentCell.content ? '\n' : '') + line;
+    }
+    // Zeilen ohne aktive Zelle werden stillschweigend ignoriert.
+  }
+  // Tabelle ohne abschliessendes |}: sauber abschliessen.
+  commitRow();
+
+  return buildScgTableHtml(caption, rows);
+}
+
+function buildScgTableHtml(caption, rows) {
+  // thead, wenn die erste Zeile ausschliesslich Header-Zellen enthaelt.
+  let theadRow = null;
+  let bodyRows = rows;
+  if (rows.length > 0 && rows[0].cells.every((c) => c.type === 'th')) {
+    theadRow = rows[0];
+    bodyRows = rows.slice(1);
+  }
+  const out = ['<table class="scg-table">'];
+  if (caption !== null && caption !== '') {
+    out.push(`<caption>${md.renderInline(caption)}</caption>`);
+  }
+  if (theadRow) {
+    out.push('<thead>');
+    out.push(renderScgTableRow(theadRow));
+    out.push('</thead>');
+  }
+  if (bodyRows.length > 0) {
+    out.push('<tbody>');
+    for (const row of bodyRows) {
+      out.push(renderScgTableRow(row));
+    }
+    out.push('</tbody>');
+  }
+  out.push('</table>');
+  return out.join('');
+}
+
+function renderScgTableRow(row) {
+  const out = ['<tr>'];
+  for (const cell of row.cells) {
+    const tag = cell.type === 'th' ? 'th' : 'td';
+    const trimmed = cell.content.trim();
+    if (trimmed === '') {
+      out.push(`<${tag}></${tag}>`);
+    } else if (!/\n/.test(trimmed)) {
+      // Einzeiliger Inhalt: Inline-Render ohne <p>-Wrapper.
+      out.push(`<${tag}>${md.renderInline(trimmed)}</${tag}>`);
+    } else {
+      // Mehrzeiliger Inhalt: Block-Render fuer Listen, Codebloecke, Absaetze.
+      out.push(`<${tag}>${md.render(trimmed)}</${tag}>`);
+    }
+  }
+  out.push('</tr>');
+  return out.join('');
+}
+
+const defaultFenceRenderer = md.renderer.rules.fence;
+md.renderer.rules.fence = function (tokens, idx, options, env, self) {
+  const token = tokens[idx];
+  const info = (token.info || '').trim();
+  const lang = info.split(/\s+/g)[0];
+  if (lang === 'scg-table') {
+    const html = renderScgTable(token.content);
+    if (html) return html;
+    // Fallback: scg-table-Syntax nicht erkennbar (kein '{|'). Block wird als
+    // regulaerer Code-Block gerendert, damit der Inhalt sichtbar bleibt.
+  }
+  return defaultFenceRenderer
+    ? defaultFenceRenderer.call(this, tokens, idx, options, env, self)
+    : self.renderToken(tokens, idx, options);
+};
+
 // Bilder mit relativen Pfaden zum data:-URI auflösen, damit sie im
 // file://-Kontext zuverlässig laden. Alternativ könnten wir auf file:// URLs
 // umstellen, aber data: ist robuster und vermeidet Caching-Probleme.

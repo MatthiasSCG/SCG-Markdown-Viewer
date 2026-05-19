@@ -840,6 +840,25 @@ select {
   padding: 6px 12px;
 }
 .markdown-body th { background: var(--bg-alt); font-weight: 600; }
+
+/* 4T-0034: scg-table. Erbt von .markdown-body table; eigene Regeln fuer
+   <caption> und fuer das von md.render() in Zellen erzeugte umschliessende
+   <p>, das in Block-Zellen sonst sichtbare Margins erzeugt. */
+.markdown-body .scg-table caption {
+  caption-side: top;
+  font-style: italic;
+  padding: 0.4em 0;
+  color: var(--fg-muted);
+  text-align: left;
+}
+.markdown-body .scg-table td,
+.markdown-body .scg-table th {
+  vertical-align: top;
+}
+.markdown-body .scg-table td > p:first-child,
+.markdown-body .scg-table th > p:first-child { margin-top: 0; }
+.markdown-body .scg-table td > p:last-child,
+.markdown-body .scg-table th > p:last-child { margin-bottom: 0; }
 .markdown-body img { max-width: 100%; height: auto; }
 .markdown-body hr {
   border: none;
