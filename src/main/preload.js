@@ -257,83 +257,143 @@ function buildScgTableCellAttrs(attrs, cellType, isHeaderRow) {
   return parts.length > 0 ? ' ' + parts.join(' ') : '';
 }
 
+// 4T-0040 (Epic 3E-0008, Stufe 3): Rekursionstiefen-Schutz fuer verschachtelte
+// scg-tables. Counter wird beim Eintritt in renderScgTable inkrementiert und
+// beim Verlassen dekrementiert (try/finally). Beim Erreichen des Limits gibt
+// die Funktion null zurueck und der Override im fence-Renderer faellt auf
+// den Default (Code-Block) zurueck. Damit ist die innerste Tabelle in einer
+// Quelltext-Eingabe mit > MAX_DEPTH Ebenen als Code-Block sichtbar, alle
+// aeusseren Tabellen rendern weiterhin korrekt.
+let scgTableRecursionDepth = 0;
+const SCG_TABLE_MAX_DEPTH = 3;
+
 function renderScgTable(content) {
-  const lines = String(content || '').split(/\r?\n/);
-  let i = 0;
-  // Erste signifikante Zeile muss '{|' sein
-  while (i < lines.length && lines[i].trim() === '') i++;
-  if (i >= lines.length || !lines[i].trimStart().startsWith('{|')) {
+  if (scgTableRecursionDepth >= SCG_TABLE_MAX_DEPTH) {
     return null;
   }
-  i++;
-
-  let caption = null;
-  const rows = [];
-  let currentRow = null;
-  let currentCell = null;
-
-  const commitCell = () => {
-    if (currentCell) {
-      currentRow.cells.push(currentCell);
-      currentCell = null;
+  scgTableRecursionDepth++;
+  try {
+    const lines = String(content || '').split(/\r?\n/);
+    let i = 0;
+    // Erste signifikante Zeile muss '{|' sein
+    while (i < lines.length && lines[i].trim() === '') i++;
+    if (i >= lines.length || !lines[i].trimStart().startsWith('{|')) {
+      return null;
     }
-  };
-  const commitRow = () => {
-    commitCell();
-    if (currentRow && currentRow.cells.length > 0) {
-      rows.push(currentRow);
-    }
-    currentRow = null;
-  };
-  const startRow = () => {
-    commitRow();
-    currentRow = { cells: [] };
-  };
-  // 4T-0037: startCell nimmt zusaetzlich einen attrs-Parameter (Default {}).
-  const startCell = (type, initial, attrs) => {
-    commitCell();
-    if (!currentRow) currentRow = { cells: [] };
-    currentCell = { type, content: initial || '', attrs: attrs || {} };
-  };
+    i++;
 
-  for (; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmed = line.trimStart();
-    if (trimmed.startsWith('|}')) {
+    let caption = null;
+    const rows = [];
+    let currentRow = null;
+    let currentCell = null;
+    // 4T-0040: Wenn in einer Zelle eine Code-Fence (``` oder ~~~) oeffnet,
+    // werden die Folgezeilen direkt zum Zellinhalt addiert, ohne dass
+    // scg-table-Marker (|-, |, !, |}) darin interpretiert werden. Damit
+    // funktionieren verschachtelte scg-tables (innere Fence kuerzer als
+    // aeussere) und Code-Bloecke, deren Inhalt zufaellig wie scg-table-
+    // Marker aussieht. fenceInProgress haelt die oeffnende Fence-Sequenz
+    // (z.B. "```" oder "````"), sonst null.
+    let fenceInProgress = null;
+
+    const commitCell = () => {
+      if (currentCell) {
+        currentRow.cells.push(currentCell);
+        currentCell = null;
+      }
+    };
+    const commitRow = () => {
+      commitCell();
+      if (currentRow && currentRow.cells.length > 0) {
+        rows.push(currentRow);
+      }
+      currentRow = null;
+    };
+    const startRow = () => {
       commitRow();
-      break;
-    }
-    if (trimmed.startsWith('|-')) {
-      startRow();
-      continue;
-    }
-    if (trimmed.startsWith('|+')) {
-      // Caption: alles nach '|+' bis Zeilenende. Stufe 1 nur einzeilig.
-      caption = trimmed.slice(2).trim();
-      continue;
-    }
-    if (trimmed.startsWith('!')) {
-      // 4T-0037: Attribut-Block parsen, falls vorhanden.
-      const { attrs, content: cellContent } = parseScgTableCellAttrs(trimmed.slice(1).trimStart());
-      startCell('th', cellContent, attrs);
-      continue;
-    }
-    if (trimmed.startsWith('|')) {
-      const { attrs, content: cellContent } = parseScgTableCellAttrs(trimmed.slice(1).trimStart());
-      startCell('td', cellContent, attrs);
-      continue;
-    }
-    // Andere Zeile: gehoert zum laufenden Zellinhalt. Original-Zeile (nicht
-    // getrimmt) anhaengen, damit Listen-Einrueckung etc. erhalten bleibt.
-    if (currentCell) {
-      currentCell.content += (currentCell.content ? '\n' : '') + line;
-    }
-    // Zeilen ohne aktive Zelle werden stillschweigend ignoriert.
-  }
-  // Tabelle ohne abschliessendes |}: sauber abschliessen.
-  commitRow();
+      currentRow = { cells: [] };
+    };
+    // 4T-0037: startCell nimmt zusaetzlich einen attrs-Parameter (Default {}).
+    const startCell = (type, initial, attrs) => {
+      commitCell();
+      if (!currentRow) currentRow = { cells: [] };
+      currentCell = { type, content: initial || '', attrs: attrs || {} };
+    };
 
-  return buildScgTableHtml(caption, rows);
+    // 4T-0040: Wenn der uebergebene Text (letzte Zeile davon) eine
+    // Code-Fence oeffnet, speichern wir die Fence-Sequenz.
+    const maybeOpenFence = (text) => {
+      if (fenceInProgress) return;
+      const lastLine = String(text || '').split('\n').pop();
+      const m = lastLine.trimStart().match(/^([`~]{3,})/);
+      if (m) fenceInProgress = m[1];
+    };
+    // 4T-0040: Pruefe, ob die uebergebene Zeile die offene Fence schliesst
+    // (gleiche Marker-Sequenz und mindestens gleiche Laenge, dann nur
+    // Whitespace).
+    const maybeCloseFence = (line) => {
+      if (!fenceInProgress) return;
+      const m = line.trimStart().match(/^([`~]+)\s*$/);
+      if (m && m[1][0] === fenceInProgress[0] && m[1].length >= fenceInProgress.length) {
+        fenceInProgress = null;
+      }
+    };
+
+    for (; i < lines.length; i++) {
+      const line = lines[i];
+
+      // 4T-0040: Innerhalb eines offenen Code-Fence-Blocks gehen ALLE
+      // Folgezeilen direkt zum aktuellen Zellinhalt; scg-table-Marker
+      // werden nicht interpretiert.
+      if (fenceInProgress) {
+        if (currentCell) {
+          currentCell.content += (currentCell.content ? '\n' : '') + line;
+        }
+        maybeCloseFence(line);
+        continue;
+      }
+
+      const trimmed = line.trimStart();
+      if (trimmed.startsWith('|}')) {
+        commitRow();
+        break;
+      }
+      if (trimmed.startsWith('|-')) {
+        startRow();
+        continue;
+      }
+      if (trimmed.startsWith('|+')) {
+        // Caption: alles nach '|+' bis Zeilenende. Stufe 1 nur einzeilig.
+        caption = trimmed.slice(2).trim();
+        continue;
+      }
+      if (trimmed.startsWith('!')) {
+        // 4T-0037: Attribut-Block parsen, falls vorhanden.
+        const { attrs, content: cellContent } = parseScgTableCellAttrs(trimmed.slice(1).trimStart());
+        startCell('th', cellContent, attrs);
+        maybeOpenFence(cellContent);
+        continue;
+      }
+      if (trimmed.startsWith('|')) {
+        const { attrs, content: cellContent } = parseScgTableCellAttrs(trimmed.slice(1).trimStart());
+        startCell('td', cellContent, attrs);
+        maybeOpenFence(cellContent);
+        continue;
+      }
+      // Andere Zeile: gehoert zum laufenden Zellinhalt. Original-Zeile (nicht
+      // getrimmt) anhaengen, damit Listen-Einrueckung etc. erhalten bleibt.
+      if (currentCell) {
+        currentCell.content += (currentCell.content ? '\n' : '') + line;
+        maybeOpenFence(line);
+      }
+      // Zeilen ohne aktive Zelle werden stillschweigend ignoriert.
+    }
+    // Tabelle ohne abschliessendes |}: sauber abschliessen.
+    commitRow();
+
+    return buildScgTableHtml(caption, rows);
+  } finally {
+    scgTableRecursionDepth--;
+  }
 }
 
 function buildScgTableHtml(caption, rows) {

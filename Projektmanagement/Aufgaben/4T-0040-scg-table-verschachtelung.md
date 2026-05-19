@@ -1,6 +1,6 @@
 # 4T-0040 — Verschachtelte SCG-Tabellen
 
-**Status**: Offen
+**Status**: Erledigt — 2026-05-19, gepushed
 **Epic**: [3E-0008 — SCG Table Stufe 3](3E-0008-scg-table-konverter-verschachtelung.md)
 **Zielversion**: 0.14.0
 
@@ -80,4 +80,45 @@ Regel: jede äußere Fence mindestens eine Backtick mehr als die nächste innere
 
 ## Lösung
 
-(wird nach Abschluss der Umsetzung gefüllt)
+Umgesetzt am 2026-05-19, Test bestanden (mit einer Korrektur-Iteration).
+
+### Code-Änderungen
+
+- **[src/main/preload.js](../../src/main/preload.js)**:
+  - Modul-Level-Variable `scgTableRecursionDepth` und Konstante `SCG_TABLE_MAX_DEPTH = 3` direkt vor `renderScgTable`.
+  - Funktionsbody umschlossen mit `try/finally`: am Anfang Tiefen-Check, Counter inkrementieren; im `finally`-Block dekrementieren (auch bei Exceptions sauber).
+  - Lokale Variable `fenceInProgress` im Parser-State, plus zwei Hilfsfunktionen `maybeOpenFence(text)` und `maybeCloseFence(line)`.
+  - Parser-Loop um einen Vorrang-Block erweitert: wenn `fenceInProgress` gesetzt ist, gehen alle Folgezeilen direkt zum aktuellen Zellinhalt, ohne dass scg-table-Marker (`|-`, `|`, `!`, `|}`) darin interpretiert werden.
+- **[package.json](../../package.json)**: Version 0.13.0 → 0.14.0 (Entwicklungsstand).
+
+### Korrektur-Iteration während des Tests
+
+Die ursprüngliche Architektur-Annahme aus [3E-0008](3E-0008-scg-table-konverter-verschachtelung.md) („Verschachtelung funktioniert technisch fast geschenkt, weil `md.render(cellContent)` den fence-Override rekursiv aufruft") **war falsch**. Der Parser läuft zeilenweise; bei einer inneren `scg-table`-Fence in einer Zelle wurden die `|-`/`|`/`!`/`|}`-Marker der inneren Tabelle vom äußeren Parser als seine eigenen interpretiert — die innere Tabelle wurde zerrissen statt verschachtelt zu rendern.
+
+Beim ersten Smoke-Test fiel das sofort auf (zweistufige Tabelle: innere Tabelle erschien als eigene Tabelle vor der äußeren statt als Verschachtelung). Fix per **Fence-Tracking** im äußeren Parser:
+
+- `fenceInProgress` hält die öffnende Fence-Sequenz (`` ``` `` oder `` ```` ``) sobald eine in einer Zelle auftaucht.
+- Solange die Fence offen ist, gehen alle Folgezeilen direkt zum Zellinhalt; scg-table-Marker werden nicht interpretiert.
+- Die schließende Fence wird über CommonMark-Regel erkannt (gleicher Char, mindestens gleiche Länge, danach nur Whitespace).
+- Beim Rendern der Zelle greift `md.render(cellContent)` dann auf den intakten inneren Block, und der scg-table-Override ruft `renderScgTable` rekursiv auf. Counter geht von Tiefe N auf N+1, am Ende sauber zurück.
+
+### Bonus-Wirkung
+
+Derselbe Fix repariert eine latente Stufe-1-Schwäche: ein Code-Block in einer Zelle, dessen Inhalt zufällig wie ein scg-table-Marker aussieht (z.B. eine Bash-Zeile mit `|-`), wurde bisher zerrissen. Jetzt nicht mehr. Die Stufe-1-Tests waren das nie aufgefallen, weil die Test-Inhalte (typische Bash-Snippets) keine scg-table-Marker enthielten.
+
+### Smoke-Test (2026-05-19)
+
+Sechs Test-Abschnitte im Render-Pane geprüft:
+
+1. Stufe-1-Tabelle ohne Verschachtelung (Regression).
+2. Zwei Ebenen verschachtelt.
+3. Drei Ebenen verschachtelt.
+4. Vier Ebenen: drei rendern als Tabelle, die innerste fällt auf Code-Block zurück (Tiefen-Limit).
+5. Stufe-2-Attribute (`colspan`, `align`) funktionieren in der inneren Tabelle.
+6. Innere Tabelle mit eigenem Bash-Code-Block in einer Zelle.
+
+Alle Punkte bestanden nach der Korrektur-Iteration.
+
+### Konsequenz für 4T-0041
+
+Der Parser-Refactoring (`parseScgTableBlock`-Auslagerung) muss die Fence-Tracking-Logik mit übernehmen, damit Viewer-Renderer und Konverter dasselbe Parsing-Verhalten haben. Wird beim Implementieren von 4T-0041 berücksichtigt.
