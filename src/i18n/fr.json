@@ -159,6 +159,8 @@
   "save.errorMessage": "Le fichier n'a pas pu être enregistré.",
   "menu.file.save": "Enregistrer",
   "menu.file.saveAs": "Enregistrer sous…",
+  "menu.file.export": "Exporter",
+  "menu.file.exportPortable": "Markdown portable…",
   "menu.file.settings": "Paramètres…",
   "menu.file.quit": "Quitter",
   "menu.view.title": "&Affichage",

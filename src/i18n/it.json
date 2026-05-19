@@ -159,6 +159,8 @@
   "save.errorMessage": "Impossibile salvare il file.",
   "menu.file.save": "Salva",
   "menu.file.saveAs": "Salva con nome…",
+  "menu.file.export": "Esporta",
+  "menu.file.exportPortable": "Markdown portabile…",
   "menu.file.settings": "Impostazioni…",
   "menu.file.quit": "Esci",
   "menu.view.title": "&Visualizza",

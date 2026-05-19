@@ -159,6 +159,8 @@
   "save.errorMessage": "No se pudo guardar el archivo.",
   "menu.file.save": "Guardar",
   "menu.file.saveAs": "Guardar como…",
+  "menu.file.export": "Exportar",
+  "menu.file.exportPortable": "Markdown portable…",
   "menu.file.settings": "Configuración…",
   "menu.file.quit": "Salir",
   "menu.view.title": "&Ver",

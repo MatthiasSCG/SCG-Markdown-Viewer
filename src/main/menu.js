@@ -128,6 +128,20 @@ function buildMenu(win, state, actions) {
           enabled: !!(state && state.hasActiveTab),
           click: () => { if (actions && actions.saveAs) actions.saveAs(); },
         },
+        {
+          // 4T-0041 (Epic 3E-0008): Export-Submenu fuer den HTML-Konverter.
+          // 'Portables Markdown...' ersetzt scg-table-Codeblocks im aktiven
+          // Tab durch inline HTML-Tabellen und speichert das Ergebnis ueber
+          // einen Save-As-Dialog (Vorbelegung '<basename>-portable.md').
+          label: t('menu.file.export'),
+          enabled: !!(state && state.hasActiveTab),
+          submenu: [
+            {
+              label: t('menu.file.exportPortable'),
+              click: send('menu:exportPortable'),
+            },
+          ],
+        },
         { type: 'separator' },
         {
           // 4T-0018: Settings-Dialog (Schriftart, -groesse). Renderer-Hook.

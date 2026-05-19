@@ -2625,6 +2625,10 @@ function bindUi() {
   }
   api.onMenuSave(() => saveCurrentTab());
   api.onMenuSaveAs(() => saveCurrentTabAs());
+  // 4T-0041: Export 'Portables Markdown...'.
+  if (typeof api.onMenuExportPortable === 'function') {
+    api.onMenuExportPortable(() => exportCurrentTabAsPortable());
+  }
   api.onMenuToggleAutoSave(async () => {
     state.autoSave = !state.autoSave;
     await api.setSetting('autoSave', state.autoSave);
@@ -3623,6 +3627,35 @@ function saveCurrentTabAs() {
   const pane = state.panes[state.activePaneIndex];
   if (!pane || pane.activeIndex < 0) return Promise.resolve(false);
   return saveTabAs(state.activePaneIndex, pane.activeIndex);
+}
+
+// 4T-0041 (Epic 3E-0008): Export 'Portables Markdown...'. Konvertiert
+// scg-table-Codebloecke im aktiven Tab durch inline HTML-Tabellen und
+// speichert das Ergebnis ueber den OS-Save-As-Dialog. Vorbelegung des
+// Dateinamens '<basename>-portable.md'. Der aktive Tab bleibt unveraendert.
+async function exportCurrentTabAsPortable() {
+  const pane = state.panes[state.activePaneIndex];
+  if (!pane || pane.activeIndex < 0) return false;
+  const tab = pane.tabs[pane.activeIndex];
+  if (!tab) return false;
+  try {
+    const portableText = api.convertMarkdownPortable(tab.content);
+    let suggestedPath = null;
+    if (tab.path) {
+      // '.md'-Suffix durch '-portable.md' ersetzen, falls vorhanden;
+      // sonst '-portable.md' anhaengen.
+      if (/\.md$/i.test(tab.path)) {
+        suggestedPath = tab.path.replace(/\.md$/i, '-portable.md');
+      } else {
+        suggestedPath = tab.path + '-portable.md';
+      }
+    }
+    await api.saveFileAs(suggestedPath, portableText);
+    return true;
+  } catch (err) {
+    await api.showSaveError((err && err.message) || String(err));
+    return false;
+  }
 }
 
 // --- Auto-Save (opt-in) ----------------------------------------------------

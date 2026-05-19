@@ -175,6 +175,36 @@ function wikiLinksPlugin(mdInstance) {
 }
 md.use(wikiLinksPlugin);
 
+// 4T-0041 (Epic 3E-0008): Zweite markdown-it-Instanz fuer den HTML-Konverter.
+// Unterschied zur Haupt-Instanz md: html=true, damit die vom Konverter
+// generierten HTML-Tabellen im Zellinhalt nicht escaped werden, wenn der
+// Zellinhalt rekursiv durch mdPortable.render() laeuft. Die scg-table-Fence
+// wird hier NICHT ueberschrieben, weil convertMarkdownPortable scg-table-
+// Bloecke separat behandelt (Top-Level-Regex + parseScgTableBlock +
+// Portable-HTML mit Inline-Styles).
+const mdPortable = new MarkdownIt({
+  html: true,
+  linkify: true,
+  typographer: true,
+  breaks: false,
+  highlight(str, lang) {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        const value = hljs.highlight(str, { language: lang, ignoreIllegals: true }).value;
+        return `<pre><code class="hljs language-${escapeHtml(lang)}">${value}</code></pre>`;
+      } catch (err) {
+        // Fall durch zum Plain-Fallback
+      }
+    }
+    const classes = lang ? `hljs language-${escapeHtml(lang)}` : 'hljs';
+    return `<pre><code class="${classes}">${escapeHtml(str)}</code></pre>`;
+  },
+});
+mdPortable.use(taskLists, { enabled: false, label: true });
+mdPortable.use(markdownItAnchor, { slugify: githubLikeSlug, tabIndex: false, permalink: false });
+mdPortable.use(markdownItKatex, { throwOnError: false, errorColor: '#cc0000' });
+mdPortable.use(wikiLinksPlugin);
+
 // 4T-0034: scg-table — MediaWiki-aehnliche Tabellen-Syntax als Fenced-Code-
 // Block mit Sprach-Tag 'scg-table'. Stufe 1 des Epics 3E-0006: Basis-Tabelle
 // mit Caption (|+), Header-Zellen (!), Datenzellen (|), Zeilen-Trenner (|-)
@@ -267,130 +297,121 @@ function buildScgTableCellAttrs(attrs, cellType, isHeaderRow) {
 let scgTableRecursionDepth = 0;
 const SCG_TABLE_MAX_DEPTH = 3;
 
+// 4T-0041 (Epic 3E-0008): Parser-Logik aus renderScgTable ausgelagert, damit
+// Viewer-Renderer und HTML-Konverter dieselbe Parser-Logik teilen. Liefert
+// { caption, rows } oder null bei beschaedigtem Block (kein '{|'-Anfang).
+// Tiefen-Schutz bleibt in den jeweiligen Aufrufern (renderScgTable,
+// convertMarkdownPortable), weil sie unabhaengige Counter benoetigen.
+function parseScgTableBlock(content) {
+  const lines = String(content || '').split(/\r?\n/);
+  let i = 0;
+  // Erste signifikante Zeile muss '{|' sein
+  while (i < lines.length && lines[i].trim() === '') i++;
+  if (i >= lines.length || !lines[i].trimStart().startsWith('{|')) {
+    return null;
+  }
+  i++;
+
+  let caption = null;
+  const rows = [];
+  let currentRow = null;
+  let currentCell = null;
+  // 4T-0040: fenceInProgress haelt die oeffnende Fence-Sequenz; siehe Detail-
+  // Kommentar in 4T-0040-Implementierung.
+  let fenceInProgress = null;
+
+  const commitCell = () => {
+    if (currentCell) {
+      currentRow.cells.push(currentCell);
+      currentCell = null;
+    }
+  };
+  const commitRow = () => {
+    commitCell();
+    if (currentRow && currentRow.cells.length > 0) {
+      rows.push(currentRow);
+    }
+    currentRow = null;
+  };
+  const startRow = () => {
+    commitRow();
+    currentRow = { cells: [] };
+  };
+  const startCell = (type, initial, attrs) => {
+    commitCell();
+    if (!currentRow) currentRow = { cells: [] };
+    currentCell = { type, content: initial || '', attrs: attrs || {} };
+  };
+
+  const maybeOpenFence = (text) => {
+    if (fenceInProgress) return;
+    const lastLine = String(text || '').split('\n').pop();
+    const m = lastLine.trimStart().match(/^([`~]{3,})/);
+    if (m) fenceInProgress = m[1];
+  };
+  const maybeCloseFence = (line) => {
+    if (!fenceInProgress) return;
+    const m = line.trimStart().match(/^([`~]+)\s*$/);
+    if (m && m[1][0] === fenceInProgress[0] && m[1].length >= fenceInProgress.length) {
+      fenceInProgress = null;
+    }
+  };
+
+  for (; i < lines.length; i++) {
+    const line = lines[i];
+
+    if (fenceInProgress) {
+      if (currentCell) {
+        currentCell.content += (currentCell.content ? '\n' : '') + line;
+      }
+      maybeCloseFence(line);
+      continue;
+    }
+
+    const trimmed = line.trimStart();
+    if (trimmed.startsWith('|}')) {
+      commitRow();
+      break;
+    }
+    if (trimmed.startsWith('|-')) {
+      startRow();
+      continue;
+    }
+    if (trimmed.startsWith('|+')) {
+      caption = trimmed.slice(2).trim();
+      continue;
+    }
+    if (trimmed.startsWith('!')) {
+      const { attrs, content: cellContent } = parseScgTableCellAttrs(trimmed.slice(1).trimStart());
+      startCell('th', cellContent, attrs);
+      maybeOpenFence(cellContent);
+      continue;
+    }
+    if (trimmed.startsWith('|')) {
+      const { attrs, content: cellContent } = parseScgTableCellAttrs(trimmed.slice(1).trimStart());
+      startCell('td', cellContent, attrs);
+      maybeOpenFence(cellContent);
+      continue;
+    }
+    if (currentCell) {
+      currentCell.content += (currentCell.content ? '\n' : '') + line;
+      maybeOpenFence(line);
+    }
+  }
+  commitRow();
+
+  return { caption, rows };
+}
+
 function renderScgTable(content) {
   if (scgTableRecursionDepth >= SCG_TABLE_MAX_DEPTH) {
     return null;
   }
   scgTableRecursionDepth++;
   try {
-    const lines = String(content || '').split(/\r?\n/);
-    let i = 0;
-    // Erste signifikante Zeile muss '{|' sein
-    while (i < lines.length && lines[i].trim() === '') i++;
-    if (i >= lines.length || !lines[i].trimStart().startsWith('{|')) {
-      return null;
-    }
-    i++;
-
-    let caption = null;
-    const rows = [];
-    let currentRow = null;
-    let currentCell = null;
-    // 4T-0040: Wenn in einer Zelle eine Code-Fence (``` oder ~~~) oeffnet,
-    // werden die Folgezeilen direkt zum Zellinhalt addiert, ohne dass
-    // scg-table-Marker (|-, |, !, |}) darin interpretiert werden. Damit
-    // funktionieren verschachtelte scg-tables (innere Fence kuerzer als
-    // aeussere) und Code-Bloecke, deren Inhalt zufaellig wie scg-table-
-    // Marker aussieht. fenceInProgress haelt die oeffnende Fence-Sequenz
-    // (z.B. "```" oder "````"), sonst null.
-    let fenceInProgress = null;
-
-    const commitCell = () => {
-      if (currentCell) {
-        currentRow.cells.push(currentCell);
-        currentCell = null;
-      }
-    };
-    const commitRow = () => {
-      commitCell();
-      if (currentRow && currentRow.cells.length > 0) {
-        rows.push(currentRow);
-      }
-      currentRow = null;
-    };
-    const startRow = () => {
-      commitRow();
-      currentRow = { cells: [] };
-    };
-    // 4T-0037: startCell nimmt zusaetzlich einen attrs-Parameter (Default {}).
-    const startCell = (type, initial, attrs) => {
-      commitCell();
-      if (!currentRow) currentRow = { cells: [] };
-      currentCell = { type, content: initial || '', attrs: attrs || {} };
-    };
-
-    // 4T-0040: Wenn der uebergebene Text (letzte Zeile davon) eine
-    // Code-Fence oeffnet, speichern wir die Fence-Sequenz.
-    const maybeOpenFence = (text) => {
-      if (fenceInProgress) return;
-      const lastLine = String(text || '').split('\n').pop();
-      const m = lastLine.trimStart().match(/^([`~]{3,})/);
-      if (m) fenceInProgress = m[1];
-    };
-    // 4T-0040: Pruefe, ob die uebergebene Zeile die offene Fence schliesst
-    // (gleiche Marker-Sequenz und mindestens gleiche Laenge, dann nur
-    // Whitespace).
-    const maybeCloseFence = (line) => {
-      if (!fenceInProgress) return;
-      const m = line.trimStart().match(/^([`~]+)\s*$/);
-      if (m && m[1][0] === fenceInProgress[0] && m[1].length >= fenceInProgress.length) {
-        fenceInProgress = null;
-      }
-    };
-
-    for (; i < lines.length; i++) {
-      const line = lines[i];
-
-      // 4T-0040: Innerhalb eines offenen Code-Fence-Blocks gehen ALLE
-      // Folgezeilen direkt zum aktuellen Zellinhalt; scg-table-Marker
-      // werden nicht interpretiert.
-      if (fenceInProgress) {
-        if (currentCell) {
-          currentCell.content += (currentCell.content ? '\n' : '') + line;
-        }
-        maybeCloseFence(line);
-        continue;
-      }
-
-      const trimmed = line.trimStart();
-      if (trimmed.startsWith('|}')) {
-        commitRow();
-        break;
-      }
-      if (trimmed.startsWith('|-')) {
-        startRow();
-        continue;
-      }
-      if (trimmed.startsWith('|+')) {
-        // Caption: alles nach '|+' bis Zeilenende. Stufe 1 nur einzeilig.
-        caption = trimmed.slice(2).trim();
-        continue;
-      }
-      if (trimmed.startsWith('!')) {
-        // 4T-0037: Attribut-Block parsen, falls vorhanden.
-        const { attrs, content: cellContent } = parseScgTableCellAttrs(trimmed.slice(1).trimStart());
-        startCell('th', cellContent, attrs);
-        maybeOpenFence(cellContent);
-        continue;
-      }
-      if (trimmed.startsWith('|')) {
-        const { attrs, content: cellContent } = parseScgTableCellAttrs(trimmed.slice(1).trimStart());
-        startCell('td', cellContent, attrs);
-        maybeOpenFence(cellContent);
-        continue;
-      }
-      // Andere Zeile: gehoert zum laufenden Zellinhalt. Original-Zeile (nicht
-      // getrimmt) anhaengen, damit Listen-Einrueckung etc. erhalten bleibt.
-      if (currentCell) {
-        currentCell.content += (currentCell.content ? '\n' : '') + line;
-        maybeOpenFence(line);
-      }
-      // Zeilen ohne aktive Zelle werden stillschweigend ignoriert.
-    }
-    // Tabelle ohne abschliessendes |}: sauber abschliessen.
-    commitRow();
-
-    return buildScgTableHtml(caption, rows);
+    const parsed = parseScgTableBlock(content);
+    if (!parsed) return null;
+    return buildScgTableHtml(parsed.caption, parsed.rows);
   } finally {
     scgTableRecursionDepth--;
   }
@@ -446,6 +467,120 @@ function renderScgTableRow(row, isHeaderRow) {
   }
   out.push('</tr>');
   return out.join('');
+}
+
+// 4T-0041 (Epic 3E-0008): Konverter scg-table → inline HTML-Tabelle fuer
+// Export-Datei. Findet im Markdown-Text alle scg-table-Codeblocks und ersetzt
+// sie durch HTML-Tabellen mit Inline-Styles. Innere scg-table-Bloecke in
+// Zellinhalten werden rekursiv mitkonvertiert (eigener Tiefen-Counter
+// scgTablePortableDepth, identische SCG_TABLE_MAX_DEPTH wie Viewer-Renderer).
+// Beschaedigte scg-table-Bloecke (kein '{|') bleiben unveraendert (semantisch
+// konsistent zum Viewer-Render).
+let scgTablePortableDepth = 0;
+
+// 4T-0041: Marker am Anfang einer konvertierten Datei. Wird in renderMarkdown
+// erkannt und schaltet die Datei auf mdPortable (html:true), damit die
+// eingebetteten HTML-Tabellen im Viewer als Tabellen rendern statt als
+// escapter Quelltext. Bei rekursiven Konverter-Aufrufen (Zell-Inhalt mit
+// innerer scg-table) wird der Marker NICHT vorangestellt, weil er nur
+// einmal an der Datei-Spitze stehen soll.
+const SCG_PORTABLE_MARKER = '<!-- scg-portable -->';
+
+function convertMarkdownPortable(markdownText, addMarker = true) {
+  const fenceRegex = /^( {0,3}`{3,})scg-table[^\n]*\n([\s\S]*?)\n\1\s*$/gm;
+  const converted = String(markdownText || '').replace(fenceRegex, (match, fence, content) => {
+    const html = convertScgTableBlockToHtml(content);
+    return html !== null ? html : match;
+  });
+  return addMarker ? `${SCG_PORTABLE_MARKER}\n\n${converted}` : converted;
+}
+
+function convertScgTableBlockToHtml(content) {
+  if (scgTablePortableDepth >= SCG_TABLE_MAX_DEPTH) {
+    return null;
+  }
+  scgTablePortableDepth++;
+  try {
+    const parsed = parseScgTableBlock(content);
+    if (!parsed) return null;
+    return buildScgTablePortableHtml(parsed.caption, parsed.rows);
+  } finally {
+    scgTablePortableDepth--;
+  }
+}
+
+function buildScgTablePortableHtml(caption, rows) {
+  let theadRow = null;
+  let bodyRows = rows;
+  if (rows.length > 0 && rows[0].cells.every((c) => c.type === 'th')) {
+    theadRow = rows[0];
+    bodyRows = rows.slice(1);
+  }
+  const out = ['<table>'];
+  if (caption !== null && caption !== '') {
+    out.push(`<caption>${mdPortable.renderInline(caption)}</caption>`);
+  }
+  if (theadRow) {
+    out.push('<thead>');
+    out.push(renderScgTablePortableRow(theadRow, true));
+    out.push('</thead>');
+  }
+  if (bodyRows.length > 0) {
+    out.push('<tbody>');
+    for (const row of bodyRows) {
+      out.push(renderScgTablePortableRow(row, false));
+    }
+    out.push('</tbody>');
+  }
+  out.push('</table>');
+  return out.join('');
+}
+
+function renderScgTablePortableRow(row, isHeaderRow) {
+  const out = ['<tr>'];
+  for (const cell of row.cells) {
+    const tag = cell.type === 'th' ? 'th' : 'td';
+    const attrsHtml = buildScgTablePortableCellAttrs(cell.attrs || {}, cell.type, isHeaderRow);
+    const cellHtml = renderScgTableCellForPortable(cell.content);
+    out.push(`<${tag}${attrsHtml}>${cellHtml}</${tag}>`);
+  }
+  out.push('</tr>');
+  return out.join('');
+}
+
+function buildScgTablePortableCellAttrs(attrs, cellType, isHeaderRow) {
+  const parts = [];
+  if (attrs.colspan) parts.push(`colspan="${attrs.colspan}"`);
+  if (attrs.rowspan) parts.push(`rowspan="${attrs.rowspan}"`);
+  // 4T-0041: Ausrichtung als Inline-Style (HTML5-konform), nicht als CSS-
+  // Klasse. Damit funktioniert die Ausrichtung auch in fremden Renderern,
+  // die unsere App-CSS nicht kennen.
+  const styles = [];
+  if (attrs.align) styles.push(`text-align: ${attrs.align}`);
+  if (attrs.valign) styles.push(`vertical-align: ${attrs.valign}`);
+  if (styles.length > 0) parts.push(`style="${styles.join('; ')}"`);
+  if (cellType === 'th') {
+    parts.push(isHeaderRow ? 'scope="col"' : 'scope="row"');
+  }
+  return parts.length > 0 ? ' ' + parts.join(' ') : '';
+}
+
+function renderScgTableCellForPortable(content) {
+  const trimmed = String(content || '').trim();
+  if (trimmed === '') return '';
+  // 4T-0041: Zweistufige Konvertierung.
+  // 1. Innere scg-table-Codeblocks rekursiv durch HTML-Tabellen ersetzen.
+  //    addMarker=false: der Marker steht nur einmal am Datei-Anfang, nicht
+  //    in jeder Zelle.
+  const withInnerHtml = convertMarkdownPortable(trimmed, false);
+  // 2. Den Rest (Markdown + eingebettete HTML-Strings) durch mdPortable
+  //    rendern. mdPortable hat html=true, daher werden die eingebetteten
+  //    HTML-Tags nicht escaped. Einzeiliger Inhalt ohne Block-Strukturen
+  //    kommt durch renderInline (kein <p>-Wrapper), sonst durch render.
+  if (!/\n/.test(withInnerHtml.trim())) {
+    return mdPortable.renderInline(withInnerHtml);
+  }
+  return mdPortable.render(withInnerHtml);
 }
 
 const defaultFenceRenderer = md.renderer.rules.fence;
@@ -541,12 +676,25 @@ contextBridge.exposeInMainWorld('api', {
 
   // Markdown-Rendering
   renderMarkdown: (text, basePath) => {
-    const html = md.render(text || '');
+    // 4T-0041: Wenn die Datei den scg-portable-Marker am Anfang traegt,
+    // wird sie mit mdPortable (html:true) gerendert. Damit werden die
+    // HTML-Tabellen aus dem Konverter-Output im Viewer als echte Tabellen
+    // angezeigt statt als escapter Quelltext. Ohne Marker bleibt das
+    // sichere Standard-Verhalten (html:false), wie bei jeder regulaeren
+    // .md-Datei. Der Marker ist opt-in: User-Bewusstsein vorausgesetzt
+    // (siehe Doku im Hilfe-Tab).
+    const isPortable = /^<!--\s*scg-portable\s*-->/.test(String(text || '').trimStart());
+    const renderer = isPortable ? mdPortable : md;
+    const html = renderer.render(text || '');
     return resolveImagesForBase(html, basePath);
   },
   // 4T-0014: Slug-Berechnung im Renderer-Modul verfuegbar machen,
   // damit das Outline-Panel im Render-Modus den passenden DOM-Anker findet.
   slugifyHeading: (text) => githubLikeSlug(String(text || '')),
+
+  // 4T-0041: Konverter scg-table → inline HTML-Tabelle. Liefert den
+  // konvertierten Markdown-Text fuer den Export 'Portables Markdown'.
+  convertMarkdownPortable: (text) => convertMarkdownPortable(text),
 
   // 4T-0036: Hilfe-Tab-Inhalt fuer scg-table aus dem Main holen (Markdown-
   // Quelltext, der im Renderer durch renderMarkdown() gerendert wird).
@@ -589,6 +737,8 @@ contextBridge.exposeInMainWorld('api', {
   onMenuToggleWordWrap: (cb) => ipcRenderer.on('menu:toggleWordWrap', () => cb()),
   onMenuSave: (cb) => ipcRenderer.on('menu:save', () => cb()),
   onMenuSaveAs: (cb) => ipcRenderer.on('menu:saveAs', () => cb()),
+  // 4T-0041: Menu-Event 'Datei -> Exportieren -> Portables Markdown...'
+  onMenuExportPortable: (cb) => ipcRenderer.on('menu:exportPortable', () => cb()),
   onMenuToggleAutoSave: (cb) => ipcRenderer.on('menu:toggleAutoSave', () => cb()),
   // 4T-0013: Menue-Eintrag "Ansicht -> Gliederung" sendet diesen Event;
   // Renderer toggelt die Sichtbarkeit der Folding-Spuren im aktiven Tab.

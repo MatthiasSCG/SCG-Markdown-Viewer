@@ -1,6 +1,6 @@
 # 4T-0041 — HTML-Konverter: Export portables Markdown
 
-**Status**: Offen
+**Status**: Erledigt — 2026-05-19, gepushed
 **Epic**: [3E-0008 — SCG Table Stufe 3](3E-0008-scg-table-konverter-verschachtelung.md)
 **Zielversion**: 0.14.0
 
@@ -145,4 +145,41 @@ Die Konvertierung kann komplett im Preload laufen (kein Main-Roundtrip nötig). 
 
 ## Lösung
 
-(wird nach Abschluss der Umsetzung gefüllt)
+Umgesetzt am 2026-05-19, Test bestanden (mit einer Architektur-Erweiterung beim Test).
+
+### Code-Änderungen
+
+- **[src/main/preload.js](../../src/main/preload.js)**:
+  - **Refactoring**: Parser-Logik aus `renderScgTable` in eine eigene Funktion `parseScgTableBlock(content)` ausgelagert. Viewer-Renderer und Konverter teilen sie sich. `renderScgTable` ist ein dünner Wrapper mit Tiefen-Schutz und Aufruf von `parseScgTableBlock` plus `buildScgTableHtml`.
+  - **Zweite md-Instanz `mdPortable`** mit `html: true` und denselben Plugins wie die Haupt-`md` (taskLists, anchor, katex, wikiLinks). **Kein** scg-table-Fence-Override — der Konverter behandelt scg-tables vorher separat.
+  - **Konverter-Funktionen**: `convertMarkdownPortable(text, addMarker)`, `convertScgTableBlockToHtml(content)` (mit eigenem Tiefen-Counter `scgTablePortableDepth`), `buildScgTablePortableHtml(caption, rows)`, `renderScgTablePortableRow(row, isHeaderRow)`, `buildScgTablePortableCellAttrs(attrs, cellType, isHeaderRow)`, `renderScgTableCellForPortable(content)`.
+  - **HTML-Output**: `<table>` ohne CSS-Klasse, `<caption>` mit Inline-Markdown via `mdPortable.renderInline`, `<thead>`/`<tbody>`-Struktur, `<th scope="col">`/`<th scope="row">` für Accessibility. `colspan`/`rowspan` als HTML-Attribute. Ausrichtung als `style="text-align: …; vertical-align: …"`. HTML5-konform.
+  - **Zell-Konvertierung in zwei Stufen**: erst innere scg-tables rekursiv via `convertMarkdownPortable(trimmed, false)` zu HTML, dann der Rest via `mdPortable.render(withInnerHtml)`. Die zweite md-Instanz mit `html: true` verhindert das Escapen der zwischenzeitlich eingebetteten HTML-Tags.
+  - **Marker-basiertes Opt-in-HTML-Rendering** (siehe Test-Iteration unten): `convertMarkdownPortable` fügt am Datei-Anfang `<!-- scg-portable -->` ein. `renderMarkdown` (Viewer-API) erkennt den Marker und schaltet die Datei auf `mdPortable` (`html: true`). Damit rendert die exportierte Datei auch im eigenen Viewer als HTML-Tabelle.
+  - **API exposed**: `api.convertMarkdownPortable(text)` und `api.onMenuExportPortable(cb)`.
+- **[src/main/menu.js](../../src/main/menu.js)**: neues Sub-Menü „Datei → Exportieren" mit Eintrag „Portables Markdown…" (lokalisiert in fünf Sprachen). Sendet `menu:exportPortable` an den aktiven Renderer.
+- **5 i18n-Dateien** (`src/i18n/{de,en,fr,es,it}.json`): neue Keys `menu.file.export` und `menu.file.exportPortable`.
+- **[src/renderer/renderer.js](../../src/renderer/renderer.js)**: neue Funktion `exportCurrentTabAsPortable()`. Holt aktiven Tab-Inhalt, konvertiert über `api.convertMarkdownPortable`, öffnet Save-As-Dialog mit Vorbelegung `<basename>-portable.md` (oder Anhang an Original-Pfad, falls keine `.md`-Endung). Event-Handler `api.onMenuExportPortable` registriert.
+
+### Test-Iteration: Marker-basiertes Render-Verhalten
+
+Im ersten Test fiel auf, dass die **exportierte Datei** im **eigenen Viewer** nicht als HTML-Tabelle rendert, sondern die HTML-Tags wörtlich als Quelltext anzeigt. Ursache: die Haupt-`md`-Instanz hat `html: false` aus Sicherheitsgründen (kein beliebiges HTML aus User-Markdown).
+
+User-Erwartung: die exportierte Datei sollte auch im eigenen Viewer korrekt rendern, damit man das Ergebnis direkt visuell prüfen kann.
+
+**Architektur-Erweiterung im selben Task**: Opt-in-HTML-Rendering über Datei-Marker.
+
+- `convertMarkdownPortable` fügt am Datei-Anfang `<!-- scg-portable -->` ein. Rekursive Aufrufe aus `renderScgTableCellForPortable` setzen `addMarker = false`, damit der Marker nur einmal an der Datei-Spitze steht.
+- `renderMarkdown` prüft den Datei-Anfang auf den Marker und schaltet bei Treffer auf `mdPortable` (mit `html: true`).
+- Reguläre `.md`-Dateien rendern weiterhin mit `html: false` — kein Sicherheitsrisiko-Anstieg.
+- Dateien mit dem Marker rendern HTML. Bei eigenen Konverter-Outputs unkritisch. Bei fremden Dateien mit diesem Marker (Edge-Case) muss der User der Quelle vertrauen — wird in der Hilfe-Tab-Doku in [4T-0042](4T-0042-scg-table-hilfe-tab-stufe-3.md) erläutert.
+
+### Smoke-Test (2026-05-19)
+
+Nach der Marker-Erweiterung:
+
+- Datei-Menü → „Exportieren" → „Portables Markdown…" öffnet Save-As-Dialog mit Vorbelegung `<basename>-portable.md`.
+- Exportierte Datei rendert im **eigenen Viewer** als echte HTML-Tabelle (Marker am Anfang signalisiert `mdPortable`).
+- HTML-Tabelle enthält `colspan`/`rowspan`/`scope` als Attribute und Inline-Styles für Ausrichtung.
+- Verschachtelte scg-tables aus [4T-0040](4T-0040-scg-table-verschachtelung.md) werden rekursiv konvertiert.
+- Reguläre `.md`-Dateien ohne Marker rendern unverändert wie bisher (kein HTML).
