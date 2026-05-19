@@ -128,6 +128,7 @@
   "help.feature.mermaid": "Code-Blöcke mit Sprach-Tag mermaid werden im Render-Pane als SVG-Diagramme gerendert (Flowchart, Sequence, Gantt, Class und weitere). Diagramme folgen dem Theme.",
   "help.feature.linter": "Markdown-Linter-Light markiert dezent vier typische Mängel im Editor: bare URLs (ohne Markdown-Link-Syntax), leere Link-Texte, fehlende Alt-Texte und Wiki-Links, deren Ziel im Suchraum nicht gefunden wird. Hover zeigt eine Erklärung.",
   "help.feature.scgTable": "Tabellen mit mehrzeiligen Block-Zellen über einen scg-table-Code-Block, Syntax MediaWiki-nah. Details und Beispiele im Hilfe-Tab «SCG Table».",
+  "help.feature.scgTableExtended": "SCG-Tabellen unterstützen zusätzlich Sortierbarkeit (`{|+sortable`), Status-Hervorhebung (`|.error`, `|-.warn` etc.) und Spalten-Default-Ausrichtung (`{|+cols=\"left right right\"`). Details und Beispiele im Hilfe-Tab «SCG Table».",
   "help.feature.updateCheck": "Update-Erkennung: die App prüft im Hintergrund auf neue Versionen (45 Sekunden nach Start, danach alle 24 Stunden) und manuell über Hilfe → Auf Updates prüfen. Bei Treffer öffnet sich ein Dialog mit Link zur GitHub-Release-Seite. Automatischer Download und Installation kommen mit einer signierten Setup-EXE in einem späteren Release.",
   "help.shortcut.openSettings": "Einstellungen öffnen",
   "help.shortcut.zoom": "Inhalt vergrößern, verkleinern, auf 100 % zurücksetzen",

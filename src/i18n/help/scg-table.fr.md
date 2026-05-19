@@ -265,6 +265,113 @@ Pour que le fichier exporté s'affiche **aussi comme un tableau dans le viewer S
 
 **Note de sécurité** : les fichiers `.md` réguliers s'ouvrent toujours sans rendu HTML — aucun HTML du Markdown n'est exécuté. Seul le marqueur déverrouille le rendu HTML. Pour un fichier `.md` tiers portant ce marqueur (cas limite), tu dois faire confiance à la source, car le contenu HTML qui s'y trouve serait exécuté.
 
+## Tri, mise en évidence des statuts et alignement par défaut
+
+Trois extensions ajoutées dans la version 0.15.0 : les tableaux SCG peuvent être colorés avec des classes de statut par cellule ou ligne, recevoir un alignement par défaut par colonne, et être triés en cliquant sur l'en-tête de colonne.
+
+### Mise en évidence des statuts
+
+Avant le contenu d'une cellule ou directement après `|-`, une classe de statut peut apparaître en notation point :
+
+| Classe     | Signification                       |
+|------------|-------------------------------------|
+| `.error`   | Erreur, critique                    |
+| `.warn`    | Avertissement, attention            |
+| `.ok`      | OK, terminé, positif                |
+| `.info`    | Indication, neutre-informatif       |
+| `.neutral` | Marquage sans évaluation            |
+
+- **Cellule** : `|.error contenu`
+- **Ligne** (s'applique à toutes les cellules de la ligne) : `|-.warn`
+- **Le statut de cellule l'emporte** sur le statut de ligne.
+- Les valeurs invalides sont ignorées silencieusement.
+
+Exemple :
+
+```scg-table
+{|
+|-
+! Service
+! Statut
+|-.warn
+| Service mail
+| Maintenance
+|-
+| Serveur web
+|.error Panne
+|-
+| Base de données
+|.ok En marche
+|}
+```
+
+### Alignement par défaut par colonne
+
+Dans la ligne d'en-tête du tableau, `cols="…"` définit un alignement par défaut par colonne :
+
+- Syntaxe : `{|+cols="left right right"`
+- Valeurs : `left`, `center` ou `right`.
+- Une cellule avec un attribut `align` explicite (de l'étape 2) écrase le défaut.
+- Pour `colspan` aucun défaut n'est appliqué (la cellule s'étend sur plusieurs colonnes).
+
+Exemple :
+
+```scg-table
+{|+cols="left right right"
+|-
+! Produit
+! Prix
+! Stock
+|-
+| Clavier
+| 49
+| 12
+|-
+| Souris
+| 25
+| 8
+|-
+| Écran
+| 280
+| 3
+|}
+```
+
+### Tableaux triables
+
+`+sortable` dans la ligne d'en-tête rend le tableau triable au clic :
+
+- Syntaxe : `{|+sortable` (combinable avec `cols=` : `{|+sortable cols="left right"`)
+- Clic sur un en-tête : tri ascendant, second clic : descendant, troisième clic : retour à l'ordre original.
+- **Heuristique de tri** : numérique d'abord (`Number()` sur la première ligne de la cellule), sinon lexicographique avec la locale (`localeCompare`, accents triés correctement).
+- **Cellules multilignes** : triées sur la première ligne.
+- **Dates** : le format ISO (2026-05-19) se trie correctement lexicographiquement. Convertir les autres formats en ISO.
+- **`colspan`/`rowspan` désactivent automatiquement le tri** (risque de mise en page trop élevé).
+- **Dans l'export portable** le tri n'est pas inclus (pas de JavaScript dans les rendus Markdown tiers).
+
+Exemple :
+
+```scg-table
+{|+sortable
+|-
+! Nom
+! Âge
+! Ville
+|-
+| Mueller
+| 42
+| Berlin
+|-
+| Schmidt
+| 28
+| Hambourg
+|-
+| Becker
+| 35
+| Munich
+|}
+```
+
 ## Astuces
 
 **`|-` est obligatoire entre les lignes du tableau.** Sans `|-`, les cellules `|` suivantes sont interprétées comme des cellules supplémentaires de la même ligne, pas comme une nouvelle ligne. Piège le plus fréquent au début.
@@ -281,8 +388,6 @@ Pour que le fichier exporté s'affiche **aussi comme un tableau dans le viewer S
 
 Les fichiers `.md` avec des blocs `scg-table` ne s'affichent comme tableaux que dans ce viewer. Dans l'aperçu GitHub, VS Code et les autres rendus Markdown, le bloc apparaît comme un bloc de code régulier. C'est un choix de conception délibéré, pas un bug — le contenu reste lisible partout plutôt que d'apparaître comme une source syntaxiquement cassée.
 
-## Perspectives
+## État des fonctions
 
-Extensions prévues :
-
-- **Tri, mise en évidence des statuts et alignement par défaut** : tableaux triables, mise en évidence des statuts (erreur/avertissement/ok) via classes sémantiques et alignement par défaut par colonne.
+L'ensemble de fonctions prévu pour les tableaux SCG est désormais complet : syntaxe de base, spans et alignement, imbrication et export HTML, tri, mise en évidence des statuts et alignement par défaut.

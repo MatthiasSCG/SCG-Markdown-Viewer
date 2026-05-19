@@ -265,6 +265,113 @@ To make the exported file also render **as a table in the SCG Markdown viewer** 
 
 **Security note**: regular `.md` files still open without HTML rendering — no HTML from the Markdown is executed. Only the marker unlocks HTML rendering. For a third-party `.md` file carrying this marker (edge case), you must trust the source, since the HTML content there would be executed.
 
+## Sorting, status highlighting and column default
+
+Three extensions added in version 0.15.0: SCG tables can be tinted with status classes per cell or row, given a default alignment per column, and made click-sortable by column header.
+
+### Status highlighting
+
+Before a cell's content or directly after `|-`, a status class can appear in dot notation:
+
+| Class      | Meaning                            |
+|------------|------------------------------------|
+| `.error`   | Error, critical                    |
+| `.warn`    | Warning, attention                 |
+| `.ok`      | OK, done, positive                 |
+| `.info`    | Hint, neutral-informative          |
+| `.neutral` | Marker without rating              |
+
+- **Cell**: `|.error content`
+- **Row** (applies to all cells of the row): `|-.warn`
+- **Cell status wins** over row status.
+- Invalid values are silently ignored.
+
+Example:
+
+```scg-table
+{|
+|-
+! Service
+! Status
+|-.warn
+| Mail service
+| Maintenance
+|-
+| Web server
+|.error Outage
+|-
+| Database
+|.ok Running
+|}
+```
+
+### Column-default alignment
+
+In the table header line, `cols="…"` sets a default alignment per column:
+
+- Syntax: `{|+cols="left right right"`
+- Values are `left`, `center` or `right`.
+- A cell with an explicit `align` attribute (from stage 2) overrides the default.
+- For `colspan` no default is applied (cell spans multiple columns).
+
+Example:
+
+```scg-table
+{|+cols="left right right"
+|-
+! Product
+! Price
+! Stock
+|-
+| Keyboard
+| 49
+| 12
+|-
+| Mouse
+| 25
+| 8
+|-
+| Monitor
+| 280
+| 3
+|}
+```
+
+### Sortable tables
+
+`+sortable` in the header line makes the table click-sortable:
+
+- Syntax: `{|+sortable` (combinable with `cols=`: `{|+sortable cols="left right"`)
+- Click on a header to sort ascending, second click descending, third click resets to original order.
+- **Sort heuristic**: numeric first (`Number()` on the first line of the cell), otherwise lexicographic with locale (`localeCompare`, accents sorted correctly).
+- **Multi-line cells**: sorted by the first line.
+- **Dates**: ISO format (2026-05-19) sorts lexicographically correctly. Convert other date formats to ISO first.
+- **`colspan`/`rowspan` automatically disable sorting** (layout risk too high).
+- **In portable export** sorting is not included (no JavaScript in third-party Markdown renderers).
+
+Example:
+
+```scg-table
+{|+sortable
+|-
+! Name
+! Age
+! City
+|-
+| Mueller
+| 42
+| Berlin
+|-
+| Schmidt
+| 28
+| Hamburg
+|-
+| Becker
+| 35
+| Munich
+|}
+```
+
 ## Tips
 
 **`|-` is required between table rows.** Without `|-` any following `|` cells are interpreted as additional cells in the same row, not a new row. Most common beginner pitfall.
@@ -281,8 +388,6 @@ To make the exported file also render **as a table in the SCG Markdown viewer** 
 
 `.md` files with `scg-table` blocks only render as tables in this viewer. In GitHub preview, VS Code, and other Markdown renderers the block appears as a regular code block. This is a deliberate design choice, not a bug — content stays readable everywhere instead of becoming syntactically broken source.
 
-## Outlook
+## Feature status
 
-Planned extensions:
-
-- **Sorting, status highlighting and column-default**: sortable tables, status highlighting (error/warning/ok) via semantic classes, and column-default alignment.
+The planned feature set of SCG tables is now complete: basic syntax, spans and alignment, nesting and HTML export, sorting, status highlighting and column default.

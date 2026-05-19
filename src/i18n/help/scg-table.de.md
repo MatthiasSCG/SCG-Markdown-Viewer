@@ -265,6 +265,113 @@ Damit die exportierte Datei **auch im SCG Markdown Viewer** als Tabelle gerender
 
 **Sicherheits-Hinweis**: reguläre `.md`-Dateien werden weiterhin ohne HTML-Rendering geöffnet — kein HTML aus dem Markdown wird ausgeführt. Erst der Marker schaltet das HTML-Rendering frei. Bei einer fremden `.md`-Datei mit diesem Marker (Edge-Case) musst du der Quelle vertrauen, weil der HTML-Inhalt dort ausgeführt würde.
 
+## Sortierung, Status-Hervorhebung und Spalten-Default
+
+Drei Erweiterungen ab Version 0.15.0: SCG-Tabellen können mit Status-Klassen pro Zelle oder Zeile eingefärbt, mit einer Default-Ausrichtung pro Spalte versehen und durch Klick auf den Spaltenkopf sortiert werden.
+
+### Status-Hervorhebung
+
+Vor dem Inhalt einer Zelle oder direkt nach `|-` kann eine Status-Klasse in Punkt-Notation stehen:
+
+| Klasse     | Bedeutung                          |
+|------------|------------------------------------|
+| `.error`   | Fehler, kritisch                   |
+| `.warn`    | Warnung, Aufmerksamkeit            |
+| `.ok`      | OK, erledigt, positiv              |
+| `.info`    | Hinweis, neutral-informativ        |
+| `.neutral` | Markierung ohne Wertung            |
+
+- **Zelle**: `|.error Inhalt`
+- **Zeile** (gilt für alle Zellen der Zeile): `|-.warn`
+- **Zell-Status gewinnt** gegen Zeilen-Status.
+- Ungültige Werte werden stillschweigend ignoriert.
+
+Beispiel:
+
+```scg-table
+{|
+|-
+! Service
+! Status
+|-.warn
+| Mail-Service
+| Wartung
+|-
+| Web-Server
+|.error Ausfall
+|-
+| Datenbank
+|.ok Laeuft
+|}
+```
+
+### Spalten-Default-Ausrichtung
+
+In der Tabellen-Header-Zeile setzt `cols="…"` eine Default-Ausrichtung pro Spalte:
+
+- Syntax: `{|+cols="left right right"`
+- Werte sind `left`, `center` oder `right`.
+- Eine Zelle mit explizitem `align`-Attribut (aus Stufe 2) überschreibt den Default.
+- Bei `colspan` wird kein Default angewendet (Zelle überspannt mehrere Spalten mit ggf. unterschiedlichen Defaults).
+
+Beispiel:
+
+```scg-table
+{|+cols="left right right"
+|-
+! Produkt
+! Preis
+! Lager
+|-
+| Tastatur
+| 49
+| 12
+|-
+| Maus
+| 25
+| 8
+|-
+| Monitor
+| 280
+| 3
+|}
+```
+
+### Sortierbare Tabellen
+
+`+sortable` in der Header-Zeile macht die Tabelle anklickbar-sortierbar:
+
+- Syntax: `{|+sortable` (kombinierbar mit `cols=`: `{|+sortable cols="left right"`)
+- Klick auf einen Header sortiert aufsteigend, weiterer Klick absteigend, dritter Klick stellt die Original-Reihenfolge wieder her.
+- **Sort-Heuristik**: zuerst numerisch (`Number()` auf die erste Zeile der Zelle), sonst lexikographisch mit Locale (`localeCompare`, Umlaute korrekt einsortiert).
+- **Mehrzeilige Zellen**: nach der ersten Zeile sortiert.
+- **Datum**: ISO-Format (2026-05-19) sortiert lexikographisch korrekt. Andere Datums-Formate vorher auf ISO umstellen.
+- **`colspan`/`rowspan` deaktivieren die Sortierung** automatisch (Layout-Risiko zu hoch).
+- **Im portablen Export** ist die Sortierung nicht enthalten (kein JavaScript in fremden Markdown-Renderern).
+
+Beispiel:
+
+```scg-table
+{|+sortable
+|-
+! Name
+! Alter
+! Stadt
+|-
+| Mueller
+| 42
+| Berlin
+|-
+| Schmidt
+| 28
+| Hamburg
+|-
+| Becker
+| 35
+| Muenchen
+|}
+```
+
 ## Tipps
 
 **`|-` ist Pflicht zwischen Tabellenzeilen.** Ohne `|-` werden Folge-`|`-Zellen als weitere Zellen derselben Zeile interpretiert, nicht als neue Zeile. Häufigster Stolperstein beim Einstieg.
@@ -281,8 +388,6 @@ Damit die exportierte Datei **auch im SCG Markdown Viewer** als Tabelle gerender
 
 `.md`-Dateien mit `scg-table`-Blöcken rendern nur in diesem Viewer als Tabelle. In GitHub-Vorschau, VS Code und anderen Markdown-Renderern erscheint der Block als regulärer Code-Block. Das ist bewusste Designentscheidung, kein Fehler — so bleibt der Inhalt überall lesbar, statt als syntaktisch korrumpierter Quelltext zu erscheinen.
 
-## Ausblick
+## Stand der Funktionen
 
-Geplante Erweiterungen:
-
-- **Sortierung, Status-Hervorhebung und Spalten-Default**: sortierbare Tabellen, Status-Hervorhebung (Fehler/Warnung/OK) über semantische Klassen und Standard-Ausrichtung pro Spalte.
+Damit ist der geplante Funktionsumfang der SCG-Tabellen erreicht: Basis-Syntax, Spans und Ausrichtung, Verschachtelung und HTML-Export, Sortierung, Status-Hervorhebung und Spalten-Default.

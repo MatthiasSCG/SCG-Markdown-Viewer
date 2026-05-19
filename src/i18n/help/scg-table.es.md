@@ -265,6 +265,113 @@ Para que el archivo exportado también se muestre **como tabla en el visor SCG M
 
 **Nota de seguridad**: los archivos `.md` regulares siguen abriéndose sin renderizado HTML — no se ejecuta ningún HTML del Markdown. Solo el marcador desbloquea el renderizado HTML. Para un archivo `.md` de terceros que lleve este marcador (caso límite), debes confiar en la fuente, ya que el contenido HTML allí se ejecutaría.
 
+## Ordenación, resaltado de estado y alineación predeterminada
+
+Tres extensiones añadidas en la versión 0.15.0: las tablas SCG pueden colorearse con clases de estado por celda o fila, recibir una alineación predeterminada por columna y ordenarse haciendo clic en el encabezado de columna.
+
+### Resaltado de estado
+
+Antes del contenido de una celda o directamente después de `|-`, puede aparecer una clase de estado en notación de punto:
+
+| Clase      | Significado                         |
+|------------|-------------------------------------|
+| `.error`   | Error, crítico                      |
+| `.warn`    | Advertencia, atención               |
+| `.ok`      | OK, hecho, positivo                 |
+| `.info`    | Indicación, neutro-informativo      |
+| `.neutral` | Marca sin valoración                |
+
+- **Celda**: `|.error contenido`
+- **Fila** (se aplica a todas las celdas de la fila): `|-.warn`
+- **El estado de celda prevalece** sobre el de fila.
+- Los valores no válidos se ignoran silenciosamente.
+
+Ejemplo:
+
+```scg-table
+{|
+|-
+! Servicio
+! Estado
+|-.warn
+| Servicio de correo
+| Mantenimiento
+|-
+| Servidor web
+|.error Caída
+|-
+| Base de datos
+|.ok En marcha
+|}
+```
+
+### Alineación predeterminada por columna
+
+En la línea de encabezado de la tabla, `cols="…"` define una alineación predeterminada por columna:
+
+- Sintaxis: `{|+cols="left right right"`
+- Valores: `left`, `center` o `right`.
+- Una celda con un atributo `align` explícito (de la etapa 2) sobrescribe el valor por defecto.
+- Para `colspan` no se aplica valor por defecto (la celda abarca varias columnas).
+
+Ejemplo:
+
+```scg-table
+{|+cols="left right right"
+|-
+! Producto
+! Precio
+! Stock
+|-
+| Teclado
+| 49
+| 12
+|-
+| Ratón
+| 25
+| 8
+|-
+| Monitor
+| 280
+| 3
+|}
+```
+
+### Tablas ordenables
+
+`+sortable` en la línea de encabezado hace la tabla ordenable al clic:
+
+- Sintaxis: `{|+sortable` (combinable con `cols=`: `{|+sortable cols="left right"`)
+- Clic en un encabezado: ordena ascendente, segundo clic: descendente, tercer clic: restaura el orden original.
+- **Heurística de ordenación**: primero numérica (`Number()` en la primera línea de la celda), si no lexicográfica con locale (`localeCompare`, acentos ordenados correctamente).
+- **Celdas multilínea**: ordenadas por la primera línea.
+- **Fechas**: el formato ISO (2026-05-19) se ordena correctamente de forma lexicográfica. Convertir otros formatos a ISO.
+- **`colspan`/`rowspan` desactivan automáticamente la ordenación** (riesgo de maquetación demasiado alto).
+- **En la exportación portable** la ordenación no se incluye (sin JavaScript en renderizadores Markdown de terceros).
+
+Ejemplo:
+
+```scg-table
+{|+sortable
+|-
+! Nombre
+! Edad
+! Ciudad
+|-
+| Mueller
+| 42
+| Berlín
+|-
+| Schmidt
+| 28
+| Hamburgo
+|-
+| Becker
+| 35
+| Múnich
+|}
+```
+
 ## Consejos
 
 **`|-` es obligatorio entre filas de la tabla.** Sin `|-`, las celdas `|` siguientes se interpretan como celdas adicionales de la misma fila, no como una nueva fila. Tropiezo más frecuente al empezar.
@@ -281,8 +388,6 @@ Para que el archivo exportado también se muestre **como tabla en el visor SCG M
 
 Los archivos `.md` con bloques `scg-table` solo se renderizan como tablas en este visor. En la vista previa de GitHub, VS Code y otros renderizadores Markdown, el bloque aparece como un bloque de código regular. Es una decisión de diseño deliberada, no un error — así el contenido sigue siendo legible en todas partes en lugar de aparecer como fuente sintácticamente rota.
 
-## Perspectiva
+## Estado de las funciones
 
-Extensiones planeadas:
-
-- **Ordenación, resaltado de estado y alineación predeterminada**: tablas ordenables, resaltado de estado (error/advertencia/ok) mediante clases semánticas y alineación predeterminada por columna.
+El conjunto de funciones previsto para las tablas SCG está ahora completo: sintaxis básica, spans y alineación, anidamiento y exportación HTML, ordenación, resaltado de estado y alineación predeterminada.

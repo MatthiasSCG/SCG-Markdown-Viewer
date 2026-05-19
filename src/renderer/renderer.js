@@ -4084,6 +4084,8 @@ const HELP_FEATURE_GROUPS = [
       'help.feature.linter',
       // 4T-0035 (Epic 3E-0006): scg-table mit Querverweis auf den eigenen Tab.
       'help.feature.scgTable',
+      // 4T-0047 (Epic 3E-0009): Sortierung, Status-Hervorhebung, Spalten-Default.
+      'help.feature.scgTableExtended',
     ],
   },
   {

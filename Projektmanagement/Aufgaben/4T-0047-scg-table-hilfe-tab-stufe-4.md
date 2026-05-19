@@ -1,6 +1,6 @@
 # 4T-0047 — Hilfe-Tab um Sortierung, Status-Hervorhebung und Spalten-Default erweitern
 
-**Status**: Offen
+**Status**: Erledigt — 2026-05-19, gepushed
 **Epic**: [3E-0009 — SCG Table Stufe 4](3E-0009-scg-table-sortierung-status.md)
 **Zielversion**: 0.15.0
 
@@ -64,4 +64,31 @@ DE (Master), EN, FR, ES, IT mit identischer Struktur, Texte übersetzt, Beispiel
 
 ## Lösung
 
-(wird nach Abschluss der Umsetzung gefüllt)
+Umgesetzt am 2026-05-19, Test bestanden.
+
+### Hilfe-Tab-Inhalt (5 Sprachen)
+
+In den fünf Hilfe-Inhaltsdateien (`src/i18n/help/scg-table.{de,en,fr,es,it}.md`) eingefügt **zwischen** „Verschachtelte Tabellen und HTML-Export" und „Tipps":
+
+- **Neue Sektion „Sortierung, Status-Hervorhebung und Spalten-Default"** mit drei Unterabschnitten:
+  1. Status-Hervorhebung: Tabelle der fünf Klassen, Beispiel mit Zeilen- und Zell-Status; Override-Hinweis.
+  2. Spalten-Default-Ausrichtung: `{|+cols="…"`-Syntax, Hinweis auf Zell-Override und colspan-Verhalten.
+  3. Sortierbare Tabellen: `{|+sortable`-Syntax, Klick-Zyklus, Sort-Heuristik, Datum-Hinweis, Hinweis zur automatischen Deaktivierung bei Spans, Hinweis zum portablen Export ohne Sortierung.
+- **Ausblick-Block** durch „Stand der Funktionen" ersetzt (lokales Äquivalent in jeder Sprache). Kurzer Abschluss-Hinweis, dass der geplante Funktionsumfang erreicht ist; keine offenen Erweiterungen mehr.
+
+### Funktions-Eintrag im Hilfe-Dialog
+
+- **[src/renderer/renderer.js](../../src/renderer/renderer.js)**: neuer Eintrag `help.feature.scgTableExtended` in `HELP_FEATURE_GROUPS` Gruppe „Bearbeitung", direkt nach `scgTable`. Beschreibt die drei neuen Funktionen kompakt und verweist auf den SCG-Table-Tab.
+- **5 i18n-Dateien** (`src/i18n/{de,en,fr,es,it}.json`): neuer Key `help.feature.scgTableExtended` mit Beschreibung der drei Funktionen plus Querverweis auf den Tab.
+
+### Smoke-Test (2026-05-19)
+
+- Hilfe-Tab „SCG Table" zeigt neue Sektion an der richtigen Stelle, drei Unterabschnitte sichtbar.
+- Status-Hervorhebung: Beispiel-Tabelle rendert mit echten Farben.
+- Spalten-Default: Beispiel-Tabelle zeigt die rechtsbündige Wirkung.
+- Sortierbare Tabelle im Hilfe-Tab ist anklickbar; Sortierung funktioniert direkt in der Hilfe.
+- Stand-der-Funktionen-Abschluss am Ende statt Ausblick-Block.
+- Sprachwechsel: alle fünf Sprachen zeigen die neue Sektion.
+- Funktions-Tab → Gruppe „Bearbeitung" → neuer `scgTableExtended`-Eintrag nach `scgTable`.
+
+Alle Punkte bestanden.
