@@ -515,6 +515,13 @@ select {
   flex-direction: column;
   min-height: 0;
 }
+/* Pre-existing-Bugfix (aufgefallen waehrend Test 4T-0031): das hidden-
+   Attribut, das applyOutlineVisibility/applyBacklinksVisibility pro Sektion
+   setzen, wurde vom obigen 'display: flex' ueberschrieben (gleiche Spezifitaet,
+   spaetere Quellreihenfolge gewinnt). Konsequenz: Beim Ein-/Ausblenden einer
+   einzelnen Sektion zeigte die andere sich trotzdem. Eine spezifischere
+   '[hidden]'-Regel erzwingt die Ausblendung. */
+.sidebar-section[hidden] { display: none; }
 .sidebar-section-header {
   display: flex;
   align-items: center;
