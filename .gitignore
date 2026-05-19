@@ -9,6 +9,10 @@ src/renderer/renderer.bundle.js
 # node_modules generiert (siehe scripts/build-hljs-themes.js).
 src/renderer/hljs-themes.css
 
+# 4T-0022: KaTeX-Assets (CSS und woff2-Fonts) werden vor dem Renderer-Build
+# aus node_modules/katex kopiert (siehe scripts/build-katex-assets.js).
+src/renderer/katex/
+
 # Build-Ergebnisse (Output-Verzeichnisse)
 dist/
 out/

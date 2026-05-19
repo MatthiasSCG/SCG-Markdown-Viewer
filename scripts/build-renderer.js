@@ -16,6 +16,10 @@ const outfile = path.join(root, 'src', 'renderer', 'renderer.bundle.js');
 const { buildHljsThemes } = require('./build-hljs-themes.js');
 buildHljsThemes();
 
+// 4T-0022: KaTeX-Assets (CSS + woff2-Fonts) nach src/renderer/katex/ kopieren.
+const { buildKatexAssets } = require('./build-katex-assets.js');
+buildKatexAssets();
+
 const args = process.argv.slice(2);
 const watch = args.includes('--watch');
 

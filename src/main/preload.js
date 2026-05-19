@@ -9,6 +9,7 @@ const fs = require('node:fs');
 const MarkdownIt = require('markdown-it');
 const taskLists = require('markdown-it-task-lists');
 const markdownItAnchor = require('markdown-it-anchor');
+const markdownItKatex = require('@vscode/markdown-it-katex').default;
 
 // 4T-0023: highlight.js als Core-Bundle plus kuratierte Sprachliste. Damit
 // landet nur das benoetigte Set im Bundle, nicht das gesamte Default-Bundle
@@ -120,6 +121,16 @@ md.use(markdownItAnchor, {
   slugify: githubLikeSlug,
   tabIndex: false,
   permalink: false,
+});
+
+// 4T-0022: KaTeX-Mathematik. Inline `$…$` und Block `$$…$$`. Das Plugin
+// erkennt `$` nur dann als Delimiter, wenn die umgebenden Zeichen die
+// Heuristik erfuellen (kein Whitespace direkt neben dem inneren Inhalt) —
+// damit bleiben Dollar-Betraege wie `$5 bis $10` Fliesstext. Syntaxfehler
+// werden rot inline angezeigt statt den Render-Pane abzuschiessen.
+md.use(markdownItKatex, {
+  throwOnError: false,
+  errorColor: '#cc0000',
 });
 
 // Wiki-Link-Plugin: [[Ziel]] und [[Ziel|Label]] -> <a href="Ziel.md">Label</a>.
