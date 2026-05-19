@@ -1,6 +1,6 @@
 # 4T-0034 — Parser und Renderer für scg-table (Stufe 1: Basis-Tabelle)
 
-**Status**: Wartet auf Test
+**Status**: Erledigt — 2026-05-19, gepushed (Commit `87f009f`)
 **Epic**: [3E-0006 — SCG Table](3E-0006-scg-table.md)
 **Zielversion**: 0.12.0
 

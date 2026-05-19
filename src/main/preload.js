@@ -409,6 +409,10 @@ contextBridge.exposeInMainWorld('api', {
   // damit das Outline-Panel im Render-Modus den passenden DOM-Anker findet.
   slugifyHeading: (text) => githubLikeSlug(String(text || '')),
 
+  // 4T-0036: Hilfe-Tab-Inhalt fuer scg-table aus dem Main holen (Markdown-
+  // Quelltext, der im Renderer durch renderMarkdown() gerendert wird).
+  getScgTableHelpContent: (locale) => ipcRenderer.invoke('help:getScgTableContent', locale),
+
   // 4T-0015: Backlinks. requestBacklinks erhoeht den Refcount auf die
   // Wurzel, releaseBacklinks senkt ihn (wird beim Tab-Wechsel paarweise
   // aufgerufen). onBacklinksInvalidated meldet Watcher-Updates aus dem Main.

@@ -4087,6 +4087,14 @@ function renderHelpContent() {
     tr.appendChild(tdDesc);
     shortcutsEl.appendChild(tr);
   }
+
+  // 4T-0036: scg-table-Tab beim Sprachwechsel ggf. neu laden, wenn er
+  // gerade sichtbar ist. Cache invalidieren und Reload triggern.
+  const panelScgTable = helpModal.querySelector('#help-panel-scg-table');
+  if (panelScgTable) {
+    panelScgTable.dataset.loadedLocale = '';
+    if (!panelScgTable.hidden) loadScgTableHelpContent();
+  }
 }
 
 // 4T-0027: Helper fuer den '+'-Split. "Strg+E" -> ["Strg", "E"], aber
@@ -4103,9 +4111,31 @@ function splitShortcutKeys(k) {
   return k.split('+');
 }
 
+// 4T-0036: Hilfe-Tab fuer scg-table. Markdown-Inhalt pro Sprache wird vom
+// Main asynchron geliefert (via help:getScgTableContent), durch dieselbe
+// markdown-it-Instanz wie der Viewer-Inhalt gerendert und in das Tab-Panel
+// eingesetzt. Lazy: laedt beim ersten Klick auf den Tab und bei jedem
+// Sprachwechsel neu (dataset.loadedLocale fuehrt den Cache pro Locale).
+async function loadScgTableHelpContent() {
+  const panel = helpModal.querySelector('#help-panel-scg-table');
+  const container = $('#help-scg-table-content');
+  if (!panel || !container) return;
+  const locale = state.language || 'en';
+  if (panel.dataset.loadedLocale === locale) return;
+  try {
+    const md = await api.getScgTableHelpContent(locale);
+    container.innerHTML = api.renderMarkdown(md || '', null);
+    panel.dataset.loadedLocale = locale;
+  } catch (err) {
+    console.error('scg-table-Hilfe konnte nicht geladen werden', err);
+    container.textContent = '';
+    panel.dataset.loadedLocale = '';
+  }
+}
+
 // 4T-0027: Tab-Wechsel im Hilfe-Modal. Beim Oeffnen des Modals wird via
 // showHelp() immer der Funktionen-Tab gesetzt; per Klick auf die Tab-Buttons
-// kann der Nutzer auf Tastenkuerzel umschalten.
+// kann der Nutzer auf Tastenkuerzel oder (4T-0036) SCG-Table umschalten.
 function switchHelpTab(target) {
   const tabs = helpModal.querySelectorAll('.help-tab');
   tabs.forEach((tab) => {
@@ -4115,8 +4145,11 @@ function switchHelpTab(target) {
   });
   const panelFeatures = helpModal.querySelector('#help-panel-features');
   const panelShortcuts = helpModal.querySelector('#help-panel-shortcuts');
+  const panelScgTable = helpModal.querySelector('#help-panel-scg-table');
   if (panelFeatures) panelFeatures.hidden = target !== 'features';
   if (panelShortcuts) panelShortcuts.hidden = target !== 'shortcuts';
+  if (panelScgTable) panelScgTable.hidden = target !== 'scg-table';
+  if (target === 'scg-table') loadScgTableHelpContent();
 }
 
 function showHelp() {

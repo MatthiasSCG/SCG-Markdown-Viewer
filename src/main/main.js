@@ -986,6 +986,26 @@ function registerIpc() {
     applyMenuToAllWindows();
   });
 
+  // 4T-0036: Liefert den scg-table-Hilfe-Tab-Inhalt fuer die uebergebene
+  // Locale aus src/i18n/help/scg-table.<locale>.md. Fallback auf Englisch,
+  // wenn die angefragte Sprache keinen Inhalt hat. Die Dateien liegen unter
+  // asarUnpack (src/i18n/**/* in package.json) und sind zur Laufzeit lesbar.
+  ipcMain.handle('help:getScgTableContent', async (_event, locale) => {
+    const safe = typeof locale === 'string' ? locale.toLowerCase().replace(/[^a-z-]/g, '') : '';
+    const candidates = [];
+    if (safe) candidates.push(safe);
+    if (!candidates.includes('en')) candidates.push('en');
+    for (const code of candidates) {
+      try {
+        const file = path.join(__dirname, '..', 'i18n', 'help', `scg-table.${code}.md`);
+        return await fs.readFile(file, 'utf8');
+      } catch (_err) {
+        // weiter zum naechsten Kandidaten
+      }
+    }
+    return '';
+  });
+
   // Renderer meldet seine aktuelle Pane-Struktur, damit Bounds-Saves auch immer
   // die passenden Tabs persistieren koennen.
   ipcMain.handle('window:reportPanes', (event, panes) => {

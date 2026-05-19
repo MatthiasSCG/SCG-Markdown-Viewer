@@ -47,8 +47,8 @@ Stufe 2 und Stufe 3 sind als Folge-Epics geplant und nicht Bestandteil von 3E-00
 
 ## Untergeordnete Tasks
 
-- [ ] [4T-0034 — Parser und Renderer für scg-table (Stufe 1: Basis-Tabelle)](4T-0034-scg-table-parser.md)
-- [ ] [4T-0036 — Hilfe-Tab „SCG Table" mit ausführlicher Doku](4T-0036-scg-table-hilfe-tab.md)
+- [x] [4T-0034 — Parser und Renderer für scg-table (Stufe 1: Basis-Tabelle)](4T-0034-scg-table-parser.md) — erledigt, Commit `87f009f`, gepushed
+- [x] [4T-0036 — Hilfe-Tab „SCG Table" mit ausführlicher Doku](4T-0036-scg-table-hilfe-tab.md) — erledigt, gepushed
 - [ ] [4T-0035 — Kurzeintrag im Hilfe-Dialog, CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.12.0](4T-0035-changelog-release-0120.md)
 
 ## Architekturentscheidungen

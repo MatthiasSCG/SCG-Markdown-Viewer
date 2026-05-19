@@ -231,6 +231,7 @@
         <div class="help-tabs" role="tablist">
           <button class="help-tab active" data-help-tab="features" role="tab" aria-selected="true" data-i18n="help.tabFeatures">Funktionen</button>
           <button class="help-tab" data-help-tab="shortcuts" role="tab" aria-selected="false" data-i18n="help.tabShortcuts">Tastenkürzel</button>
+          <button class="help-tab" data-help-tab="scg-table" role="tab" aria-selected="false" data-i18n="help.tabScgTable">SCG Table</button>
         </div>
         <div class="help-tab-panel" id="help-panel-features" role="tabpanel">
           <div class="help-feature-groups" id="help-features"></div>
@@ -239,6 +240,9 @@
           <table class="help-shortcuts">
             <tbody id="help-shortcuts"></tbody>
           </table>
+        </div>
+        <div class="help-tab-panel help-tab-panel-scg-table markdown-body" id="help-panel-scg-table" role="tabpanel" hidden>
+          <div id="help-scg-table-content"></div>
         </div>
         <button id="btn-help-close" class="btn btn-primary" data-i18n="about.ok">OK</button>
       </div>

@@ -1,6 +1,6 @@
 # 4T-0036 — Hilfe-Tab „SCG Table" mit ausführlicher Doku
 
-**Status**: Offen
+**Status**: Erledigt — 2026-05-19, gepushed
 **Epic**: [3E-0006 — SCG Table](3E-0006-scg-table.md)
 **Zielversion**: 0.12.0
 
@@ -104,4 +104,28 @@ Da die Markdown-Dateien Teil des Bundles sind und der Renderer keinen direkten D
 
 ## Lösung
 
-(wird nach Abschluss der Umsetzung gefüllt)
+Umgesetzt am 2026-05-19, Test bestanden.
+
+### Code-Änderungen
+
+- **[src/renderer/index.html](../../src/renderer/index.html)**: dritter Tab-Button `data-help-tab="scg-table"` und Panel `#help-panel-scg-table` mit Klasse `markdown-body` (damit die scg-table-CSS-Regeln aus 4T-0034 im Tab-Inhalt greifen).
+- **[src/main/main.js](../../src/main/main.js)**: IPC-Handler `help:getScgTableContent` mit Locale-Fallback auf Englisch. Liest aus `src/i18n/help/scg-table.<locale>.md` via `fs.readFile`; Pfad über `path.join(__dirname, '..', 'i18n', 'help', …)` analog zum Pattern aus `menu.js`. Locale-String wird auf `[a-z-]` gefiltert, um Pfad-Manipulation zu unterbinden.
+- **[src/main/preload.js](../../src/main/preload.js)**: neue API `getScgTableHelpContent(locale)` über contextBridge, eingehängt nach `slugifyHeading` als logischer Markdown-bezogener API-Block.
+- **[src/renderer/renderer.js](../../src/renderer/renderer.js)**: neue Funktion `loadScgTableHelpContent()` mit Lazy-Cache pro Locale (`dataset.loadedLocale` am Panel). `switchHelpTab` erweitert, schaltet das scg-table-Panel ein/aus und triggert beim Wechsel den Lazy-Load. `renderHelpContent` löscht den Locale-Cache und triggert Reload, wenn der Tab beim Sprachwechsel sichtbar ist.
+- **i18n** (5 Dateien): neuer Key `help.tabScgTable` mit dem Eigennamen „SCG Table" in allen fünf Sprachen.
+- **Hilfe-Inhalte** (5 neue Markdown-Dateien in `src/i18n/help/`): identische Struktur in DE, EN, FR, ES, IT — Einleitung, Grundsyntax-Tabelle, Minimal-Beispiel mit Quelltext und gerendeter Tabelle, erweitertes Beispiel mit Code-Block in der Zelle (Vier-Backtick-Außenfence), fünf Tipps mit der **`|-`-Pflicht** prominent als erster Punkt, Portabilitäts-Hinweis, Stufen-Ausblick auf Stufe 2 und 3.
+
+### Implementierungsdetails
+
+- **Asynchroner Lazy-Load mit Locale-Cache**: `panel.dataset.loadedLocale` speichert die Locale des aktuell geladenen Inhalts. Wenn beim Tab-Wechsel oder bei Sprachwechsel die gespeicherte Locale zur aktiven passt, wird nicht erneut geladen.
+- **Sprachwechsel-Pfad**: bei Sprachwechsel wird `renderHelpContent()` aufgerufen, wenn das Modal offen ist (bestehende Logik in `applyTranslations`). Wir erweitern den Aufruf um Cache-Invalidierung und konditionalen Reload (`!panel.hidden`).
+- **Meta-Effekt**: die Hilfe-Inhalte enthalten echte ` ```scg-table `-Blöcke. Diese werden durch dieselbe markdown-it-Instanz wie der Viewer-Inhalt gerendert und durchlaufen den scg-table-Renderer aus 4T-0034. Die Hilfe demonstriert sich also selbst.
+- **asarUnpack** in `package.json` deckt bereits `src/i18n/**/*` ab; die neuen `src/i18n/help/*.md` sind ohne weitere Konfiguration zur Laufzeit lesbar.
+
+### Smoke-Test (2026-05-19)
+
+- Hilfe-Dialog öffnet sich mit drittem Tab „SCG Table".
+- Tab-Klick lädt Markdown-Inhalt, gerenderte Beispiel-Tabellen erscheinen inkl. Code-Block-Highlight in der Zelle.
+- Sprachwechsel-Hot-Reload des Inhalts funktioniert.
+- Bestehende Tabs „Funktionen" und „Tastenkürzel" unverändert.
+- Optisches Layout passt visuell.
