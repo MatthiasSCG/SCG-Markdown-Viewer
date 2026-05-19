@@ -48,27 +48,31 @@ Beide Punkte stehen funktional unabhängig voneinander, werden aber im selben Ep
 
 ## Untergeordnete Tasks
 
-(werden beim Epic-Start angelegt)
+- [ ] [4T-0040 — Verschachtelte SCG-Tabellen](4T-0040-scg-table-verschachtelung.md)
+- [ ] [4T-0041 — HTML-Konverter: Export portables Markdown](4T-0041-scg-table-html-konverter.md)
+- [ ] [4T-0042 — Hilfe-Tab um Verschachtelung und HTML-Export erweitern](4T-0042-scg-table-hilfe-tab-stufe-3.md)
+- [ ] [4T-0043 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.14.0](4T-0043-changelog-release-0140.md)
 
 ## Architekturentscheidungen
 
-(werden beim Epic-Start finalisiert; offene Fragen siehe „Offene Punkte" weiter unten)
+Am 2026-05-19 finalisiert (die ursprünglich offenen Detail-Fragen wurden im Zuge der Task-Anlage entschieden):
 
-Erste Richtungsvorgaben:
-
-- **HTML-Konverter** als Datei-Aktion: neuer Menü-Eintrag „Datei → Exportieren → Portables Markdown…". Schreibt eine neue `.md`-Datei mit Suffix wie `-portable.md` (oder Speichern-unter-Dialog) ins gleiche Verzeichnis. Original bleibt unverändert.
-- **Konverter-Implementation** im Main-Prozess als IPC-Handler, der den Markdown-Inhalt als String entgegennimmt, scg-table-Blöcke mit Regex oder Token-Scanning findet, sie durch HTML ersetzt und das Ergebnis zurückgibt. Wiederverwendung der bestehenden `renderScgTable`-Logik mit kleinen Anpassungen für inline-HTML-Ausgabe (z.B. ohne `<thead>`-Struktur, weil viele externe Renderer das anders parsen).
-- **Verschachtelte scg-tables**: in `renderScgTable` wird der Zellinhalt durch `md.render(content)` geschickt; weil `md.renderer.rules.fence` bereits den scg-table-Override hat, greift bei einem inneren scg-table-Codeblock automatisch der Renderer rekursiv. Funktional besteht damit die Möglichkeit „kostenlos" — es braucht ggf. nur eine Rekursionstiefen-Begrenzung und Tests.
+- **Verschachtelung über bestehende `md.render`-Rekursion** plus expliziten Rekursionstiefen-Schutz. Counter und Konstante `SCG_TABLE_MAX_DEPTH = 3` als Modul-Level-Variablen in [src/main/preload.js](../../src/main/preload.js). Bei Erreichen des Limits gibt `renderScgTable` `null` zurück, der Override fällt auf den Default-Fence-Renderer (Code-Block) zurück.
+- **Tiefen-Limit**: max. 3 Ebenen (Counter-Werte 0, 1, 2 beim Eintritt zulässig). 4. Ebene wird zum Code-Block.
+- **HTML-Konverter** als Datei-Aktion: Menü-Eintrag „Datei → Exportieren → Portables Markdown…" in fünf Sprachen lokalisiert.
+- **Save-Strategie**: Save-As-Dialog mit Vorbelegung `<basename>-portable.md` im gleichen Verzeichnis wie die Quell-Datei. User kann Pfad und Namen frei ändern.
+- **Konverter-Implementation im Preload**: `convertMarkdownPortable(text)` als API über contextBridge. Regex-basierter Scanner für `scg-table`-Codeblocks (Pattern `^(`{3,})scg-table…`-Style). Wiederverwendung der Parser-Logik aus `renderScgTable` über eine ausgelagerte `parseScgTableBlock`-Hilfsfunktion (Refactoring).
+- **HTML-Output-Stil**: strukturell mit HTML-Standard-Attributen plus Inline-Styles. `colspan`, `rowspan`, `scope` als HTML-Attribute. Ausrichtung als `style="text-align: <left|center|right>; vertical-align: <top|middle|bottom>"`. HTML5-konform. Keine CSS-Klassen im Output, damit die exportierte Datei auch in fremden Renderern ohne unsere CSS-Definitionen funktioniert.
+- **Verschachtelte scg-tables im Konverter** werden rekursiv konvertiert (analog zum Viewer-Render mit demselben Tiefen-Limit).
+- **Verhalten bei beschädigten Blöcken**: `scg-table`-Codeblocks ohne `{|`-Anfang bleiben vom Konverter unverändert. Semantisch konsistent mit dem Viewer-Render.
+- **Stufen-Begriffe in der User-Hilfe**: weiterhin nicht verwendet (etablierte Konvention seit 4T-0038). Die neue Hilfe-Tab-Sektion heißt „Verschachtelte Tabellen und HTML-Export".
 
 ## Reihenfolge der Umsetzung
 
-(wird beim Epic-Start mit den Tasks festgelegt)
-
-Vorschlag für die Aufteilung:
-
-1. Verschachtelte scg-tables (kleinere Änderung, baut auf Stufe-1-Logik direkt auf).
-2. HTML-Konverter (eigene Komponente mit eigenem Menü-Pfad und Datei-Schreib-Logik).
-3. Hilfe-Tab-Erweiterung + Abschluss-Sammeltask (CHANGELOG, Release-Notes, Tag, Release).
+1. **4T-0040 Verschachtelte SCG-Tabellen.** Kleinere, isolierte Änderung in `preload.js` (Rekursionstiefen-Schutz). Baut auf Stufe-1- und Stufe-2-Logik direkt auf.
+2. **4T-0041 HTML-Konverter.** Eigene Komponente mit Menü-Eintrag, IPC-Anbindung, Save-As-Dialog und HTML-Output-Logik. Setzt 4T-0040 voraus, damit die Konverter-Rekursion analog zum Renderer arbeitet.
+3. **4T-0042 Hilfe-Tab.** Erweiterung der bestehenden fünf Sprachdateien um eine Sektion „Verschachtelte Tabellen und HTML-Export". Setzt 4T-0040 voraus, damit das Verschachtelungs-Beispiel im Tab funktional rendert.
+4. **4T-0043 Abschluss-Sammeltask.** CHANGELOG, Release-Notes, README, Test-Iteration, Tag und GitHub-Release für 0.14.0.
 
 ## Bezug zu Dateien
 
@@ -85,10 +89,17 @@ Pro Task im jeweiligen Lösungsansatz aufgeführt. Voraussichtlich betroffen:
 
 ## Offene Punkte / Risiken
 
-- **UX für den Konverter**: nur Menü-Eintrag, oder zusätzlich Hotkey, oder CLI-Aufruf für Batch-Verarbeitung von Verzeichnissen? Hängt davon ab, wie oft du extern teilen wirst.
-- **Suffix-Konvention der konvertierten Datei**: `-portable.md`, `-html-tables.md`, oder Save-As-Dialog mit freier Wahl? Mehr Aufwand für Save-As-Variante, dafür flexibler.
-- **HTML-Stil im Output**: nur strukturelles HTML (`<table><tr><td>…`) oder mit Inline-Styles? Inline-Styles erhöhen Portabilität (Darstellung gleich in jedem Renderer), erhöhen aber die Konflikt-Wahrscheinlichkeit mit fremden CSS. Empfehlung: nur strukturell, weil GitHub und VS Code HTML-Tabellen ohne Styles bereits brauchbar darstellen.
-- **Stufe-2-Attribute im Konverter-Output**: wie übersetzen wir `colspan`/`rowspan`/Ausrichtung aus Stufe 2 in inline HTML? `colspan="..."`, `rowspan="..."`, `<td align="...">` sind HTML-Standard und sollten 1:1 möglich sein.
-- **Rekursionstiefe bei verschachtelten Tabellen**: theoretisch unbegrenzt; praktisch sinnvoll begrenzen (z.B. max. 3 Ebenen)? Bei zu großer Tiefe wird die Lesbarkeit ohnehin problematisch.
-- **Fence-Längen-Komplexität**: bei einer doppelt verschachtelten Tabelle mit innerem Code-Block braucht es schon sechs Backticks außen. Doku-Aufwand für klare Kommunikation im Hilfe-Tab.
-- **Konverter-Verhalten bei beschädigten scg-table-Blöcken**: wenn der Block bereits in Stufe 1 als regulärer Code-Block degradieren würde (kein `{|`), soll der Konverter ihn unverändert lassen oder trotzdem etwas tun? Vorschlag: unverändert lassen, damit das Konvertierungs-Resultat semantisch konsistent mit dem Viewer-Render ist.
+Die ursprünglich offenen Detail-Fragen wurden am 2026-05-19 entschieden (siehe Architekturentscheidungen):
+
+- **Konverter-UX**: nur Menü-Eintrag. Hotkey/CLI kommen ggf. später.
+- **Save-Strategie**: Save-As-Dialog mit Vorbelegung `<basename>-portable.md`.
+- **HTML-Stil**: strukturell + HTML-Standard-Attribute + Inline-Styles für Ausrichtung (HTML5-konform).
+- **Rekursionstiefe**: max. 3 Ebenen.
+- **Verhalten bei beschädigten Blöcken**: unverändert lassen.
+
+Verbleibende Risiken für die Umsetzung:
+
+- **Refactoring der Parser-Logik**: damit `renderScgTable` (Viewer) und `convertMarkdownPortable` (Export) dieselbe Parser-Logik teilen, wird die Zeilen-Parsing-Schleife in eine `parseScgTableBlock`-Hilfsfunktion ausgelagert. Dabei nicht versehentlich Stufe-1- oder Stufe-2-Verhalten ändern (Regression-Risiko). Smoke-Tests aus 4T-0034 und 4T-0037 weiter abdecken.
+- **Regex-basierter Scanner für Fence-Längen**: muss alle Backtick-Anzahlen ab 3 erkennen, mit gleicher Anzahl außen (Capture-Group plus Backreference). Edge-Cases prüfen: Codeblock am Datei-Anfang, Codeblock direkt nach einem anderen Codeblock, Codeblock mit Leerzeilen im Inhalt.
+- **Verschachtelte Konvertierung im Export**: rekursive Konverter-Aufrufe für innere Tabellen müssen analog zum Viewer-Renderer mit dem Tiefen-Limit arbeiten, damit Konverter und Renderer dasselbe Ergebnis liefern.
+- **Fence-Längen-Komplexität in der User-Doku**: bei dreifacher Verschachtelung mit innerem Code-Block braucht es sechs Backticks außen. Beispiel im Hilfe-Tab klar erklären, sonst frustrierender Stolperstein.
