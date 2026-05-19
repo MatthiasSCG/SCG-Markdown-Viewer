@@ -1,6 +1,6 @@
 # 3E-0004 — Render-Lift und Export: Mermaid, KaTeX, Syntax-Highlighting, PDF
 
-**Status**: Offen
+**Status**: Teilweise erledigt (4T-0021/22/23 abgeschlossen; 4T-0024 zurückgestellt)
 **Zielversion**: 0.10.0
 **Vorgängerversion**: 0.9.0
 
@@ -46,10 +46,10 @@ Drei Render-Erweiterungen und eine Export-Funktion, alle gemeinsam im Render-Pan
 
 ## Untergeordnete Tasks
 
-- [ ] [4T-0021 — Mermaid-Diagramme im Render-Pane](4T-0021-mermaid.md)
-- [ ] [4T-0022 — KaTeX-Mathematik im Render-Pane](4T-0022-katex.md)
-- [ ] [4T-0023 — Syntax-Highlighting für Code-Blöcke im Render-Pane](4T-0023-code-syntax-highlighting.md)
-- [ ] [4T-0024 — PDF-Export über webContents.printToPDF](4T-0024-pdf-export.md)
+- [x] [4T-0021 — Mermaid-Diagramme im Render-Pane](4T-0021-mermaid.md) — Test bestanden
+- [x] [4T-0022 — KaTeX-Mathematik im Render-Pane](4T-0022-katex.md) — Test bestanden
+- [x] [4T-0023 — Syntax-Highlighting für Code-Blöcke im Render-Pane](4T-0023-code-syntax-highlighting.md) — Test bestanden
+- [ ] [4T-0024 — PDF-Export über webContents.printToPDF](4T-0024-pdf-export.md) — **zurückgestellt** in 0.10.0 (Theme-/Container-Konflikte im Print-Modus, Stand und Versuche im Task dokumentiert; Code zurückgebaut)
 
 ## Architekturentscheidungen
 
