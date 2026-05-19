@@ -187,7 +187,8 @@ GitHub Flavored Markdown (GFM):
 - Task-Listen (`- [ ]` / `- [x]`)
 - Strikethrough (`~~Text~~`)
 - Auto-Links
-- Code-Blöcke mit Sprachangabe (Render-seitig ohne Syntax-Highlighting)
+- Code-Blöcke mit Sprachangabe und **Syntax-Highlighting** im Render-Pane
+  (highlight.js, GitHub-Palette, kuratierte Sprachliste, folgt dem Theme)
 
 Zusätzlich:
 
@@ -196,9 +197,14 @@ Zusätzlich:
   - `[[Datei|Anzeigetext]]` — Link mit eigenem Text
   - Hat das Ziel bereits eine Endung (z.B. `[[bild.png]]`), wird sie
     nicht durch `.md` ersetzt
+- **Mermaid-Diagramme** in Fenced-Code-Blöcken mit Sprach-Tag `mermaid`
+  (Flowchart, Sequence, Gantt, Class und weitere Typen). Werden im
+  Render-Pane als SVG dargestellt, folgen dem Theme, lazy geladen.
+- **KaTeX-Mathematik**: Inline `$…$` und Block `$$…$$`. Dollar-Beträge im
+  Fließtext bleiben durch eine Whitespace-Heuristik unverändert.
 
-Mermaid-Diagramme, KaTeX-Mathe und Syntax-Highlighting in der Render-
-Vorschau sind für eine spätere Phase vorgesehen.
+Ein PDF-Export ist für ein späteres Release vorgesehen (in 0.10.0 begonnen
+und zurückgestellt, siehe [4T-0024](Projektmanagement/Aufgaben/4T-0024-pdf-export.md)).
 
 ## Technik-Stack
 
@@ -350,13 +356,20 @@ die Multi-Resolution-`icon.ico` (16/24/32/48/64/128/256 px) und
 
 ## Status
 
-Version `0.9.0` — Editor-UX und -Komfort: Tab/Umschalt+Tab in Markdown-
-Listen, Zoom pro Tab über `Strg + +/-/0` und `Strg + Mausrad`,
-konfigurierbare Schriftart und -größe (Einstellungen-Dialog), Fokus-Modus
-und Typewriter-Scroll für ablenkungsfreies Schreiben, leichter Markdown-
-Linter mit Inline-Hinweisen. Der Hilfe-Dialog ist in zwei Tabs und nach
-Funktionsgruppen sortiert. Aufsetzend auf Strukturnavigation (Folding,
-Inhaltsverzeichnis, Backlinks) aus 0.8.0 und Multi-Window-Bedienung aus
+Version `0.10.0` — Render-Lift: Syntax-Highlighting für Code-Blöcke,
+KaTeX-Mathematik (Inline und Block) und Mermaid-Diagramme im Render-Pane.
+Der Render-Pane folgt damit dem Niveau, das von GitHub und ähnlichen Tools
+gewohnt ist. Mermaid sitzt in einem separat geladenen Bundle und wird nur
+geholt, wenn das Dokument auch Diagramme enthält. KaTeX, Highlight-Themes
+und Mermaid-Bundle werden im neuen Build-Step der Renderer-Pipeline aus
+`node_modules` aufbereitet. Der ursprünglich für dieses Release geplante
+PDF-Export wurde während der Umsetzung zurückgestellt
+([4T-0024](Projektmanagement/Aufgaben/4T-0024-pdf-export.md)) und kommt in
+einem späteren Release zurück.
+
+Aufsetzend auf Editor-UX und -Komfort aus 0.9.0 (Listen-Indent, Zoom,
+Schriftart, Fokus-Modus, Markdown-Linter), Strukturnavigation aus 0.8.0
+(Folding, Inhaltsverzeichnis, Backlinks) und Multi-Window-Bedienung aus
 0.7.0. Funktional vollständig für den aktuellen Funktionsumfang,
 inklusive Windows-Build (Installer + Portable).
 

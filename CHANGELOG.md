@@ -5,6 +5,31 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.10.0] - 2026-05-19 — Render-Lift: Syntax-Highlighting, KaTeX-Mathematik und Mermaid-Diagramme
+
+Feature-Release, das den Render-Pane auf das Niveau hebt, das Nutzer von GitHub und ähnlichen Tools kennen. Umgesetzt als Epic [3E-0004](Projektmanagement/Aufgaben/3E-0004-render-lift-und-export.md) in den Tasks [4T-0023](Projektmanagement/Aufgaben/4T-0023-code-syntax-highlighting.md) (Syntax-Highlighting), [4T-0022](Projektmanagement/Aufgaben/4T-0022-katex.md) (KaTeX) und [4T-0021](Projektmanagement/Aufgaben/4T-0021-mermaid.md) (Mermaid), inklusive Abschluss-Sammeltask [4T-0028](Projektmanagement/Aufgaben/4T-0028-changelog-release-0100.md).
+
+### Neu
+
+- **Syntax-Highlighting für Code-Blöcke im Render-Pane** ([4T-0023](Projektmanagement/Aufgaben/4T-0023-code-syntax-highlighting.md)): Fenced-Code-Blöcke mit Sprach-Tag werden im Render-Pane farbig dargestellt. `highlight.js` in der Core-Variante mit kuratierter Sprachliste (JavaScript, TypeScript, Python, Java, C#, C++, Go, Rust, Bash, SQL, JSON, YAML, XML, CSS, Markdown, Plaintext, plus die üblichen Alias-Tags). GitHub-Light- und Dark-Theme werden über ein generiertes Stylesheet (`scripts/build-hljs-themes.js` → `src/renderer/hljs-themes.css`) parallel geladen und über das `data-theme`-Attribut am `<html>` ohne Re-Render umgeschaltet. Unbekannte Sprach-Tags fallen still auf einen Plain-Block zurück, ohne Fehlermeldung. Inline-Code bleibt unangetastet.
+- **KaTeX-Mathematik im Render-Pane** ([4T-0022](Projektmanagement/Aufgaben/4T-0022-katex.md)): Mathematische Formeln werden mit KaTeX gesetzt — Inline `$…$` und Block `$$…$$`. `@vscode/markdown-it-katex` als markdown-it-Plugin sorgt dafür, dass Dollar-Beträge im Fließtext (`Das kostet $5 bis $10`) durch die Whitespace-Heuristik unverändert bleiben. Backslash-Escape `\$` ebenfalls. Syntaxfehler in Formeln erscheinen rot inline, ohne den Render-Pane abzuschießen. KaTeX-CSS und 20 woff2-Schnitte werden per `scripts/build-katex-assets.js` aus `node_modules/katex` nach `src/renderer/katex/` kopiert, mit Filter auf woff2 (Chromium unterstützt das nativ; woff und ttf wären nur unnötiger Ballast im Bundle).
+- **Mermaid-Diagramme im Render-Pane** ([4T-0021](Projektmanagement/Aufgaben/4T-0021-mermaid.md)): Fenced-Code-Blöcke mit Sprach-Tag `mermaid` werden als SVG-Diagramme gerendert (Flowchart, Sequence, Gantt, Class und weitere Mermaid-Typen). Mermaid sitzt in einem separaten esbuild-Bundle (`scripts/build-mermaid.js` → `src/renderer/mermaid.bundle.js`, ~3 MB minified) und wird per dynamischem `import()` lazy geladen — Dokumente ohne Mermaid-Blöcke holen den Bundle gar nicht erst. Theme-Wechsel zur Laufzeit rendert alle vorhandenen Diagramme in der neuen Palette neu. Cache-Schicht (FNV-1a-Hash pro Quelltext+Theme) verhindert teure Re-Renders beim Live-Tippen. Syntax-Fehler werden in einem dezenten eigenen Fehler-Block mit Quelltext und Meldung dargestellt, ohne dass Mermaid-DOM-Leftovers am `<body>` hängen bleiben.
+- **Hilfe-Dialog um drei neue Feature-Einträge erweitert** ([4T-0028](Projektmanagement/Aufgaben/4T-0028-changelog-release-0100.md)): `help.feature.codeHighlight`, `help.feature.katex`, `help.feature.mermaid` in der Gruppe „Ansicht". Keine neuen Tastenkürzel im Release.
+
+### Geändert
+
+- **Versions-Bump** 0.9.0 → 0.10.0 ([package.json](package.json)).
+- **markdown-it-Pipeline im Preload erweitert** (4T-0021/22/23): `highlight.js/lib/core` mit selektiver Sprach-Registrierung als `highlight`-Callback in markdown-it, `@vscode/markdown-it-katex` als zusätzliches Plugin. Bei unbekannten Sprach-Tags schreibt der Highlight-Callback weiterhin die `language-<tag>`-Klasse mit, damit das Renderer-seitige Post-Processing (Mermaid) den Block zuverlässig per Klassennamen findet.
+- **Renderer-Build-Pipeline um drei Pre-Steps erweitert** ([scripts/build-renderer.js](scripts/build-renderer.js)): vor dem Haupt-Bundle baut esbuild jetzt die hljs-Themes, KaTeX-Assets und den Mermaid-Bundle.
+
+### Zurückgestellt
+
+- **PDF-Export** ([4T-0024](Projektmanagement/Aufgaben/4T-0024-pdf-export.md)): Der ursprünglich für 0.10.0 vorgesehene PDF-Export per `webContents.printToPDF` wurde während der Umsetzung zurückgestellt. Theme- und Container-Konflikte im Print-Modus konnten innerhalb des Releases nicht zufriedenstellend gelöst werden. Der Code-Stand wurde vollständig zurückgebaut; der Versuch ist im Task mit Problemen, Teil-Lösungen und drei Wiederanlauf-Varianten (A, B, B+) ausführlich dokumentiert. Das Feature kommt in einem späteren Release zurück.
+
+### i18n
+
+- 15 neue Keys über die fünf unterstützten Sprachen (DE, EN, FR, ES, IT): drei neue Feature-Einträge für den Hilfe-Dialog (`help.feature.codeHighlight`, `help.feature.katex`, `help.feature.mermaid`) je Sprache.
+
 ## [0.9.0] - 2026-05-18 — Editor-UX und -Komfort: Listen-Indent, Zoom, Schriftart, Fokus-Modus und Markdown-Linter
 
 Feature-Release, das im Alltag spürbare Verbesserungen am Schreib- und Leseerlebnis bündelt. Umgesetzt als Epic [3E-0003](Projektmanagement/Aufgaben/3E-0003-editor-ux-und-komfort.md) in den Tasks [4T-0016](Projektmanagement/Aufgaben/4T-0016-tab-indent-listen.md) bis [4T-0020](Projektmanagement/Aufgaben/4T-0020-linter-light.md), inklusive Abschluss-Sammeltask [4T-0027](Projektmanagement/Aufgaben/4T-0027-changelog-release-090.md). Der Hilfe-Dialog ist in diesem Release strukturell überarbeitet, weil die kumulierte Funktions- und Tastenkürzel-Liste über die Releases hinweg unübersichtlich geworden war.

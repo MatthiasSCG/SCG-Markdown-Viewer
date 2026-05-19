@@ -3867,6 +3867,10 @@ const HELP_FEATURE_GROUPS = [
       'help.feature.settings',
       'help.feature.focusMode',
       'help.feature.typewriterScroll',
+      // 4T-0028 (Render-Lift 0.10.0): drei neue Features im Render-Pane.
+      'help.feature.codeHighlight',
+      'help.feature.katex',
+      'help.feature.mermaid',
     ],
   },
   {
