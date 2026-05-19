@@ -1,8 +1,9 @@
 # 4T-0023 — Syntax-Highlighting für Code-Blöcke im Render-Pane
 
-**Status**: Test bestanden
+**Status**: Erledigt
 **Epic**: [3E-0004 — Render-Lift und Export: Mermaid, KaTeX, Syntax-Highlighting, PDF](3E-0004-render-lift-und-export.md)
 **Zielversion**: 0.10.0
+**Release**: [v0.10.0](https://github.com/MatthiasSCG/SCG-Markdown/releases/tag/v0.10.0)
 
 ## Warum
 
