@@ -645,6 +645,9 @@ const state = {
   language: 'en',
   restoreSession: true,
   autoSave: false,
+  // 4T-0030: Theme-Vorzug ('light' | 'dark' | 'system'). Initial 'system';
+  // tatsaechlicher Wert wird beim Init aus electron-store geladen.
+  themePref: 'system',
   // Hochzählender Zaehler fuer "Datei → Neu"-Tabs in diesem Fenster
   // (pro Fenster lokal, pro App-Lebenszyklus). Wird nicht persistiert.
   untitledCounter: 1,
@@ -755,6 +758,53 @@ const emptyState = $('#empty-state');
 const dropOverlay = $('#drop-overlay');
 const langSelect = $('#lang-select');
 const btnEdit = $('#btn-edit');
+// 4T-0030: Theme-Toggle in der Statusbar. Icon und Tooltip werden zur Laufzeit
+// passend zu state.themePref gesetzt; Klick schaltet zyklisch Hell -> Dunkel
+// -> System -> Hell.
+const btnTheme = $('#btn-theme');
+
+// Inline-SVGs fuer den Theme-Button. Stil identisch zum bestehenden btn-edit
+// (viewBox 0 0 24 24, stroke=currentColor, stroke-width 2, round). Sonne fuer
+// 'light', Mond fuer 'dark', Monitor fuer 'system'.
+const THEME_ICON_SVGS = {
+  light:
+    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" ' +
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/>' +
+    '<path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/>' +
+    '<path d="M2 12h2"/><path d="M20 12h2"/>' +
+    '<path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>',
+  dark:
+    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" ' +
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
+  system:
+    '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" ' +
+    'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<rect x="2" y="3" width="20" height="14" rx="2"/>' +
+    '<path d="M8 21h8"/><path d="M12 17v4"/></svg>',
+};
+
+const THEME_TOOLTIP_KEYS = {
+  light: 'statusbar.theme.tooltipLight',
+  dark: 'statusbar.theme.tooltipDark',
+  system: 'statusbar.theme.tooltipSystem',
+};
+
+const THEME_NEXT = { light: 'dark', dark: 'system', system: 'light' };
+
+// Setzt Icon und Tooltip-i18n-Key des Statusbar-Theme-Buttons passend zum
+// uebergebenen Pref. Tooltip wird sofort via t() gesetzt, damit der Wert
+// nach jedem Klick direkt sichtbar ist; das data-i18n-title-Attribut wird
+// aktualisiert, damit ein spaeterer Sprach-Wechsel den richtigen Key trifft.
+function applyThemePrefToButton(pref) {
+  if (!btnTheme) return;
+  const normalized = (pref === 'light' || pref === 'dark' || pref === 'system') ? pref : 'system';
+  btnTheme.innerHTML = THEME_ICON_SVGS[normalized];
+  const key = THEME_TOOLTIP_KEYS[normalized];
+  btnTheme.setAttribute('data-i18n-title', key);
+  btnTheme.title = t(key);
+}
 const statusbarHint = $('#statusbar-hint');
 const contextMenu = $('#context-menu');
 const aboutModal = $('#about-modal');
@@ -2146,6 +2196,25 @@ async function init() {
     rerenderAllMermaidBlocks();
   });
 
+  // 4T-0030: Theme-Pref (light/dark/system) aus dem Main laden und auf den
+  // Statusbar-Button anwenden. Pref aenderungen aus dem Menue oder einem
+  // anderen Fenster kommen ueber onThemePrefChanged. Menue-Klicks landen
+  // ueber onMenuSetTheme im Renderer, der dann setThemePref aufruft —
+  // damit greift der gleiche Broadcast-Pfad fuer beide Quellen.
+  try {
+    state.themePref = await api.getThemePref();
+  } catch {
+    state.themePref = 'system';
+  }
+  applyThemePrefToButton(state.themePref);
+  api.onThemePrefChanged((pref) => {
+    state.themePref = pref;
+    applyThemePrefToButton(pref);
+  });
+  api.onMenuSetTheme((value) => {
+    api.setThemePref(value);
+  });
+
   // Sprache
   let lang = await api.getSetting('language');
   if (!lang) {
@@ -2319,6 +2388,25 @@ function bindUi() {
   $('#btn-numbers').addEventListener('click', toggleShowLineNumbers);
   $('#btn-fold-gutter').addEventListener('click', toggleShowFoldGutter);
   if (btnEdit) btnEdit.addEventListener('click', toggleEditMode);
+
+  // 4T-0030: Klick auf den Statusbar-Theme-Button zykliert den Pref. Die
+  // tatsaechliche Theme-Anwendung passiert ueber den Broadcast aus dem Main
+  // ('theme:prefChanged' aktualisiert das Icon, 'theme:changed' das
+  // data-theme-Attribut und Mermaid).
+  if (btnTheme) {
+    btnTheme.addEventListener('click', async () => {
+      const next = THEME_NEXT[state.themePref] || 'system';
+      // Optimistisches Icon-Update, damit der Klick sofort eine Rueckmeldung
+      // gibt; der Broadcast aus Main bestaetigt den Wert anschliessend.
+      state.themePref = next;
+      applyThemePrefToButton(next);
+      try {
+        await api.setThemePref(next);
+      } catch (err) {
+        console.warn('setThemePref schlug fehl:', err);
+      }
+    });
+  }
 
   // 4T-0014: Statusbar-Toggle fuer Outline-Panel der aktiven Spalte.
   const btnOutline = $('#btn-outline');

@@ -194,6 +194,18 @@ body {
   padding: 0;
 }
 .btn-edit svg { display: block; }
+/* 4T-0030: Theme-Toggle in der Statusbar (zwischen btn-edit und lang-select).
+   Gleiches Format wie btn-edit. Icon (Sonne/Mond/Monitor) wird zur Laufzeit
+   in renderer.js gesetzt, abhaengig von state.themePref. */
+.btn-theme {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+.btn-theme svg { display: block; }
 
 /* Statusbar-Hinweis fuer Auto-Save ("Gespeichert" / "Speichern fehlgeschlagen").
    Wird vom Renderer mit Klasse .visible eingeblendet, faden nach Ablauf

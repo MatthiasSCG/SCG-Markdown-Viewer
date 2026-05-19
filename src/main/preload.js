@@ -245,6 +245,10 @@ contextBridge.exposeInMainWorld('api', {
   getLocale: () => ipcRenderer.invoke('app:locale'),
   getVersion: () => ipcRenderer.invoke('app:version'),
   getTheme: () => ipcRenderer.invoke('theme:current'),
+  // 4T-0030: Theme-Vorzug ('light' | 'dark' | 'system'). 'system' folgt dem
+  // OS-Theme (alte Logik), die anderen erzwingen das jeweilige Theme.
+  getThemePref: () => ipcRenderer.invoke('theme:getPref'),
+  setThemePref: (value) => ipcRenderer.invoke('theme:setPref', value),
 
   // Markdown-Rendering
   renderMarkdown: (text, basePath) => {
@@ -279,6 +283,9 @@ contextBridge.exposeInMainWorld('api', {
   onFileRemoved: (cb) => ipcRenderer.on('file:removed', (_e, p) => cb(p)),
   onOpenExternal: (cb) => ipcRenderer.on('file:openExternal', (_e, files) => cb(files)),
   onThemeChanged: (cb) => ipcRenderer.on('theme:changed', (_e, theme) => cb(theme)),
+  // 4T-0030: Theme-Pref-Aenderung wird von Main an alle Renderer gebrodcastet,
+  // damit Statusbar-Icon und Tooltip auch in anderen Fenstern synchron ziehen.
+  onThemePrefChanged: (cb) => ipcRenderer.on('theme:prefChanged', (_e, pref) => cb(pref)),
   onInitialState: (cb) => ipcRenderer.once('window:initialState', (_e, payload) => cb(payload)),
 
   // Menue-Events vom Main an den Renderer
@@ -312,6 +319,9 @@ contextBridge.exposeInMainWorld('api', {
   // 4T-0018: Multi-Window-Broadcast bei appearance.*-Aenderung.
   onAppearanceChanged: (cb) => ipcRenderer.on('appearance:changed', (_e, payload) => cb(payload)),
   onMenuToggleRestoreSession: (cb) => ipcRenderer.on('menu:toggleRestoreSession', () => cb()),
+  // 4T-0030: Menue-Eintrag 'Ansicht -> Theme -> Hell/Dunkel/System' sendet den
+  // gewaehlten Wert; der Renderer ruft daraufhin setThemePref.
+  onMenuSetTheme: (cb) => ipcRenderer.on('menu:setTheme', (_e, value) => cb(value)),
 
   // Window-Close-Anfrage: Main fragt nach Bestaetigung; Renderer prueft
   // Dirty-Tabs und ruft confirmClose() zurueck.

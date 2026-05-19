@@ -109,6 +109,10 @@
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
         </button>
+        <!-- 4T-0030: Theme-Toggle. Icon und Tooltip werden zur Laufzeit
+             aus state.themePref gesetzt (Sonne/Mond/Monitor). Klick
+             schaltet zyklisch Hell -> Dunkel -> System -> Hell. -->
+        <button id="btn-theme" class="btn-toggle btn-theme" data-i18n-title="statusbar.theme.tooltipSystem" title="" aria-label="Theme"></button>
         <select id="lang-select" data-i18n-title="settings.language" title="">
           <option value="de">Deutsch</option>
           <option value="en">English</option>

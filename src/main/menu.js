@@ -232,6 +232,33 @@ function buildMenu(win, state, actions) {
           checked: !!(state && state.typewriterScroll),
           click: send('menu:toggleTypewriterScroll'),
         },
+        { type: 'separator' },
+        {
+          // 4T-0030: Theme-Untermenue mit drei Radio-Items.
+          // 'System' folgt dem Windows-Theme (bisheriges Verhalten),
+          // 'Hell'/'Dunkel' erzwingen das jeweilige Theme app-weit.
+          label: t('menu.view.theme'),
+          submenu: [
+            {
+              label: t('menu.view.themeLight'),
+              type: 'radio',
+              checked: (state && state.themePref) === 'light',
+              click: send('menu:setTheme', 'light'),
+            },
+            {
+              label: t('menu.view.themeDark'),
+              type: 'radio',
+              checked: (state && state.themePref) === 'dark',
+              click: send('menu:setTheme', 'dark'),
+            },
+            {
+              label: t('menu.view.themeSystem'),
+              type: 'radio',
+              checked: !(state && state.themePref) || (state && state.themePref) === 'system',
+              click: send('menu:setTheme', 'system'),
+            },
+          ],
+        },
       ],
     },
     {

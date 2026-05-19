@@ -100,6 +100,9 @@ async function loadStore() {
       windows: [],       // Multi-Window-Sitzung
       recentFiles: [],
       language: null,    // null = aus Windows-Locale ableiten
+      // 4T-0030: Theme-Vorzug. 'system' folgt der OS-Einstellung
+      // (bisheriges Verhalten), 'light'/'dark' erzwingt das jeweilige Theme.
+      themePref: 'system',
       // Legacy-Defaults bleiben fuer Migration verwertbar:
       openTabs: [],
       panes: null,
@@ -363,6 +366,11 @@ function getMenuState(id) {
     typewriterScroll: !!base.typewriterScroll,
     // 4T-0019: Edit-Modus pro aktivem Tab (Bearbeiten-Toggle im Ansicht-Menue).
     editMode: !!base.editMode,
+    // 4T-0030: Theme-Vorzug fuer das Radio-Untermenue 'Ansicht -> Theme'.
+    themePref: (() => {
+      const v = store && store.get('themePref');
+      return (v === 'light' || v === 'dark' || v === 'system') ? v : 'system';
+    })(),
   };
 }
 
@@ -593,7 +601,9 @@ function createWindow(opts = {}) {
   return win;
 }
 
-// Theme-Aenderungen an alle Fenster broadcasten.
+// Theme-Aenderungen an alle Fenster broadcasten. Greift sowohl bei System-
+// Wechseln (wenn themeSource === 'system') als auch nach einem manuellen
+// theme:setPref-Aufruf (Electron feuert 'updated' nach themeSource-Aenderung).
 nativeTheme.on('updated', () => {
   broadcast('theme:changed', nativeTheme.shouldUseDarkColors ? 'dark' : 'light');
 });
@@ -786,6 +796,23 @@ function registerIpc() {
 
   ipcMain.handle('theme:current', () => (nativeTheme.shouldUseDarkColors ? 'dark' : 'light'));
 
+  // 4T-0030: Theme-Vorzug auslesen/setzen. 'system' folgt dem OS, 'light'/'dark'
+  // erzwingt das jeweilige Theme app-weit. Bei Aenderung wird nativeTheme.
+  // themeSource gesetzt (loest implizit 'updated' aus, broadcast 'theme:changed'),
+  // der Pref wird persistiert und an alle Fenster gebrodcastet, damit Menu-
+  // Radios und Statusbar-Icon synchron bleiben.
+  ipcMain.handle('theme:getPref', () => {
+    const value = store?.get('themePref');
+    return (value === 'light' || value === 'dark' || value === 'system') ? value : 'system';
+  });
+  ipcMain.handle('theme:setPref', (_event, value) => {
+    const normalized = (value === 'light' || value === 'dark' || value === 'system') ? value : 'system';
+    if (store) store.set('themePref', normalized);
+    nativeTheme.themeSource = normalized;
+    broadcast('theme:prefChanged', normalized);
+    applyMenuToAllWindows();
+  });
+
   // Renderer meldet seine aktuelle Pane-Struktur, damit Bounds-Saves auch immer
   // die passenden Tabs persistieren koennen.
   ipcMain.handle('window:reportPanes', (event, panes) => {
@@ -917,6 +944,15 @@ app.on('second-instance', (_event, argv) => {
 
 app.whenReady().then(async () => {
   await loadStore();
+
+  // 4T-0030: Persistierten Theme-Pref VOR dem Erzeugen des ersten Fensters
+  // anwenden, damit der Background-Color-Init in createWindow direkt korrekt
+  // ist und kein Theme-Flash am Start sichtbar wird.
+  const savedThemePref = store?.get('themePref');
+  if (savedThemePref === 'light' || savedThemePref === 'dark' || savedThemePref === 'system') {
+    nativeTheme.themeSource = savedThemePref;
+  }
+
   registerIpc();
 
   // Sitzungs-Wiederherstellung der Fenster.
