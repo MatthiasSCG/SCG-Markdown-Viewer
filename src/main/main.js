@@ -6,8 +6,50 @@ const path = require('node:path');
 const fs = require('node:fs/promises');
 const { app, BrowserWindow, dialog, ipcMain, shell, nativeTheme, Menu, screen } = require('electron');
 const chokidar = require('chokidar');
+const { autoUpdater } = require('electron-updater');
 const { buildMenu, clearDictCache: clearMenuDictCache, tForLocale } = require('./menu');
 const backlinks = require('./backlinks');
+
+// 4T-0029: Update-Erkennung ueber electron-updater.
+// - autoDownload=false: wir laden NICHTS automatisch herunter. 4T-0029
+//   zeigt nur einen Dialog mit Link zum GitHub-Release; Nutzer laedt
+//   manuell. Hintergrund: SmartScreen-Risiken bei unsigniertem Installer
+//   (Auto-Install ist nach 4T-0032 verschoben).
+// - autoInstallOnAppQuit=false: konsequent zu autoDownload=false.
+// - allowPrerelease=true: waehrend der 0.11.0-Entwicklung pruefen wir gegen
+//   das Pre-Release v0.11.0-rc1. VOR dem finalen v0.11.0-Release wieder auf
+//   false setzen, damit die Live-App nur stabile Releases vorschlaegt.
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = false;
+autoUpdater.allowPrerelease = true;
+
+// 4T-0029: Datei-Logger fuer electron-updater-Diagnose.
+// Schreibt nach %APPDATA%/SCG Markdown/logs/update.log. Macht es leicht,
+// nachzuvollziehen, was electron-updater intern macht (Channel-Lookup,
+// Versions-Vergleich, GitHub-API-Calls). Bei Bedarf nach Abschluss der
+// Diagnose wieder reduzieren oder entfernen.
+function setupUpdateLogger() {
+  let logFilePath = null;
+  try {
+    const logDir = path.join(app.getPath('userData'), 'logs');
+    fs.mkdir(logDir, { recursive: true }).catch(() => { /* ignore */ });
+    logFilePath = path.join(logDir, 'update.log');
+  } catch {
+    return;
+  }
+  const writeLine = (level, args) => {
+    if (!logFilePath) return;
+    const ts = new Date().toISOString();
+    const body = args.map((a) => (a instanceof Error ? `${a.message}\n${a.stack}` : (typeof a === 'object' ? JSON.stringify(a) : String(a)))).join(' ');
+    fs.appendFile(logFilePath, `${ts} [${level}] ${body}\n`).catch(() => { /* ignore */ });
+  };
+  autoUpdater.logger = {
+    info: (...a) => writeLine('INFO', a),
+    warn: (...a) => writeLine('WARN', a),
+    error: (...a) => writeLine('ERROR', a),
+    debug: (...a) => writeLine('DEBUG', a),
+  };
+}
 
 // Single-Instance-Lock: zweite Instanz reicht ihre Datei an die laufende weiter.
 const gotLock = app.requestSingleInstanceLock();
@@ -392,6 +434,8 @@ function applyMenuToWindow(win) {
     newTab: () => {
       if (!win.isDestroyed()) win.webContents.send('menu:new');
     },
+    // 4T-0029: Menue-Klick auf 'Hilfe -> Auf Updates pruefen…'.
+    checkForUpdates: () => performUpdateCheck(true),
   };
   const menu = buildMenu(win, state, actions);
   win.setMenu(menu);
@@ -608,6 +652,126 @@ nativeTheme.on('updated', () => {
   broadcast('theme:changed', nativeTheme.shouldUseDarkColors ? 'dark' : 'light');
 });
 
+// --- Update-Check (4T-0029) --------------------------------------------------
+// Pruefintervall: 45 Sekunden nach App-Ready (siehe app.whenReady-Block),
+// danach alle 24 Stunden. Manueller Trigger ueber 'Hilfe -> Auf Updates
+// pruefen…'. autoDownload und autoInstallOnAppQuit sind aus, daher fuehrt
+// jede Erkennung nur zu einem Hinweis-Dialog mit drei Optionen
+// (Zum Download / Spaeter / Diese Version ueberspringen).
+
+let updateCheckInFlight = false;
+
+// Liefert das aktuell „relevante" Fenster fuer Update-Dialoge (zuletzt
+// fokussiert, sonst irgendein offenes). Wenn keine Fenster offen sind,
+// erscheint der Dialog ohne Eltern-Fenster (selten, weil wir nur prueft, wenn
+// die App laeuft).
+function getUpdateDialogParent() {
+  const active = getActiveWindow();
+  if (active && !active.isDestroyed()) return active;
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (!w.isDestroyed()) return w;
+  }
+  return null;
+}
+
+async function performUpdateCheck(isManual) {
+  if (updateCheckInFlight) return;
+  updateCheckInFlight = true;
+  try {
+    const result = await autoUpdater.checkForUpdates();
+    const info = result && result.updateInfo;
+    if (!info || !info.version) {
+      if (isManual) await showUpdateUpToDateMessage();
+      return;
+    }
+    const newVersion = info.version;
+    const currentVersion = app.getVersion();
+    // electron-updater liefert nur dann ein updateInfo mit hoeherer Version,
+    // wenn die Pruefung ein Update gefunden hat. Wir doppeln defensiv
+    // und vergleichen die Strings direkt: gleich → kein Update.
+    if (newVersion === currentVersion) {
+      if (isManual) await showUpdateUpToDateMessage();
+      return;
+    }
+    // Beim Hintergrund-Check werden „skipped"-Versionen unterdrueckt; beim
+    // manuellen Check ignorieren wir die Skip-Liste, weil der Nutzer
+    // explizit pruefen wollte.
+    const skipped = store && store.get('update.skippedVersion');
+    if (!isManual && skipped === newVersion) return;
+    await showUpdateAvailableDialog(newVersion, currentVersion);
+  } catch (err) {
+    if (isManual) {
+      await showUpdateErrorMessage(err);
+    } else {
+      console.warn('Update-Check (Hintergrund) fehlgeschlagen:', err && err.message ? err.message : err);
+    }
+  } finally {
+    updateCheckInFlight = false;
+  }
+}
+
+async function showUpdateAvailableDialog(newVersion, currentVersion) {
+  const win = getUpdateDialogParent();
+  if (!win) return;
+  const t = (k) => tForWindow(win, k);
+  const detail = t('update.dialogText')
+    .replace('{new}', newVersion)
+    .replace('{current}', currentVersion);
+  const result = await dialog.showMessageBox(win, {
+    type: 'info',
+    title: t('update.dialogTitle'),
+    message: t('update.dialogTitle'),
+    detail,
+    buttons: [
+      t('update.btnOpenRelease'),
+      t('update.btnRemindLater'),
+      t('update.btnSkipVersion'),
+    ],
+    defaultId: 0,
+    cancelId: 1,
+    noLink: true,
+  });
+  if (result.response === 0) {
+    const url = `https://github.com/MatthiasSCG/SCG-Markdown/releases/tag/v${newVersion}`;
+    await shell.openExternal(url);
+  } else if (result.response === 2) {
+    if (store) store.set('update.skippedVersion', newVersion);
+  }
+  // response === 1 (Spaeter erinnern): nichts zu tun, naechster Check
+  // beim naechsten 24-h-Intervall oder App-Neustart.
+}
+
+async function showUpdateUpToDateMessage() {
+  const win = getUpdateDialogParent();
+  if (!win) return;
+  const t = (k) => tForWindow(win, k);
+  await dialog.showMessageBox(win, {
+    type: 'info',
+    title: t('update.statusUpToDateTitle'),
+    message: t('update.statusUpToDateTitle'),
+    detail: t('update.statusUpToDateMessage').replace('{current}', app.getVersion()),
+    buttons: ['OK'],
+  });
+}
+
+async function showUpdateErrorMessage(err) {
+  const win = getUpdateDialogParent();
+  if (!win) return;
+  const t = (k) => tForWindow(win, k);
+  const message = (err && err.message) ? err.message : String(err || '');
+  // Heuristik fuer Netzwerk-Fehler: Hostname/Verbindung schlaegt fehl.
+  const isOffline = /ENOTFOUND|ETIMEDOUT|ECONNREFUSED|ECONNRESET|getaddrinfo|net::ERR_/i.test(message);
+  await dialog.showMessageBox(win, {
+    type: 'warning',
+    title: t('update.errorTitle'),
+    message: t('update.errorTitle'),
+    detail: isOffline
+      ? t('update.errorOffline')
+      : t('update.errorGeneric').replace('{detail}', message),
+    buttons: ['OK'],
+  });
+}
+
 // --- IPC-Handler -------------------------------------------------------------
 
 function senderWindow(event) {
@@ -796,6 +960,14 @@ function registerIpc() {
 
   ipcMain.handle('theme:current', () => (nativeTheme.shouldUseDarkColors ? 'dark' : 'light'));
 
+  // 4T-0029: Manueller Update-Trigger aus dem Renderer (z.B. ueber einen
+  // spaeter ggf. ergaenzten About-Dialog-Button). Aktuell nutzt nur der
+  // Menue-Eintrag 'Hilfe -> Auf Updates pruefen…' den Pfad, der direkt
+  // performUpdateCheck(true) ueber actions.checkForUpdates aufruft.
+  ipcMain.handle('update:check', async () => {
+    await performUpdateCheck(true);
+  });
+
   // 4T-0030: Theme-Vorzug auslesen/setzen. 'system' folgt dem OS, 'light'/'dark'
   // erzwingt das jeweilige Theme app-weit. Bei Aenderung wird nativeTheme.
   // themeSource gesetzt (loest implizit 'updated' aus, broadcast 'theme:changed'),
@@ -944,6 +1116,7 @@ app.on('second-instance', (_event, argv) => {
 
 app.whenReady().then(async () => {
   await loadStore();
+  setupUpdateLogger();
 
   // 4T-0030: Persistierten Theme-Pref VOR dem Erzeugen des ersten Fensters
   // anwenden, damit der Background-Color-Init in createWindow direkt korrekt
@@ -989,6 +1162,14 @@ app.whenReady().then(async () => {
       });
     }
   }
+
+  // 4T-0029: Update-Erkennung. Erster Check 45 Sekunden nach App-Ready
+  // (Verzoegerung absichtlich, damit der Start nicht durch Netzwerk-Latenz
+  // oder einen Update-Dialog gestoert wird). Danach alle 24 Stunden ein
+  // Hintergrund-Check, damit dauerhaft laufende Sessions ebenfalls vom
+  // Update-Hinweis profitieren.
+  setTimeout(() => { performUpdateCheck(false); }, 45_000);
+  setInterval(() => { performUpdateCheck(false); }, 24 * 60 * 60 * 1000);
 });
 
 app.on('before-quit', () => {

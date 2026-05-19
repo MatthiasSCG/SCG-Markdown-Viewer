@@ -275,6 +275,13 @@ function buildMenu(win, state, actions) {
         },
         { type: 'separator' },
         {
+          // 4T-0029: Manueller Update-Check. Aufruf laeuft direkt im Main
+          // ueber actions.checkForUpdates, kein Renderer-Hop noetig.
+          label: t('menu.help.checkForUpdates'),
+          click: () => { if (actions && actions.checkForUpdates) actions.checkForUpdates(); },
+        },
+        { type: 'separator' },
+        {
           label: t('menu.help.restoreSession'),
           type: 'checkbox',
           checked: !!(state && state.restoreSession),

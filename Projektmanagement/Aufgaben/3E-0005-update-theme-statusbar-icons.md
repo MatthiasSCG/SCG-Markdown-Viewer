@@ -40,7 +40,7 @@ Drei eigenständige Quality-of-Life-Verbesserungen, in einem Release 0.11.0 geb�
 
 ## Untergeordnete Tasks
 
-- [ ] [4T-0029 — Update-Erkennung und Benachrichtigung mit Link](4T-0029-auto-update.md) — Scope am 2026-05-19 reduziert, Auto-Install nach [4T-0032](4T-0032-auto-install.md) ausgelagert
+- [x] [4T-0029 — Update-Erkennung und Benachrichtigung mit Link](4T-0029-auto-update.md) — Test bestanden am 2026-05-19, Commits drin, gepushed (Scope am 2026-05-19 reduziert, Auto-Install nach [4T-0032](4T-0032-auto-install.md) ausgelagert)
 - [x] [4T-0030 — Theme-Umschalter Hell / Dunkel / System](4T-0030-theme-toggle.md) — Test bestanden am 2026-05-19, Commits drin, gepushed
 - [x] [4T-0031 — Statusbar-Buttons als Icons](4T-0031-statusbar-icons.md) — Test bestanden am 2026-05-19, Commits drin, gepushed
 - [ ] [4T-0032 — Auto-Download und Auto-Installation des Updates](4T-0032-auto-install.md) — **Zurückgestellt** bis Code-Signing-Zertifikat vorliegt; nicht Teil von 0.11.0
@@ -61,8 +61,8 @@ Drei eigenständige Quality-of-Life-Verbesserungen, in einem Release 0.11.0 geb�
 
 1. ✅ **4T-0030 Theme-Umschalter** — abgeschlossen am 2026-05-19, gepushed.
 2. ✅ **4T-0031 Statusbar-Icons** — abgeschlossen am 2026-05-19, gepushed. Plus Pre-existing-Bugfix für die Sidebar-Sektion-Sichtbarkeit (Commit `8f7da17`).
-3. **4T-0029 Update-Erkennung** als letzter Umsetzungs-Schritt, weil er den Build- und Release-Prozess erweitert (`publish`-Konfiguration in `package.json`, zusätzliche Release-Assets `latest.yml` und `*.blockmap`). Anpassungen am Release-Prozess werden im Abschluss-Sammeltask in [CLAUDE.md](../../CLAUDE.md) nachgezogen.
-4. **Abschluss-Sammeltask**: Hilfe-Dialog, CHANGELOG, Release-Notes, README-Status-Sektion, Tag und GitHub-Release für 0.11.0.
+3. ✅ **4T-0029 Update-Erkennung** — abgeschlossen am 2026-05-19, gepushed. Build- und Release-Prozess erweitert (publish-Block, latest.yml, Blockmap als Release-Assets, archive-build.js-Erweiterung). Pre-Release `v0.11.0-rc1` auf GitHub als Update-Ziel; bleibt bis zum Abschluss-Sammeltask stehen. App-Version während Entwicklung `0.10.99` wegen electron-updater-Channel-Falle (Pre-Release-Suffix → falscher Channel-Lookup); vor finalem Release Rückbau auf `0.11.0` plus `allowPrerelease=false`.
+4. **Abschluss-Sammeltask**: Hilfe-Dialog, CHANGELOG, Release-Notes, README-Status-Sektion, Tag und GitHub-Release für 0.11.0. Plus Cleanup des Pre-Release v0.11.0-rc1 und Rückbau App-Version + `allowPrerelease`.
 5. **4T-0032** wird in 0.11.0 **nicht** umgesetzt (zurückgestellt bis Code-Signing).
 
 ## Bezug zu Dateien

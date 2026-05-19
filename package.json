@@ -1,6 +1,6 @@
 {
   "name": "scg-markdown",
-  "version": "0.11.0",
+  "version": "0.10.99",
   "description": "Schlanker Markdown-Editor für Windows 11 mit Tabs, Quellcode-/Render-Ansicht, Auto-Reload und Mehrsprachigkeit.",
   "main": "src/main/main.js",
   "scripts": {
@@ -38,6 +38,7 @@
     "@vscode/markdown-it-katex": "^1.1.2",
     "chokidar": "^4.0.1",
     "electron-store": "^10.0.0",
+    "electron-updater": "^6.8.3",
     "highlight.js": "^11.11.1",
     "katex": "^0.16.47",
     "markdown-it": "^14.1.0",
@@ -49,6 +50,11 @@
     "appId": "net.stumm.scg-markdown",
     "productName": "SCG Markdown",
     "copyright": "Copyright (c) 2026 Matthias Stumm",
+    "publish": {
+      "provider": "github",
+      "owner": "MatthiasSCG",
+      "repo": "SCG-Markdown"
+    },
     "directories": {
       "output": "dist"
     },

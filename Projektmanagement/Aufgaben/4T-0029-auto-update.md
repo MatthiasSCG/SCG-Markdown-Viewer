@@ -1,6 +1,6 @@
 # 4T-0029 — Update-Erkennung und Benachrichtigung mit Link
 
-**Status**: Offen
+**Status**: Wartet auf Test (Test am 2026-05-19 bestanden; finale Schließung beim Abschluss-Sammeltask)
 **Epic**: [3E-0005 — Auto-Update, Theme-Umschalter und Statusbar-Icons](3E-0005-update-theme-statusbar-icons.md)
 **Zielversion**: 0.11.0
 
@@ -116,3 +116,44 @@ Während der Entwicklung wird auf GitHub ein **Pre-Release** `v0.11.0-rc1` erste
 - `CLAUDE.md` — Release-Prozess-Schritt 3 (`gh release create`) um die zusätzlichen Asset-Dateien ergänzen (im Abschluss-Sammeltask).
 
 ## Lösung
+
+Umgesetzt am 2026-05-19. Manueller Test durch den Nutzer am selben Tag bestanden (Update-Dialog erscheint 45 Sekunden nach App-Start mit Version-Vergleich `0.10.99 → 0.11.0-rc1`).
+
+### Komponenten-Stand
+
+- **Library**: `electron-updater@6.8.3` als Production-Dependency. Konfiguration im Main-Prozess: `autoDownload=false`, `autoInstallOnAppQuit=false`, `allowPrerelease=true` (während Entwicklung; vor finalem v0.11.0-Release wieder auf `false`).
+- **Publish-Konfiguration** in [package.json](../../package.json) (`build.publish`): Provider `github`, Owner `MatthiasSCG`, Repo `SCG-Markdown`. Aktiviert die `latest.yml`-Generierung beim Build.
+- **Build-Pipeline** ([scripts/archive-build.js](../../scripts/archive-build.js)): SemVer-Regex erweitert um Pre-Release-Suffixe (`-rc1`, `-dev.0`, `-alpha.5` etc.). `latest.yml` und die aktuelle Blockmap werden automatisch nach `releases/` verschoben, damit der Release-Prozess sie als GitHub-Asset hochladen kann.
+- **Main-Prozess** ([src/main/main.js](../../src/main/main.js)):
+  - `setupUpdateLogger()` schreibt alle electron-updater-Events nach `%APPDATA%/SCG Markdown/logs/update.log`. Diagnose-Hilfe ohne zusätzliche Dependency, schreibt asynchron, kein Performance-Impact.
+  - `performUpdateCheck(isManual)` führt den Check aus, behandelt Skip-Liste, Versions-Vergleich, Dialog-Trigger und Fehler-Routing. Beim Hintergrund-Check stille Fehler-Behandlung; beim manuellen Check Fehler-Dialog.
+  - `showUpdateAvailableDialog(newVersion, currentVersion)` zeigt im aktiven Fenster den Drei-Optionen-Dialog. „Zum Download öffnen" verlinkt auf `https://github.com/MatthiasSCG/SCG-Markdown/releases/tag/v<newVersion>` via `shell.openExternal`. „Diese Version überspringen" persistiert die Versions-Nummer in `electron-store` unter `update.skippedVersion`.
+  - `showUpdateUpToDateMessage()` für „App ist aktuell" beim manuellen Trigger.
+  - `showUpdateErrorMessage(err)` mit Heuristik für Netzwerk-Fehler (`ENOTFOUND`, `ETIMEDOUT`, `ECONNREFUSED`, `ECONNRESET`, `getaddrinfo`, `net::ERR_*`) → lokalisierter Offline-Text, sonst generischer Fehler-Text mit Detail.
+  - IPC-Handler `update:check` für künftige Renderer-Hooks (aktuell ungenutzt, weil der Menü-Klick direkt im Main-Prozess landet).
+  - Beim `app.whenReady()`: `setTimeout(45_000)` für Start-Check, `setInterval(24h)` für Hintergrund-Check.
+- **Menü** ([src/main/menu.js](../../src/main/menu.js)): Neuer Eintrag `Hilfe → Auf Updates prüfen…`. Click-Callback ruft `actions.checkForUpdates` aus dem Main-Prozess direkt auf, ohne Renderer-Hop.
+- **Preload** ([src/main/preload.js](../../src/main/preload.js)): unverändert. Der manuelle Trigger geht direkt vom Menü zum Main; ein Renderer-Pfad ist aktuell nicht nötig.
+- **i18n** in allen fünf Sprachen ([de.json](../../src/i18n/de.json), `en/fr/es/it`): 11 neue Keys (`menu.help.checkForUpdates`, `update.dialogTitle/Text`, `update.btnOpenRelease/RemindLater/SkipVersion`, `update.statusUpToDateTitle/Message`, `update.errorTitle/Offline/Generic`).
+
+### Wichtiger Befund während des Tests: Channel-Falle
+
+Der erste Test mit App-Version `0.11.0-dev.0` schlug fehl mit der Meldung „No published versions on GitHub". Ursache: `electron-updater` leitet aus dem Pre-Release-Identifier der App-Version den Update-Channel ab (`-dev.0` → Channel `dev`). Der Channel-Lookup sucht dann eine Datei `latest-dev.yml` im Release. Wir haben aber nur die Default-Datei `latest.yml` hochgeladen, weil der Build mit Default-Channel lief. Folge: Lookup schlägt fehl, und electron-updater meldet dies irreführend als „No published versions on GitHub".
+
+**Fix**: App-Version während der Entwicklung von 4T-0029 als reine numerische Version `0.10.99` führen (kein Pre-Release-Suffix). Damit ist der Channel `latest`, der Lookup findet `latest.yml`, und der Pre-Release `0.11.0-rc1` wird über `allowPrerelease=true` als Update angeboten. SemVer-Vergleich: `0.11.0-rc1 > 0.10.99` ✓.
+
+**Vor dem finalen v0.11.0-Release**: Version in `package.json` auf `0.11.0` setzen und `allowPrerelease=false` (Aufgabe des Abschluss-Sammeltasks).
+
+### Test-Setup für 4T-0029-Entwicklung
+
+- **Pre-Release** [v0.11.0-rc1](https://github.com/MatthiasSCG/SCG-Markdown/releases/tag/v0.11.0-rc1) auf GitHub mit den 0.11.0-EXEs vom Stand nach 4T-0030 + 4T-0031 (ohne Auto-Update-Code). Vier Assets: Setup-EXE, Portable-EXE, Setup-Blockmap, `latest.yml`. Markiert als Pre-Release, **nicht** als „Latest".
+- **App-Version** während der Entwicklung: `0.10.99` (siehe Channel-Falle oben).
+- **Pre-Release bleibt stehen** bis zum Abschluss-Sammeltask, damit weitere Tests während der 0.11.0-Entwicklung möglich sind. Beim finalen v0.11.0-Release wird es zusammen mit der `allowPrerelease`-Reduzierung aufgeräumt.
+
+### Bekanntes Detail für 4T-0032 (Auto-Download): Asset-Naming-Mismatch
+
+`electron-builder` schreibt in `latest.yml` URLs mit Bindestrich-Normalisierung (`SCG-Markdown-0.11.0-rc1-Setup.exe`), GitHub speichert hochgeladene Dateinamen mit Punkt-Normalisierung (`SCG.Markdown-0.11.0-rc1-Setup.exe`). Für 4T-0029 (nur Erkennung, kein Download) ist das irrelevant, weil die URL-Pfade in `latest.yml` nicht aktiv genutzt werden. Bei 4T-0032 (Auto-Download) muss das gelöst werden, z.B. durch `artifactName` ohne Leerzeichen in `package.json.build`. Im 4T-0032-Task vermerkt.
+
+### Logger-Datei
+
+Der Inline-Logger in `setupUpdateLogger()` schreibt nach `%APPDATA%/SCG Markdown/logs/update.log` für künftige Diagnose. Geringer Overhead (asynchron, append-only), nützlich bei jedem späteren Update-Problem. Kann beim Abschluss-Sammeltask reduziert oder belassen werden.
