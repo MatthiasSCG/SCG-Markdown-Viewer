@@ -57,30 +57,36 @@ Drei tabellenweit wirkende MediaWiki-/Komfort-Funktionen, die in den Stufen 1–
 
 ## Untergeordnete Tasks
 
-(werden beim Epic-Start angelegt)
+- [ ] [4T-0044 — Status-Hervorhebung in SCG-Tabellen](4T-0044-scg-table-status-hervorhebung.md)
+- [ ] [4T-0045 — Spalten-Default-Ausrichtung](4T-0045-scg-table-spalten-default.md)
+- [ ] [4T-0046 — Sortierbare SCG-Tabellen](4T-0046-scg-table-sortierbar.md)
+- [ ] [4T-0047 — Hilfe-Tab um Sortierung, Status-Hervorhebung und Spalten-Default erweitern](4T-0047-scg-table-hilfe-tab-stufe-4.md)
+- [ ] [4T-0048 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.15.0](4T-0048-changelog-release-0150.md)
 
 ## Architekturentscheidungen
 
-(werden beim Epic-Start finalisiert; offene Fragen siehe „Offene Punkte" weiter unten)
+Am 2026-05-19 finalisiert (die ursprünglich offenen Detail-Fragen wurden im Zuge der Task-Anlage entschieden):
 
-Erste Richtungsvorgaben:
-
-- **Sortier-Logik im Renderer** (nicht im Main): nach jedem `renderMarkdown`-Aufruf prüft der Renderer das Render-DOM auf `<table class="scg-table sortable">` und hängt Click-Handler an die Header-Zellen. Sort wird via DOM-Manipulation umgesetzt (Re-Ordering der `<tr>`-Knoten im `<tbody>`).
-- **Sort-Heuristik**: zuerst Versuche `Number(trim(text))` für numerische Werte (Whitespace-Toleranz), bei `NaN` Fallback auf lexikographisches `localeCompare` mit aktiver UI-Locale.
-- **Status-Klassen-Syntax** über eine punktierte Notation am Zell-/Zeilen-Marker (`|.error Inhalt`). Parser-Erweiterung in `renderScgTable` erkennt den Punkt und mappt ihn auf eine `<td class="status-error">`-Klasse.
-- **CSS-Klassen** unter dem Präfix `.scg-table .status-error` etc., damit sie nur in scg-tables greifen und nicht versehentlich auf andere Markdown-Tabellen wirken.
-- **Spalten-Default-Ausrichtung** über Parser-Erweiterung im Tabellen-Header. Die `cols`-Liste wird beim Parsen erkannt und gespeichert. Beim Rendern jeder Zelle wird geprüft, ob die Zelle eine eigene `align`-Ausrichtung aus Stufe 2 hat; wenn nein, kommt der Spalten-Default zum Tragen. Implementierung über `<colgroup><col>` plus CSS-Selektoren wäre eleganter, scheitert aber an CSS-Beschränkungen — pragmatischer ist das direkte Setzen einer Klasse oder eines `align`-Attributs pro Zelle im Renderer.
+- **Status-Klassen-Palette**: semantisch — `error`, `warn`, `ok`, `info`, `neutral`. Bedeutung statt Farbe, App-CSS bestimmt die konkrete Darstellung im Light- und Dark-Theme.
+- **Status-Klassen-Syntax**: Punkt-Notation am Zell-/Zeilen-Marker (`|.error Inhalt`, `|-.warn` etc.). Parser-Erweiterung mappt den Wert auf eine `status-*`-CSS-Klasse.
+- **Sort-Aktivierung**: `{|+sortable` als Tabellen-Header-Attribut. Setzt auf der gerenderten `<table>` die Klasse `scg-table sortable`.
+- **Sort-Logik im Renderer** (nicht im Main): nach jedem `renderMarkdown`-Aufruf prüft der Renderer das Render-DOM auf `<table class="scg-table sortable">` und hängt Click-Handler an die Header-Zellen. Sort wird via DOM-Manipulation umgesetzt (Re-Ordering der `<tr>`-Knoten im `<tbody>`).
+- **Sort-Heuristik**: zuerst Versuche `Number(trim(text))` für numerische Werte, bei `NaN` Fallback auf `localeCompare` mit `numeric: true`. Bei mehrzeiligen Zellen wird nach der ersten Zeile sortiert. Für Datum: keine spezielle Behandlung; ISO-Format sortiert lexikographisch korrekt.
+- **Sortierung mit `colspan`/`rowspan`**: bei Spans wird die Sortierung **automatisch deaktiviert** (kein Klick-Handler, kein Indikator-Icon). Layout-Risiko zu hoch; Doku-Hinweis im Hilfe-Tab.
+- **Sort-Indikator-Icons**: Inline-SVG im Lucide-Stil analog zur Statusbar-Lösung aus 4T-0031. Drei Zustände: neutral (`chevrons-up-down`), aufsteigend (`chevron-up`), absteigend (`chevron-down`).
+- **Spalten-Default-Ausrichtung**: `{|+cols="left center right"` als Tabellen-Header-Attribut. Whitelist auf `left`/`center`/`right`. Zell-Override aus Stufe 2 gewinnt; bei `colspan` wird kein Spalten-Default angewendet.
+- **CSS-Klassen** unter dem Präfix `.markdown-body .scg-table .status-*` und `.markdown-body .scg-table .align-*` (Stufe-2-Klassen werden wiederverwendet), damit sie nur in scg-tables greifen.
+- **Portable Export**: Status-Klassen werden als Inline-Styles mit-übersetzt. Spalten-Default-Ausrichtung wirkt auch im Export. **Sortierung ist nicht portabel** (kein JavaScript im Output, keine `sortable`-Klasse im exportierten HTML).
+- **Hilfe-Dialog Funktions-Eintrag**: ein gemeinsamer Eintrag `help.feature.scgTableExtended` in der Gruppe „Bearbeitung" für alle drei neuen Funktionen, mit Querverweis auf den SCG-Table-Tab. Vermeidet drei einzelne Einträge, die den scg-table-Cluster dominieren würden.
+- **Stufen-Begriffe** in der User-Sicht weiterhin nicht verwendet (Konvention seit 4T-0038). Neue Hilfe-Tab-Sektion heißt „Sortierung, Status-Hervorhebung und Spalten-Default".
 
 ## Reihenfolge der Umsetzung
 
-(wird beim Epic-Start mit den Tasks festgelegt)
-
-Vorschlag für die Aufteilung:
-
-1. Status-Klassen-Syntax und CSS (kleinere, isolierte Änderung).
-2. Spalten-Default-Ausrichtung (Header-Parser-Erweiterung und Default-Fallback im Zell-Render).
-3. Sortierbare Tabellen mit Click-Handler und Sort-Heuristik (eigene Komponente).
-4. Hilfe-Tab-Erweiterung + Abschluss-Sammeltask (CHANGELOG, Release-Notes, Tag, Release).
+1. **4T-0044 Status-Hervorhebung.** Kleinste, isolierte Änderung. Parser-Erweiterung für Punkt-Notation, CSS-Klassen, Konverter-Output mit Inline-Styles.
+2. **4T-0045 Spalten-Default-Ausrichtung.** Header-Parser-Erweiterung, Default-Anwendung beim Zell-Render. Re-Use der Stufe-2-`align-*`-CSS-Klassen.
+3. **4T-0046 Sortierbare Tabellen.** Eigene Komponente mit JS-Hook im Renderer, Sort-Heuristik, Indikator-Icons. Komplexester der drei Code-Tasks.
+4. **4T-0047 Hilfe-Tab.** Erweiterung der fünf Sprachdateien um Sektion „Sortierung, Status-Hervorhebung und Spalten-Default"; ein gemeinsamer Funktions-Eintrag im Hilfe-Dialog. Setzt 4T-0044 bis 4T-0046 voraus, damit die Beispiele im Tab funktional rendern.
+5. **4T-0048 Abschluss-Sammeltask.** CHANGELOG, Release-Notes, README, Test-Iteration, Tag und GitHub-Release für 0.15.0.
 
 ## Bezug zu Dateien
 
@@ -95,12 +101,9 @@ Pro Task im jeweiligen Lösungsansatz aufgeführt. Voraussichtlich betroffen:
 
 ## Offene Punkte / Risiken
 
-- **Status-Klassen-Palette**: welche Klassen genau? `error`, `warn`, `ok`, `info`, `neutral` sind ein Vorschlag. Andere übliche: `success`, `danger` (Bootstrap-Stil) oder `red`, `yellow`, `green` (farbbasiert). Klärung beim Epic-Start mit Blick auf konsistente Benennung.
-- **Sort-Heuristik bei mehrzeiligen Zellen**: nach der ersten Zeile sortieren, oder den gesamten Zell-Text? Erstere ist intuitiver, zweitere robuster bei mehrteiligen Werten.
-- **Sort-Heuristik bei Datum**: ISO-Format direkt unterstützen, oder eine konfigurierbare Datums-Erkennung? Im Doku-Kontext kommen 2026-05-19 und 19.05.2026 vor.
-- **Tabelle mit Span-Zellen + Sortierung**: Was passiert, wenn eine Tabelle `colspan`/`rowspan` aus Stufe 2 und gleichzeitig `sortable` aus Stufe 4 nutzt? Sortierung bricht Spans tendenziell. Mögliche Lösung: sortierbare Tabellen ohne Span-Support, oder Sortierung deaktiviert sich automatisch bei Span-Vorhandensein.
-- **CSS-Farbkontrast in Dark-Theme**: Status-Hintergründe müssen in beiden Themes ausreichend lesbar bleiben. Palette pro Theme prüfen.
-- **Sort-Indikator-Icon**: Inline-SVG (kein Library-Dependency) analog zur Statusbar-Lösung aus 4T-0031 (Lucide-Icons), oder Unicode-Pfeil-Zeichen? Inline-SVG ist sauberer.
-- **Spalten-Default-Syntax**: `{|+cols="left center right"` ist einfach, aber das `cols`-Attribut konfligiert ggf. mit künftigen Tabellen-Attributen (z.B. `cols-min-width` o.ä.). Alternative: eigene Anweisung wie `|+++ left center right` direkt nach Caption. Klärung beim Task-Start.
-- **Spalten-Default bei Spaltenanzahl-Mismatch**: Was, wenn `cols="…"` weniger oder mehr Werte hat als die Tabelle Spalten hat? Tolerantes Verhalten (zusätzliche ignoriert, fehlende = kein Default) oder Fehlerhinweis?
-- **Spalten-Default bei `colspan`**: Wie verhält sich der Default bei einer Zelle, die `colspan="2"` hat und damit zwei Spalten mit ggf. unterschiedlichen Defaults überspannt? Vorschlag: bei `colspan` keinen Spalten-Default anwenden, sondern entweder explizite Zell-Ausrichtung oder Standard-Linksbündig.
+Die ursprünglich offenen Detail-Fragen wurden am 2026-05-19 entschieden (siehe Architekturentscheidungen). Verbleibende Risiken für die Umsetzung:
+
+- **CSS-Farbpalette für Status-Klassen**: in Light- und Dark-Theme mit ausreichendem Kontrast (WCAG-AA). Konkrete Farbwerte werden beim Implementieren von 4T-0044 mit kurzem Visual-Check festgelegt.
+- **Spalten-Index-Tracking bei rowspan**: `rowspan`-Zellen belegen Spalten in mehreren Zeilen. Bei der Spalten-Default-Anwendung (4T-0045) wird das Tracking pro Quellzeile gemacht, nicht pro tatsächliche Spalten-Position. Pathologische Konstrukte (rowspan + cols-Default) können in seltenen Fällen zu falschen Defaults führen. Wird beim Implementieren entschieden, ob das relevant genug für Sonderbehandlung ist.
+- **Sort-Stabilität bei Reset**: nach Sortierung ist die Original-Reihenfolge nur über einen gesicherten Reference-Array wiederherstellbar. Implementierung muss diesen Array beim ersten Klick auf eine Sort-Spalte erfassen und bei jedem Reset darauf zurückfallen.
+- **`+sortable` und `+cols`-Kombination**: beide sind Tabellen-Header-Attribute. Syntax-Vorschlag `{|+sortable cols="left right"`. Parser muss beide nebeneinander erkennen.
