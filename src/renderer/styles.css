@@ -165,6 +165,23 @@ body {
   cursor: default;
   opacity: 0.4;
 }
+/* 4T-0031: Icon-only-Variante fuer Statusbar-Buttons. Schmaler als die
+   Text-Variante, quadratisch, SVG zentriert. Wirkt auf .btn-toggle und
+   .view-btn gleichermassen, weil beide in der Statusbar als Icon-Buttons
+   auftreten. */
+.btn-toggle.btn-icon,
+.view-btn.btn-icon {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-toggle.btn-icon svg,
+.view-btn.btn-icon svg {
+  display: block;
+}
 
 /* === Statusbar ============================================================ */
 .statusbar {

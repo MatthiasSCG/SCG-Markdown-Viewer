@@ -1,6 +1,6 @@
 # 4T-0031 — Statusbar-Buttons als Icons
 
-**Status**: Offen (Konzept-Phase abgeschlossen, Umsetzung freigegeben)
+**Status**: Wartet auf Test (Umsetzung am 2026-05-19 abgeschlossen)
 **Epic**: [3E-0005 — Auto-Update, Theme-Umschalter und Statusbar-Icons](3E-0005-update-theme-statusbar-icons.md)
 **Zielversion**: 0.11.0
 
@@ -98,3 +98,41 @@ Die Hilfe-Dialog-Funktions-Einträge zur Statusbar (sofern vorhanden) müssen er
 - `src/i18n/{de,en,fr,es,it}.json` — heutige Labels werden zu Tooltip-Texten, bestehende `…Title`-Keys ggf. konsolidieren.
 
 ## Lösung
+
+Umgesetzt am 2026-05-19. Manueller Test durch den Nutzer am selben Tag bestanden (Portable-EXE `SCG Markdown-0.11.0-Portable.exe`, alle neun im Task definierten Punkte plus die vier Sidebar-Kombinationen nach Bugfix).
+
+### Begleitfund während des Tests
+
+Beim manuellen Test fiel ein Pre-existing-Bug aus 4T-0014/4T-0015 auf: Die Sidebar-Sektionen für Inhaltsverzeichnis und Backlinks ließen sich nicht unabhängig ein-/ausblenden, sobald eine von beiden sichtbar war, zeigten sich beide. Ursache: CSS-Spezifitäts-Kollision (`.sidebar-section { display: flex; }` überschrieb den User-Agent-`[hidden]`-Default). Korrigiert in einem separaten Bugfix-Commit (`8f7da17`) vor dem eigentlichen 4T-0031-Commit, damit der Fix dem ursprünglichen Verursacher zuordenbar bleibt.
+
+### Komponenten-Stand
+
+- **Icon-Quelle**: `lucide-static` v1.16.0, ISC-Lizenz. Die acht ausgewählten SVGs wurden einmalig per `Invoke-WebRequest` aus `https://unpkg.com/lucide-static@latest/icons/<name>.svg` heruntergeladen, anschließend kompaktiert und inline in [src/renderer/index.html](../../src/renderer/index.html) eingebettet. **Keine NPM-Dependency**, **kein Runtime-CDN**, keine Netzwerk-Last in der App.
+- **Index-HTML** ([src/renderer/index.html](../../src/renderer/index.html)): Die acht Buttons in `statusbar-left` (`btn-outline`, `btn-backlinks`, `btn-fold-gutter`, `btn-numbers`, `btn-wrap`, `view=source`, `view=split`, `view=rendered`) tragen jetzt einen Inline-`<svg>` mit `viewBox="0 0 24 24"`, `width="14"`, `height="14"`, `stroke="currentColor"` und `stroke-width="2"`. Stil identisch zum bestehenden `btn-edit`-Muster.
+- **Klassen-Modifier** `.btn-icon` an jedem der acht Buttons. Erlaubt eine gezielte CSS-Regel für die Icon-Variante, ohne den Layout-Stil der textbasierten `btn-toggle`/`view-btn`-Reste (z.B. Recent-Tab-Buttons) zu beeinflussen.
+- **Tooltips** über bestehende `data-i18n-title`-Keys; die alten `data-i18n`-Attribute (die den Text-Inhalt setzten) wurden entfernt, weil keine sichtbare Beschriftung mehr nötig ist.
+- **Screen-Reader-Labels** über neues `data-i18n-aria-label`-Attribut. Verarbeitet wird das in [src/renderer/i18n.js](../../src/renderer/i18n.js), das um eine zusätzliche `querySelectorAll('[data-i18n-aria-label]')`-Pass erweitert wurde. Falls die i18n-Initialisierung noch nicht gelaufen ist, bleibt der englische Fallback im `aria-label`-Attribut stehen (im HTML als statisches `aria-label="Outline"` etc. hinterlegt).
+- **Styles** ([src/renderer/styles.css](../../src/renderer/styles.css)): Eine kombinierte Regel `.btn-toggle.btn-icon, .view-btn.btn-icon` setzt `width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;`. SVG-Kinder werden auf `display: block` gesetzt, damit kein Baseline-Versatz entsteht.
+
+### Icon-Mapping (final, aus dem Mockup-Konsens)
+
+| Button | Lucide-Icon |
+|---|---|
+| `btn-outline` (Inhalt) | `list-tree` |
+| `btn-backlinks` (Backlinks) | `link-2` |
+| `btn-fold-gutter` (Gliederung) | `chevrons-down-up` |
+| `btn-numbers` (Nummern) | `list-ordered` |
+| `btn-wrap` (Umbruch) | `wrap-text` |
+| `view=source` (Quellcode) | `code` |
+| `view=split` (Geteilt) | `columns-2` |
+| `view=rendered` (Gerendert) | `eye` |
+
+### Auswirkungen
+
+- Statusbar-Reihe links unten ist deutlich schmaler (acht Buttons à 28px statt textabhängig 60–90px). Auf schmalen Fenstern wirkt sich das spürbar aus, weil die rechte Statusbar-Sektion mehr Platz bekommt.
+- Active-Markierung über den bestehenden `.active`-Mechanismus mit `var(--accent)`-Hintergrund und Akzent-Stroke des Icons (durch `currentColor`).
+- Keyboard-Bedienung (Tab-Reihenfolge, Enter/Space) bleibt unverändert, weil die `<button>`-Elemente erhalten geblieben sind.
+
+### Lizenz-Notiz für die Release-Pflege
+
+Lucide steht unter ISC-Lizenz. Beim Sammeltask im Epic-Ende sollte ein Hinweis im README oder About-Dialog ergänzt werden, dass die Icons aus Lucide stammen (Best-Practice für Drittanbieter-Assets, auch wenn ISC keine Attribution-Pflicht hat).

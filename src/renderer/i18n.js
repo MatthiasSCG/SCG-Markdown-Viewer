@@ -42,4 +42,11 @@ export function applyTranslations(root) {
     const key = el.getAttribute('data-i18n-placeholder');
     if (key && dict[key] != null) el.placeholder = dict[key];
   });
+  // 4T-0031: aria-label fuer Icon-only-Buttons (Statusbar). Ohne sichtbaren
+  // Text-Inhalt liest ein Screen-Reader sonst nur den Tooltip vor; bei
+  // expliziten aria-labels ist die Vorlesung konsistenter.
+  root.querySelectorAll('[data-i18n-aria-label]').forEach((el) => {
+    const key = el.getAttribute('data-i18n-aria-label');
+    if (key && dict[key] != null) el.setAttribute('aria-label', dict[key]);
+  });
 }
