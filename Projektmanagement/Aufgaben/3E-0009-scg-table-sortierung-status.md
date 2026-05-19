@@ -1,9 +1,10 @@
 # 3E-0009 — SCG Table Stufe 4: Sortierung, Status-Hervorhebung und Spalten-Default
 
-**Status**: Offen
-**Zielversion**: 0.15.0 (vorläufig — Versions-Zuordnung wird beim Epic-Start fixiert)
-**Vorgängerversion**: 0.14.0 (oder die Version, in der Stufe 3 ausgeliefert wird)
+**Status**: Erledigt — 2026-05-19, in v0.15.0 ausgeliefert
+**Zielversion**: 0.15.0
+**Vorgängerversion**: 0.14.0
 **Aufsetzend auf**: [3E-0006 — SCG Table Stufe 1](3E-0006-scg-table.md), [3E-0007 — SCG Table Stufe 2](3E-0007-scg-table-spans-ausrichtung.md), [3E-0008 — SCG Table Stufe 3](3E-0008-scg-table-konverter-verschachtelung.md)
+**Release**: [v0.15.0](https://github.com/MatthiasSCG/SCG-Markdown/releases/tag/v0.15.0)
 
 ## Ziel
 
@@ -60,8 +61,8 @@ Drei tabellenweit wirkende MediaWiki-/Komfort-Funktionen, die in den Stufen 1–
 - [x] [4T-0044 — Status-Hervorhebung in SCG-Tabellen](4T-0044-scg-table-status-hervorhebung.md) — erledigt, Commit `ae35e45`, gepushed
 - [x] [4T-0045 — Spalten-Default-Ausrichtung](4T-0045-scg-table-spalten-default.md) — erledigt, Commit `143c970`, gepushed
 - [x] [4T-0046 — Sortierbare SCG-Tabellen](4T-0046-scg-table-sortierbar.md) — erledigt, Commit `fca069a`, gepushed
-- [ ] [4T-0047 — Hilfe-Tab um Sortierung, Status-Hervorhebung und Spalten-Default erweitern](4T-0047-scg-table-hilfe-tab-stufe-4.md)
-- [ ] [4T-0048 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.15.0](4T-0048-changelog-release-0150.md)
+- [x] [4T-0047 — Hilfe-Tab um Sortierung, Status-Hervorhebung und Spalten-Default erweitern](4T-0047-scg-table-hilfe-tab-stufe-4.md) — erledigt, Commit `d049529`, gepushed
+- [x] [4T-0048 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.15.0](4T-0048-changelog-release-0150.md) — erledigt, gepushed, v0.15.0 veröffentlicht
 
 ## Architekturentscheidungen
 

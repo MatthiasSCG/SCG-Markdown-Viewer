@@ -5,6 +5,28 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.15.0] - 2026-05-19 — SCG Table: Sortierung, Status-Hervorhebung und Spalten-Default
+
+Feature-Release. Schließt das SCG-Table-Funktionspaket ab mit drei häufig genutzten Erweiterungen aus dem MediaWiki-Umfeld. Umgesetzt als Epic [3E-0009](Projektmanagement/Aufgaben/3E-0009-scg-table-sortierung-status.md) in den Tasks [4T-0044](Projektmanagement/Aufgaben/4T-0044-scg-table-status-hervorhebung.md) (Status-Hervorhebung), [4T-0045](Projektmanagement/Aufgaben/4T-0045-scg-table-spalten-default.md) (Spalten-Default), [4T-0046](Projektmanagement/Aufgaben/4T-0046-scg-table-sortierbar.md) (Sortierbare Tabellen), [4T-0047](Projektmanagement/Aufgaben/4T-0047-scg-table-hilfe-tab-stufe-4.md) (Hilfe-Tab) und Abschluss-Sammeltask [4T-0048](Projektmanagement/Aufgaben/4T-0048-changelog-release-0150.md).
+
+### Neu
+
+- **Status-Hervorhebung in SCG-Tabellen** ([4T-0044](Projektmanagement/Aufgaben/4T-0044-scg-table-status-hervorhebung.md)): Semantische Klassen `error`, `warn`, `ok`, `info`, `neutral` über Punkt-Notation am Zell-/Zeilen-Marker (`|.error Inhalt`, `|-.warn`). Zell-Status gewinnt gegen Zeilen-Status. Whitelist verhindert beliebige CSS-Klassen. Light- und Dark-Theme-Farben mit WCAG-AA-Kontrast. Im portablen Export als Inline-Style.
+- **Spalten-Default-Ausrichtung** ([4T-0045](Projektmanagement/Aufgaben/4T-0045-scg-table-spalten-default.md)): `{|+cols="left right right"` in der Tabellen-Header-Zeile setzt eine Default-Ausrichtung pro Spalte. Zell-`align`-Attribut aus Stufe 2 überschreibt. Bei `colspan` wird kein Default angewendet. Mismatch-tolerant (fehlende/überzählige Werte).
+- **Sortierbare Tabellen** ([4T-0046](Projektmanagement/Aufgaben/4T-0046-scg-table-sortierbar.md)): `{|+sortable` aktiviert Klick-Sortierung pro Spalte. Drei Zustände zyklisch (aufsteigend → absteigend → reset). Sort-Heuristik: numerisch zuerst (`Number()`), sonst lexikographisch mit Locale (`localeCompare`, korrekt für Umlaute und ähnliches). Mehrzeilige Zellen werden nach der ersten Zeile sortiert. Sort-Indikator-Icons im Lucide-Stil. Bei `colspan`/`rowspan` automatisch deaktiviert. Im portablen Export nicht enthalten (kein JavaScript in fremden Renderern).
+- **Hilfe-Tab um die drei Funktionen erweitert** ([4T-0047](Projektmanagement/Aufgaben/4T-0047-scg-table-hilfe-tab-stufe-4.md)): Neue Sektion „Sortierung, Status-Hervorhebung und Spalten-Default" mit Beispielen. Funktions-Eintrag `help.feature.scgTableExtended` in der Gruppe „Bearbeitung". Ausblick-Block durch „Stand der Funktionen" ersetzt (Funktionsumfang abgeschlossen).
+
+### Geändert
+
+- **Versions-Bump** 0.14.0 → 0.15.0 ([package.json](package.json)).
+- **Parser-Erweiterung** in `parseScgTableBlock` ([src/main/preload.js](src/main/preload.js)): Tabellen-Header-Attribute (`+cols=`, `+sortable`) und Status-Klassen-Suffix (`.error` etc.) werden zusätzlich erkannt. Reihenfolge: Marker → Status → Attribute → Inhalt.
+- **CSS-Erweiterung** ([src/renderer/styles.css](src/renderer/styles.css)): Status-Klassen für Light- und Dark-Theme, Hover-Effekt und Sort-Indikator-Styling für sortierbare Header.
+
+### i18n
+
+- 1 neuer JSON-Key (`help.feature.scgTableExtended`) in allen fünf Sprachen.
+- Hilfe-Markdown-Dateien (`src/i18n/help/scg-table.{de,en,fr,es,it}.md`) um die Sortierung-Status-Spalten-Default-Sektion erweitert; Ausblick-Block durch „Stand der Funktionen" ersetzt.
+
 ## [0.14.0] - 2026-05-19 — SCG Table: Verschachtelung und HTML-Export
 
 Feature-Release. Erweitert SCG-Tabellen (eingeführt in [3E-0006](Projektmanagement/Aufgaben/3E-0006-scg-table.md), Spans/Ausrichtung in [3E-0007](Projektmanagement/Aufgaben/3E-0007-scg-table-spans-ausrichtung.md)) um Verschachtelung bis drei Ebenen tief und einen HTML-Konverter für externe Markdown-Renderer. Umgesetzt als Epic [3E-0008](Projektmanagement/Aufgaben/3E-0008-scg-table-konverter-verschachtelung.md) in den Tasks [4T-0040](Projektmanagement/Aufgaben/4T-0040-scg-table-verschachtelung.md) (Verschachtelung), [4T-0041](Projektmanagement/Aufgaben/4T-0041-scg-table-html-konverter.md) (HTML-Konverter), [4T-0042](Projektmanagement/Aufgaben/4T-0042-scg-table-hilfe-tab-stufe-3.md) (Hilfe-Tab) und Abschluss-Sammeltask [4T-0043](Projektmanagement/Aufgaben/4T-0043-changelog-release-0140.md).

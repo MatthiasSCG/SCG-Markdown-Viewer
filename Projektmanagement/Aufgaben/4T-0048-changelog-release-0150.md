@@ -1,6 +1,6 @@
 # 4T-0048 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.15.0
 
-**Status**: Offen
+**Status**: Erledigt — 2026-05-19, gepushed
 **Epic**: [3E-0009 — SCG Table Stufe 4](3E-0009-scg-table-sortierung-status.md)
 **Zielversion**: 0.15.0
 
@@ -88,4 +88,23 @@ Gemäß [CLAUDE.md — Release-Prozess](../../CLAUDE.md#release-prozess-tag--git
 
 ## Lösung
 
-(wird nach Abschluss der Umsetzung gefüllt)
+Umgesetzt am 2026-05-19, Test bestanden, Release v0.15.0 auf GitHub veröffentlicht.
+
+### Doku-Änderungen
+
+- **[CHANGELOG.md](../../CHANGELOG.md)**: neuer Block `## [0.15.0] - 2026-05-19 — SCG Table: Sortierung, Status-Hervorhebung und Spalten-Default`. Subsektionen Neu (vier Bullets: Status-Hervorhebung, Spalten-Default, sortierbare Tabellen, Hilfe-Tab-Erweiterung), Geändert (Versions-Bump, Parser-Erweiterung, CSS), i18n (ein neuer JSON-Key plus erweiterte Hilfe-Markdown-Dateien).
+- **[README.md](../../README.md)**:
+  - Status-Sektion neu auf 0.15.0 mit Schwerpunkt auf den drei neuen Funktionen und Hinweis, dass damit das SCG-Table-Funktionspaket vollständig ist. Aufsetzend-auf-Kette um 0.14.0-Schritt ergänzt.
+  - Markdown-Umfang-Bullet zu „SCG Table" um Hinweise auf Status-Hervorhebung, Spalten-Default-Syntax und Klick-Sortierung erweitert.
+- **`dist/release-notes-0.15.0.md`** (gitignored): Release-Notes für GitHub mit Download-Tabelle, „Was ist neu seit v0.14.0" (drei Hauptabschnitte plus „Verbessert"), System-Anforderungen, SmartScreen-Hinweis und Rückwärtskompatibilitäts-Hinweis.
+
+### Bewusst nicht geändert
+
+- **`help.feature.scgTable`-Beschreibung** in den fünf i18n-JSON-Dateien blieb unverändert. Der Eintrag verweist auf den Hilfe-Tab, der die volle Funktion inkl. Stufe-4-Erweiterungen dokumentiert.
+- **Funktions-Eintrag `help.feature.scgTableExtended`** wurde bereits in [4T-0047](4T-0047-scg-table-hilfe-tab-stufe-4.md) angelegt; in 4T-0048 daher nichts mehr.
+
+### Release
+
+- Commit `4T-0048: Doku-Stand fuer 0.15.0 (Epic 3E-0009 abgeschlossen)` mit allen Doku-Änderungen plus den offen gebliebenen Status-Updates aus [4T-0047](4T-0047-scg-table-hilfe-tab-stufe-4.md) (Hash-Vermerk).
+- Tag `v0.15.0` auf diesem Commit, auf GitHub gepushed.
+- GitHub-Release [v0.15.0](https://github.com/MatthiasSCG/SCG-Markdown/releases/tag/v0.15.0) als `--latest` markiert mit vier Assets: Setup-EXE, Portable-EXE, `latest.yml` und Setup-Blockmap.
