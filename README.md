@@ -100,10 +100,13 @@ Datei) springen direkt in das jeweilige Menü.
 
 Am unteren Fensterrand:
 
-- Links: Toggle-Buttons für Zeilennummern, Wortumbruch, View-Modus
-  (Quellcode/Geteilt/Gerendert).
+- Links: acht Inline-SVG-Icon-Buttons (aus Lucide) für Inhaltsverzeichnis,
+  Backlinks, Gliederung (Folding-Spur), Zeilennummern, Wortumbruch und
+  View-Modus (Quellcode/Geteilt/Gerendert). Tooltips und
+  `aria-label`-Beschriftungen in allen fünf Sprachen.
 - Mitte: Auto-Save-Hinweis (1 Sekunde nach erfolgreichem Auto-Save).
-- Rechts: Edit-Toggle (Stift) und Sprach-Selektor.
+- Rechts: Edit-Toggle (Stift), Theme-Umschalter (Sonne/Mond/Monitor)
+  und Sprach-Selektor.
 
 Die Suchleiste blendet sich beim Aufruf über die Statusbar ein
 (mit Replace-Zeile im Edit-Modus).
@@ -158,8 +161,12 @@ Statusbar gewechselt werden.
 
 ### Theme
 
-Light/Dark folgt dem Windows-System-Theme automatisch und wechselt mit,
-wenn das System-Theme zur Laufzeit umgestellt wird.
+Drei-Wege-Wahl zwischen Hell, Dunkel und System. Auswahl im Menü
+`Ansicht → Theme` (Radio-Items) oder per Klick auf das Theme-Icon
+(Sonne/Mond/Monitor) in der Statusbar rechts neben dem Edit-Stift. Im
+Modus „System" folgt die App dem Windows-Theme automatisch und wechselt
+zur Laufzeit mit, in „Hell" und „Dunkel" wird das jeweilige Theme
+fest gesetzt. Die Wahl wird persistent gespeichert.
 
 ### Multi-Window und Sitzung
 
@@ -175,9 +182,11 @@ wenn das System-Theme zur Laufzeit umgestellt wird.
 
 ### Hilfe-Dialog
 
-Über `Hilfe → Hilfe` oder `F1`: Modal mit zwei Sektionen — Funktionen
-(18 Bullets) und Tastenkürzel (17 Zeilen). Schließbar per `Esc`,
-OK-Button oder Klick auf den Hintergrund.
+Über `Hilfe → Hilfe` oder `F1`: Modal mit drei Tabs — Funktionen
+(19 Bullets, gruppiert nach Datei und Sitzung, Bearbeitung, Ansicht,
+Navigation, Allgemein), Tastenkürzel (17 Zeilen) und SCG Table (eigene
+Doku-Seite mit Syntax-Übersicht und gerenderten Beispielen). Schließbar
+per `Esc`, OK-Button oder Klick auf den Hintergrund.
 
 ### Markdown-Umfang
 
@@ -202,6 +211,15 @@ Zusätzlich:
   Render-Pane als SVG dargestellt, folgen dem Theme, lazy geladen.
 - **KaTeX-Mathematik**: Inline `$…$` und Block `$$…$$`. Dollar-Beträge im
   Fließtext bleiben durch eine Whitespace-Heuristik unverändert.
+- **SCG Table** (Markdown-Erweiterung dieses Viewers): Fenced-Code-Block
+  mit Sprach-Tag `scg-table` für Tabellen mit mehrzeiligen Block-Zellen.
+  Geschachtelte Listen, mehrere Absätze, Code-Blöcke und Bilder
+  innerhalb einer Zelle sind erlaubt. Syntax MediaWiki-nah (`{|`, `|-`,
+  `|`, `!`, `|+`, `|}`); rekursives Markdown-Rendering pro Zelle. In
+  fremden Markdown-Renderern (GitHub-Vorschau, VS Code etc.) bleibt der
+  Block als regulärer Code-Block lesbar (Graceful Degradation).
+  Ausführliche Doku mit Syntax-Tabelle und Beispielen im Hilfe-Tab
+  „SCG Table".
 
 Ein PDF-Export ist für ein späteres Release vorgesehen (in 0.10.0 begonnen
 und zurückgestellt, siehe [4T-0024](Projektmanagement/Aufgaben/4T-0024-pdf-export.md)).
