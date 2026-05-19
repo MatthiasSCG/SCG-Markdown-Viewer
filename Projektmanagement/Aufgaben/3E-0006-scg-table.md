@@ -63,7 +63,7 @@ Stufe 2 und Stufe 3 sind als Folge-Epics geplant und nicht Bestandteil von 3E-00
 - **Stufenkonzept als Folge-Epics**:
   - Stufe 2 (`colspan`/`rowspan`, Zellausrichtung, Accessibility-`scope` auf Header) → [3E-0007](3E-0007-scg-table-spans-ausrichtung.md), voraussichtlich Zielversion 0.13.0.
   - Stufe 3 (Konverter `scg-table` → HTML-Tabelle für Portabilität, plus Verschachtelung von `scg-table` in Zellen) → [3E-0008](3E-0008-scg-table-konverter-verschachtelung.md), eigenständig planbar.
-  - Stufe 4 (Sortierbare Tabellen und Status-Hervorhebung über semantische Klassen für Zellen und Zeilen) → [3E-0009](3E-0009-scg-table-sortierung-status.md), eigenständig planbar.
+  - Stufe 4 (Sortierbare Tabellen, Status-Hervorhebung über semantische Klassen für Zellen und Zeilen, plus Spalten-Default-Ausrichtung) → [3E-0009](3E-0009-scg-table-sortierung-status.md), eigenständig planbar.
   - Diese Aufteilung wahrt die Projekt-Konvention „1 Epic = 1 Versionssprung".
 
 ## Reihenfolge der Umsetzung
