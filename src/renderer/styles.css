@@ -871,6 +871,23 @@ select {
 .markdown-body .scg-table .valign-top    { vertical-align: top; }
 .markdown-body .scg-table .valign-middle { vertical-align: middle; }
 .markdown-body .scg-table .valign-bottom { vertical-align: bottom; }
+
+/* 4T-0044: Status-Hervorhebung. status-* Klasse sitzt direkt am <td>/<th>
+   (Zell-Status gewinnt gegen Zeilen-Status, das ist im Renderer aufgeloest;
+   die CSS-Regel muss also nur die Zell-Klasse adressieren). Light-Theme
+   mit hellen Hintergruenden, Dark-Theme mit gedaempften dunklen Toenen,
+   jeweils mit ausreichendem Kontrast (WCAG-AA). */
+.markdown-body .scg-table .status-error   { background-color: #ffebee; color: #b71c1c; }
+.markdown-body .scg-table .status-warn    { background-color: #fff8e1; color: #8a6d00; }
+.markdown-body .scg-table .status-ok      { background-color: #e8f5e9; color: #1b5e20; }
+.markdown-body .scg-table .status-info    { background-color: #e3f2fd; color: #0d47a1; }
+.markdown-body .scg-table .status-neutral { background-color: #f5f5f5; color: #424242; }
+
+[data-theme="dark"] .markdown-body .scg-table .status-error   { background-color: #4a1f1f; color: #ff8a80; }
+[data-theme="dark"] .markdown-body .scg-table .status-warn    { background-color: #4a3a1f; color: #ffd54f; }
+[data-theme="dark"] .markdown-body .scg-table .status-ok      { background-color: #1f4a23; color: #a5d6a7; }
+[data-theme="dark"] .markdown-body .scg-table .status-info    { background-color: #1f3a4a; color: #90caf9; }
+[data-theme="dark"] .markdown-body .scg-table .status-neutral { background-color: #303030; color: #bdbdbd; }
 .markdown-body img { max-width: 100%; height: auto; }
 .markdown-body hr {
   border: none;

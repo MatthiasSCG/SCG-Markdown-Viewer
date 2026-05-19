@@ -269,15 +269,45 @@ function parseScgTableCellAttrs(rawText) {
   return { attrs, content: tail };
 }
 
+// 4T-0044 (Epic 3E-0009): Status-Hervorhebung mit semantischen Klassen.
+// Whitelist auf fuenf Werte. Punkt-Notation am Zell-/Zeilen-Marker:
+// |.error Inhalt, |-.warn etc. Im Viewer-Render via CSS-Klasse
+// status-<value>, im Portable-Export via Inline-Style (siehe Farb-Map).
+const SCG_STATUS_CLASSES = new Set(['error', 'warn', 'ok', 'info', 'neutral']);
+
+// Inline-Style-Farben fuer den Portable-Export. Light-Theme-Farben mit
+// ausreichendem Kontrast (WCAG-AA), funktioniert in jedem externen
+// Markdown-Renderer ohne unsere App-CSS.
+const SCG_STATUS_INLINE_COLORS = {
+  error:   { bg: '#ffebee', fg: '#b71c1c' },
+  warn:    { bg: '#fff8e1', fg: '#8a6d00' },
+  ok:      { bg: '#e8f5e9', fg: '#1b5e20' },
+  info:    { bg: '#e3f2fd', fg: '#0d47a1' },
+  neutral: { bg: '#f5f5f5', fg: '#424242' },
+};
+
+// 4T-0044: Erkennt am Anfang eines Marker-Folge-Texts eine Status-Klasse
+// in Punkt-Notation (z.B. '.error '). Whitelist-Filter: nur die fuenf
+// definierten Werte. Gibt { status, rest } zurueck; bei keinem Match ist
+// status=null und rest=text.
+function extractScgTableStatusClass(text) {
+  const m = String(text || '').match(/^\.(\w+)(\s+|$)/);
+  if (m && SCG_STATUS_CLASSES.has(m[1])) {
+    return { status: m[1], rest: text.slice(m[0].length) };
+  }
+  return { status: null, rest: text };
+}
+
 // 4T-0037: Baut den HTML-Attribut-String fuer eine Zelle aus dem
 // gefilterten attrs-Object plus scope-Setzung fuer Header-Zellen.
-// Rueckgabe inklusive fuehrendem Leerzeichen, wenn Attribute vorhanden,
-// sonst leerer String.
-function buildScgTableCellAttrs(attrs, cellType, isHeaderRow) {
+// 4T-0044: Optional eine Status-Klasse, die als CSS-Klasse status-<value>
+// an die Zelle gehaengt wird.
+function buildScgTableCellAttrs(attrs, cellType, isHeaderRow, statusClass) {
   const parts = [];
   if (attrs.colspan) parts.push(`colspan="${attrs.colspan}"`);
   if (attrs.rowspan) parts.push(`rowspan="${attrs.rowspan}"`);
   const classes = [];
+  if (statusClass) classes.push(`status-${statusClass}`);
   if (attrs.align) classes.push(`align-${attrs.align}`);
   if (attrs.valign) classes.push(`valign-${attrs.valign}`);
   if (classes.length > 0) parts.push(`class="${classes.join(' ')}"`);
@@ -333,14 +363,17 @@ function parseScgTableBlock(content) {
     }
     currentRow = null;
   };
-  const startRow = () => {
+  // 4T-0044: startRow nimmt eine optionale Status-Klasse fuer die ganze Zeile.
+  const startRow = (statusClass) => {
     commitRow();
-    currentRow = { cells: [] };
+    currentRow = { cells: [], statusClass: statusClass || null };
   };
-  const startCell = (type, initial, attrs) => {
+  // 4T-0044: startCell nimmt zusaetzlich einen statusClass-Parameter fuer
+  // die einzelne Zelle (gewinnt gegen den Zeilen-Status).
+  const startCell = (type, initial, attrs, statusClass) => {
     commitCell();
-    if (!currentRow) currentRow = { cells: [] };
-    currentCell = { type, content: initial || '', attrs: attrs || {} };
+    if (!currentRow) currentRow = { cells: [], statusClass: null };
+    currentCell = { type, content: initial || '', attrs: attrs || {}, statusClass: statusClass || null };
   };
 
   const maybeOpenFence = (text) => {
@@ -374,7 +407,10 @@ function parseScgTableBlock(content) {
       break;
     }
     if (trimmed.startsWith('|-')) {
-      startRow();
+      // 4T-0044: Optional Status-Klasse direkt nach '|-' (z.B. '|-.error').
+      const afterMarker = trimmed.slice(2).trimStart();
+      const { status } = extractScgTableStatusClass(afterMarker);
+      startRow(status);
       continue;
     }
     if (trimmed.startsWith('|+')) {
@@ -382,14 +418,20 @@ function parseScgTableBlock(content) {
       continue;
     }
     if (trimmed.startsWith('!')) {
-      const { attrs, content: cellContent } = parseScgTableCellAttrs(trimmed.slice(1).trimStart());
-      startCell('th', cellContent, attrs);
+      // 4T-0044: Optional Status-Klasse direkt nach '!' (z.B. '!.warn').
+      const afterMarker = trimmed.slice(1).trimStart();
+      const { status, rest } = extractScgTableStatusClass(afterMarker);
+      const { attrs, content: cellContent } = parseScgTableCellAttrs(rest);
+      startCell('th', cellContent, attrs, status);
       maybeOpenFence(cellContent);
       continue;
     }
     if (trimmed.startsWith('|')) {
-      const { attrs, content: cellContent } = parseScgTableCellAttrs(trimmed.slice(1).trimStart());
-      startCell('td', cellContent, attrs);
+      // 4T-0044: Optional Status-Klasse direkt nach '|' (z.B. '|.error').
+      const afterMarker = trimmed.slice(1).trimStart();
+      const { status, rest } = extractScgTableStatusClass(afterMarker);
+      const { attrs, content: cellContent } = parseScgTableCellAttrs(rest);
+      startCell('td', cellContent, attrs, status);
       maybeOpenFence(cellContent);
       continue;
     }
@@ -451,9 +493,10 @@ function renderScgTableRow(row, isHeaderRow) {
   const out = ['<tr>'];
   for (const cell of row.cells) {
     const tag = cell.type === 'th' ? 'th' : 'td';
-    // 4T-0037: HTML-Attribute aus dem Whitelist-gefilterten attrs-Object
-    // plus scope-Setzung (col fuer thead-th, row fuer th in tbody).
-    const attrsHtml = buildScgTableCellAttrs(cell.attrs || {}, cell.type, isHeaderRow);
+    // 4T-0044: Zell-Status gewinnt gegen Zeilen-Status. Beide werden als
+    // CSS-Klasse status-<value> via buildScgTableCellAttrs gesetzt.
+    const effectiveStatus = cell.statusClass || row.statusClass || null;
+    const attrsHtml = buildScgTableCellAttrs(cell.attrs || {}, cell.type, isHeaderRow, effectiveStatus);
     const trimmed = cell.content.trim();
     if (trimmed === '') {
       out.push(`<${tag}${attrsHtml}></${tag}>`);
@@ -540,7 +583,10 @@ function renderScgTablePortableRow(row, isHeaderRow) {
   const out = ['<tr>'];
   for (const cell of row.cells) {
     const tag = cell.type === 'th' ? 'th' : 'td';
-    const attrsHtml = buildScgTablePortableCellAttrs(cell.attrs || {}, cell.type, isHeaderRow);
+    // 4T-0044: Zell-Status gewinnt gegen Zeilen-Status; im Portable als
+    // Inline-Style mit Light-Theme-Farben (SCG_STATUS_INLINE_COLORS).
+    const effectiveStatus = cell.statusClass || row.statusClass || null;
+    const attrsHtml = buildScgTablePortableCellAttrs(cell.attrs || {}, cell.type, isHeaderRow, effectiveStatus);
     const cellHtml = renderScgTableCellForPortable(cell.content);
     out.push(`<${tag}${attrsHtml}>${cellHtml}</${tag}>`);
   }
@@ -548,7 +594,7 @@ function renderScgTablePortableRow(row, isHeaderRow) {
   return out.join('');
 }
 
-function buildScgTablePortableCellAttrs(attrs, cellType, isHeaderRow) {
+function buildScgTablePortableCellAttrs(attrs, cellType, isHeaderRow, statusClass) {
   const parts = [];
   if (attrs.colspan) parts.push(`colspan="${attrs.colspan}"`);
   if (attrs.rowspan) parts.push(`rowspan="${attrs.rowspan}"`);
@@ -558,6 +604,13 @@ function buildScgTablePortableCellAttrs(attrs, cellType, isHeaderRow) {
   const styles = [];
   if (attrs.align) styles.push(`text-align: ${attrs.align}`);
   if (attrs.valign) styles.push(`vertical-align: ${attrs.valign}`);
+  // 4T-0044: Status-Hintergrund/Vordergrund als Inline-Style aus der
+  // Farb-Map. Externe Renderer kennen unsere status-*-CSS-Klassen nicht.
+  if (statusClass && SCG_STATUS_INLINE_COLORS[statusClass]) {
+    const c = SCG_STATUS_INLINE_COLORS[statusClass];
+    styles.push(`background-color: ${c.bg}`);
+    styles.push(`color: ${c.fg}`);
+  }
   if (styles.length > 0) parts.push(`style="${styles.join('; ')}"`);
   if (cellType === 'th') {
     parts.push(isHeaderRow ? 'scope="col"' : 'scope="row"');

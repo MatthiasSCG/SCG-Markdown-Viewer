@@ -1,6 +1,6 @@
 # 4T-0044 — Status-Hervorhebung in SCG-Tabellen
 
-**Status**: Offen
+**Status**: Erledigt — 2026-05-19, gepushed
 **Epic**: [3E-0009 — SCG Table Stufe 4](3E-0009-scg-table-sortierung-status.md)
 **Zielversion**: 0.15.0
 
@@ -100,4 +100,35 @@ Konkrete Farbwerte beim Implementieren festlegen. Status-Inline-Styles werden zu
 
 ## Lösung
 
-(wird nach Abschluss der Umsetzung gefüllt)
+Umgesetzt am 2026-05-19, Test bestanden.
+
+### Code-Änderungen
+
+- **[src/main/preload.js](../../src/main/preload.js)**:
+  - Neue Konstanten `SCG_STATUS_CLASSES` (Whitelist auf fünf Werte) und `SCG_STATUS_INLINE_COLORS` (Farb-Map für Light-Theme im Portable-Export).
+  - Hilfsfunktion `extractScgTableStatusClass(text)` erkennt `.<class>` mit Whitelist-Filter; gibt `{ status, rest }` zurück.
+  - `buildScgTableCellAttrs` und `buildScgTablePortableCellAttrs` jeweils um `statusClass`-Parameter erweitert. Viewer-Pfad setzt CSS-Klasse `status-<value>`, Portable-Pfad setzt `background-color`/`color` als Inline-Style.
+  - `parseScgTableBlock`: `startRow` und `startCell` mit `statusClass`-Parameter. `|-`/`!`/`|`-Handler rufen `extractScgTableStatusClass` direkt nach dem Marker auf, bevor `parseScgTableCellAttrs` läuft. Die Reihenfolge ist Marker → Status → Attribute → Inhalt.
+  - `renderScgTableRow` und `renderScgTablePortableRow` berechnen `effectiveStatus = cell.statusClass || row.statusClass || null`; **Zell-Status gewinnt** gegen Zeilen-Status.
+- **[src/renderer/styles.css](../../src/renderer/styles.css)**: zehn neue CSS-Regeln (fünf Status-Klassen × Light + Dark). Light-Theme mit pastelligen Hintergründen, Dark-Theme mit gedämpften dunklen Tönen. Beide WCAG-AA-konform.
+- **[package.json](../../package.json)**: Version 0.14.0 → 0.15.0 (Entwicklungsstand).
+
+### Implementierungsdetails
+
+- **Override-Logik**: pro Zelle wird `cell.statusClass || row.statusClass` genommen. Die effektive Klasse landet auf `<td>` bzw. `<th>`, nicht auf `<tr>`. Damit gewinnt die Zell-Klasse durch reinen DOM-Aufbau, ohne CSS-Spezifitäts-Tricks.
+- **Whitelist-Filter** im `extractScgTableStatusClass`: ungültige Klassen-Werte wie `.unknown` werden ignoriert, der Text bleibt als Zellinhalt erhalten.
+- **Syntax-Reihenfolge**: zuerst der Marker (`|`, `!`, `|-`), dann optional `.<class>`, dann optional ein Attribut-Block, dann der Inhalt. Beispiel: `|.warn align="right" | 40h`.
+- **Portable-Export**: Status-Farben als Inline-Style mit Light-Theme-Werten. Externe Renderer kennen unsere `status-*`-Klassen nicht.
+
+### Smoke-Test (2026-05-19)
+
+Sechs Test-Abschnitte im Render-Pane geprüft:
+
+1. Zell-Status mit allen fünf Klassen (error/warn/ok/info/neutral).
+2. Zeilen-Status — alle Zellen der Zeile bekommen die Farbe.
+3. Zell-Status gewinnt gegen Zeilen-Status (Override).
+4. Kombi mit Stufe-2-Attributen (`align="right"` zusammen mit `.warn`).
+5. Ungültiger Klassen-Wert (`.unknown`) wird ignoriert, Text bleibt sichtbar.
+6. Theme-Wechsel: Farben bleiben in Light- und Dark-Theme lesbar.
+
+Alle Punkte bestanden.
