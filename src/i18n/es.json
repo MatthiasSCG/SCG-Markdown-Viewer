@@ -126,6 +126,7 @@
   "help.feature.katex": "Las fórmulas matemáticas se componen con KaTeX: $…$ en línea, $$…$$ como bloque. Los importes en dólares en el texto corriente permanecen sin cambios.",
   "help.feature.mermaid": "Los bloques de código con la etiqueta de idioma mermaid se renderizan como diagramas SVG en el panel de renderizado (flowchart, sequence, gantt, class y más). Los diagramas siguen el tema.",
   "help.feature.linter": "El analizador Markdown ligero marca discretamente cuatro problemas comunes en el editor: URLs desnudas (sin sintaxis de enlace Markdown), texto de enlace vacío, texto alternativo faltante y enlaces wiki cuyo destino no se encuentra en el ámbito de búsqueda. Pasa el ratón por encima para ver la explicación.",
+  "help.feature.scgTable": "Tablas con celdas-bloque de varias líneas mediante un bloque de código scg-table, sintaxis tipo MediaWiki. Detalles y ejemplos en la pestaña de ayuda «SCG Table».",
   "help.feature.updateCheck": "Detección de actualizaciones: la aplicación busca nuevas versiones en segundo plano (45 segundos después del inicio, luego cada 24 horas) y manualmente desde Ayuda → Buscar actualizaciones. Si se encuentra una nueva versión, se abre un diálogo con un enlace a la página de release de GitHub. La descarga e instalación automáticas llegarán con un instalador firmado en una versión futura.",
   "help.shortcut.openSettings": "Abrir configuración",
   "help.shortcut.zoom": "Acercar, alejar, restablecer al 100 %",

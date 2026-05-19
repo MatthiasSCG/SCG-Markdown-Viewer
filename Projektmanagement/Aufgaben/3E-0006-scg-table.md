@@ -1,8 +1,9 @@
 # 3E-0006 — SCG Table: Mehrzeilige Block-Zellen via Fenced-Code-Block
 
-**Status**: Offen
+**Status**: Erledigt — 2026-05-19, in v0.12.0 ausgeliefert
 **Zielversion**: 0.12.0
 **Vorgängerversion**: 0.11.0
+**Release**: [v0.12.0](https://github.com/MatthiasSCG/SCG-Markdown/releases/tag/v0.12.0)
 
 ## Ziel
 
@@ -48,8 +49,8 @@ Stufe 2 und Stufe 3 sind als Folge-Epics geplant und nicht Bestandteil von 3E-00
 ## Untergeordnete Tasks
 
 - [x] [4T-0034 — Parser und Renderer für scg-table (Stufe 1: Basis-Tabelle)](4T-0034-scg-table-parser.md) — erledigt, Commit `87f009f`, gepushed
-- [x] [4T-0036 — Hilfe-Tab „SCG Table" mit ausführlicher Doku](4T-0036-scg-table-hilfe-tab.md) — erledigt, gepushed
-- [ ] [4T-0035 — Kurzeintrag im Hilfe-Dialog, CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.12.0](4T-0035-changelog-release-0120.md)
+- [x] [4T-0036 — Hilfe-Tab „SCG Table" mit ausführlicher Doku](4T-0036-scg-table-hilfe-tab.md) — erledigt, Commit `cccb9ef`, gepushed
+- [x] [4T-0035 — Kurzeintrag im Hilfe-Dialog, CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.12.0](4T-0035-changelog-release-0120.md) — erledigt, gepushed, v0.12.0 veröffentlicht
 
 ## Architekturentscheidungen
 

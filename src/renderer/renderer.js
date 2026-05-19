@@ -3943,6 +3943,8 @@ const HELP_FEATURE_GROUPS = [
       'help.feature.search',
       'help.feature.searchReplace',
       'help.feature.linter',
+      // 4T-0035 (Epic 3E-0006): scg-table mit Querverweis auf den eigenen Tab.
+      'help.feature.scgTable',
     ],
   },
   {

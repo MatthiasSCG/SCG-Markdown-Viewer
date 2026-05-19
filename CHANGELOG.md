@@ -5,6 +5,28 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.12.0] - 2026-05-19 — SCG Table: mehrzeilige Block-Zellen in Tabellen
+
+Feature-Release, der eine Markdown-Erweiterung für Tabellen mit mehrzeiligen Block-Zellen einführt. Umgesetzt als Epic [3E-0006](Projektmanagement/Aufgaben/3E-0006-scg-table.md) in den Tasks [4T-0034](Projektmanagement/Aufgaben/4T-0034-scg-table-parser.md) (Parser und Renderer), [4T-0036](Projektmanagement/Aufgaben/4T-0036-scg-table-hilfe-tab.md) (Hilfe-Tab mit ausführlicher Doku) und Abschluss-Sammeltask [4T-0035](Projektmanagement/Aufgaben/4T-0035-changelog-release-0120.md). Stufe 1 des Epics; `colspan`/`rowspan`/Ausrichtung und ein HTML-Konverter für externe Renderer folgen in späteren Folge-Epics.
+
+### Neu
+
+- **SCG-Tabellen mit mehrzeiligen Block-Zellen** ([4T-0034](Projektmanagement/Aufgaben/4T-0034-scg-table-parser.md)): Markdown-Pipe-Tabellen sind zeilenbasiert und können keine geschachtelten Listen, mehrere Absätze oder Code-Blöcke in einer Zelle abbilden. SCG-Tabellen schließen diese Lücke über einen Fenced-Code-Block mit Sprach-Tag `scg-table`. Inhalt zwischen `{|` und `|}` wird als HTML-Tabelle gerendert; in fremden Markdown-Renderern bleibt der Block als lesbarer Code-Block sichtbar (Graceful Degradation). Syntax orientiert sich an MediaWiki: `{|` öffnet, `|}` schließt, `|-` trennt Zeilen, `|` startet eine Datenzelle, `!` eine Header-Zelle, `|+` setzt eine Caption. Zelleninhalt wird rekursiv durch markdown-it gerendert, sodass Listen (auch geschachtelt), nummerierte Listen, Codeblöcke (mit Vier-Backtick-Außenfence), Inline-Formatierung, Wiki-Links und Bilder in Zellen funktionieren. Integration über Override von `md.renderer.rules.fence` in `preload.js` mit Delegation an den Default-Renderer für alle anderen Sprach-Tags, sodass Code-Highlighting unangetastet bleibt.
+- **Hilfe-Tab „SCG Table"** ([4T-0036](Projektmanagement/Aufgaben/4T-0036-scg-table-hilfe-tab.md)): Dritter Tab im Hilfe-Dialog neben „Funktionen" und „Tastenkürzel". Inhalt pro Sprache als Markdown-Datei in `src/i18n/help/scg-table.<locale>.md`, asynchron vom Main geladen und durch dieselbe markdown-it-Instanz wie der Viewer-Inhalt gerendert. Die Hilfe demonstriert sich selbst, weil die Beispiele echte scg-table-Blöcke enthalten, die der scg-table-Renderer verarbeitet. Inhalt: Einleitung, Syntax-Übersicht, Minimal- und erweitertes Beispiel mit Code-Block in der Zelle, fünf Tipps (`|-`-Pflicht zwischen Zeilen prominent als erster Punkt), Portabilitäts-Hinweis, Stufen-Ausblick. Lazy-Loading mit Locale-Cache; Sprachwechsel triggert Reload, wenn der Tab sichtbar ist.
+- **Hilfe-Dialog um den scg-table-Eintrag erweitert** ([4T-0035](Projektmanagement/Aufgaben/4T-0035-changelog-release-0120.md)): `help.feature.scgTable` in der Gruppe „Bearbeitung" mit Querverweis auf den ausführlichen Hilfe-Tab.
+
+### Geändert
+
+- **Versions-Bump** 0.11.0 → 0.12.0 ([package.json](package.json)).
+- **CSS-Anpassungen für `.scg-table`** ([src/renderer/styles.css](src/renderer/styles.css)): Caption-Styling mit kursivem Text und gedämpfter Farbe, `vertical-align: top` für Block-Zellen, Margin-Reset für umschließendes `<p>` aus dem Block-Render (damit einzelne Absätze in Zellen keine sichtbaren Abstände an Zellrändern verursachen).
+
+### i18n
+
+- 2 neue Keys über die fünf unterstützten Sprachen (DE, EN, FR, ES, IT):
+  - `help.tabScgTable` (Tab-Label, Eigenname „SCG Table" in allen Sprachen) je Sprache.
+  - `help.feature.scgTable` (kurzer Funktions-Eintrag in der Gruppe „Bearbeitung") je Sprache.
+- 5 neue Markdown-Inhaltsdateien (`src/i18n/help/scg-table.{de,en,fr,es,it}.md`) mit dem ausführlichen Hilfe-Tab-Inhalt.
+
 ## [0.11.0] - 2026-05-19 — Theme-Wahl, Statusbar-Icons und Update-Erkennung
 
 Feature-Release, das die App um drei eigenständige Komfort-Verbesserungen erweitert. Umgesetzt als Epic [3E-0005](Projektmanagement/Aufgaben/3E-0005-update-theme-statusbar-icons.md) in den Tasks [4T-0030](Projektmanagement/Aufgaben/4T-0030-theme-toggle.md) (Theme-Umschalter), [4T-0031](Projektmanagement/Aufgaben/4T-0031-statusbar-icons.md) (Statusbar-Icons) und [4T-0029](Projektmanagement/Aufgaben/4T-0029-auto-update.md) (Update-Erkennung), inklusive Abschluss-Sammeltask [4T-0033](Projektmanagement/Aufgaben/4T-0033-changelog-release-0110.md). Der Auto-Install-Pfad ([4T-0032](Projektmanagement/Aufgaben/4T-0032-auto-install.md)) wurde wegen SmartScreen-Risiken bei unsigniertem Installer zurückgestellt, bis ein Code-Signing-Zertifikat vorliegt.

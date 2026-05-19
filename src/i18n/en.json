@@ -126,6 +126,7 @@
   "help.feature.katex": "Math is typeset with KaTeX: $…$ inline, $$…$$ as a block. Dollar amounts in running text stay untouched.",
   "help.feature.mermaid": "Code blocks with the mermaid language tag render as SVG diagrams in the render pane (flowchart, sequence, gantt, class and more). Diagrams follow the theme.",
   "help.feature.linter": "Markdown light linter discreetly marks four common issues in the editor: bare URLs (without Markdown link syntax), empty link text, missing alt text and wiki links whose target is not found in the search scope. Hover for an explanation.",
+  "help.feature.scgTable": "Tables with multi-line block cells via a scg-table code block, MediaWiki-like syntax. Details and examples in the 'SCG Table' help tab.",
   "help.feature.updateCheck": "Update detection: the app checks for new versions in the background (45 seconds after startup, then every 24 hours) and manually via Help → Check for Updates. When a new version is found, a dialog opens with a link to the GitHub release page. Automatic download and installation will come with a signed setup EXE in a future release.",
   "help.shortcut.openSettings": "Open Settings",
   "help.shortcut.zoom": "Zoom in, zoom out, reset to 100 %",

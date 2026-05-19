@@ -1,6 +1,6 @@
 # 4T-0035 — Hilfe-Dialog, CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.12.0
 
-**Status**: Offen
+**Status**: Erledigt — 2026-05-19, gepushed
 **Epic**: [3E-0006 — SCG Table](3E-0006-scg-table.md)
 **Zielversion**: 0.12.0
 
@@ -112,4 +112,18 @@ Nach erfolgreichem Release alle zugehörigen Vorgänge auf `Erledigt`:
 
 ## Lösung
 
-(wird nach Abschluss der Umsetzung gefüllt)
+Umgesetzt am 2026-05-19, Test bestanden, Release v0.12.0 auf GitHub veröffentlicht.
+
+### Doku-Änderungen
+
+- **Hilfe-Dialog-Eintrag** ([src/renderer/renderer.js](../../src/renderer/renderer.js)): neuer Feature-Key `help.feature.scgTable` in der Gruppe „Bearbeitung", nach `help.feature.linter`. Beschreibung verweist kurz auf die scg-table-Syntax und den ausführlichen Hilfe-Tab „SCG Table" (eigentlicher Tab wurde in [4T-0036](4T-0036-scg-table-hilfe-tab.md) angelegt).
+- **i18n** (5 Sprachen, je `help.feature.scgTable`): kurze Beschreibung mit Querverweis auf den Tab.
+- **[CHANGELOG.md](../../CHANGELOG.md)**: neuer Block `## [0.12.0] - 2026-05-19 — SCG Table: mehrzeilige Block-Zellen in Tabellen`. Subsektionen Neu (drei Bullets für 4T-0034 Parser, 4T-0036 Tab, 4T-0035 Hilfe-Eintrag), Geändert (Versions-Bump und CSS), i18n (2 Keys + 5 Markdown-Inhaltsdateien).
+- **[README.md](../../README.md)**: Status-Sektion auf 0.12.0 neu geschrieben mit Schwerpunkt scg-table und Hilfe-Tab; Aufsetzend-auf-Kette um 0.11.0 ergänzt.
+- **`dist/release-notes-0.12.0.md`** (gitignored): Release-Notes für GitHub mit Download-Tabelle, „Was ist neu seit v0.11.0" mit zwei Hauptabschnitten (SCG Table und Hilfe-Tab) plus „Verbessert"-Sektion, SmartScreen-Hinweis.
+
+### Release
+
+- Commit `4T-0035: Doku-Stand fuer 0.12.0 (Epic 3E-0006 abgeschlossen)` mit allen Doku-Änderungen plus den offen gebliebenen Status-Updates aus [4T-0034](4T-0034-scg-table-parser.md) (Hash-Vermerk) und [4T-0036](4T-0036-scg-table-hilfe-tab.md) (Hash-Vermerk).
+- Tag `v0.12.0` auf diesem Commit, auf GitHub gepushed.
+- GitHub-Release [v0.12.0](https://github.com/MatthiasSCG/SCG-Markdown/releases/tag/v0.12.0) als `--latest` markiert mit vier Assets: Setup-EXE, Portable-EXE, `latest.yml` und Setup-Blockmap (für künftige differenzielle Updates).

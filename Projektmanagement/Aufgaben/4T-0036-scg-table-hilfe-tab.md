@@ -1,6 +1,6 @@
 # 4T-0036 — Hilfe-Tab „SCG Table" mit ausführlicher Doku
 
-**Status**: Erledigt — 2026-05-19, gepushed
+**Status**: Erledigt — 2026-05-19, gepushed (Commit `cccb9ef`)
 **Epic**: [3E-0006 — SCG Table](3E-0006-scg-table.md)
 **Zielversion**: 0.12.0
 

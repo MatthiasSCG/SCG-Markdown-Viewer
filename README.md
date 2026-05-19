@@ -356,25 +356,26 @@ die Multi-Resolution-`icon.ico` (16/24/32/48/64/128/256 px) und
 
 ## Status
 
-Version `0.11.0` — Theme-Wahl, Statusbar-Icons und Update-Erkennung. Das
-Theme lässt sich jetzt manuell zwischen Hell, Dunkel und System umschalten
-(Menü `Ansicht → Theme` oder Sonnen-/Mond-/Monitor-Icon in der Statusbar
-zwischen Edit-Stift und Sprach-Wahl). Die acht Wort-Buttons unten links
-in der Statusbar wurden durch Inline-SVG-Icons aus Lucide ersetzt; die
-Reihe ist deutlich kompakter, Tooltips bleiben lokalisiert. Die App
-prüft im Hintergrund auf neue Versionen (45 Sekunden nach Start, danach
-alle 24 Stunden) und manuell über `Hilfe → Auf Updates prüfen…`; bei
-Treffer öffnet sich ein Dialog mit Link zur GitHub-Release-Seite.
-Automatischer Download und Installation kommen mit einer signierten
-Setup-EXE in einem späteren Release
-([4T-0032](Projektmanagement/Aufgaben/4T-0032-auto-install.md)).
+Version `0.12.0` — SCG Table: Markdown-Erweiterung für Tabellen mit
+mehrzeiligen Block-Zellen. Ein Fenced-Code-Block mit Sprach-Tag
+`scg-table` rendert eine HTML-Tabelle, in deren Zellen geschachtelte
+Listen, mehrere Absätze, Code-Blöcke, Inline-Formatierung, Wiki-Links
+und Bilder erlaubt sind. Die Syntax orientiert sich an MediaWiki
+(`{| … |- … |}`); in fremden Markdown-Renderern bleibt der Block als
+lesbarer Code-Block sichtbar (Graceful Degradation). Ausführliche Doku
+mit Beispielen im neuen dritten Tab des Hilfe-Dialogs („SCG Table"
+neben „Funktionen" und „Tastenkürzel"). Stufe 1 des Epics
+[3E-0006](Projektmanagement/Aufgaben/3E-0006-scg-table.md); `colspan`,
+`rowspan`, Spaltenausrichtung und ein HTML-Konverter für externe
+Renderer folgen in späteren Releases.
 
-Aufsetzend auf Render-Lift aus 0.10.0 (Syntax-Highlighting, KaTeX,
-Mermaid), Editor-UX und -Komfort aus 0.9.0 (Listen-Indent, Zoom,
-Schriftart, Fokus-Modus, Markdown-Linter), Strukturnavigation aus 0.8.0
-(Folding, Inhaltsverzeichnis, Backlinks) und Multi-Window-Bedienung aus
-0.7.0. Funktional vollständig für den aktuellen Funktionsumfang,
-inklusive Windows-Build (Installer + Portable).
+Aufsetzend auf Theme-Wahl, Statusbar-Icons und Update-Erkennung aus
+0.11.0, Render-Lift aus 0.10.0 (Syntax-Highlighting, KaTeX, Mermaid),
+Editor-UX und -Komfort aus 0.9.0 (Listen-Indent, Zoom, Schriftart,
+Fokus-Modus, Markdown-Linter), Strukturnavigation aus 0.8.0 (Folding,
+Inhaltsverzeichnis, Backlinks) und Multi-Window-Bedienung aus 0.7.0.
+Funktional vollständig für den aktuellen Funktionsumfang, inklusive
+Windows-Build (Installer + Portable).
 
 ## Lizenz
 
