@@ -1,6 +1,6 @@
 # 4T-0021 — Mermaid-Diagramme im Render-Pane
 
-**Status**: Offen
+**Status**: Test bestanden
 **Epic**: [3E-0004 — Render-Lift und Export: Mermaid, KaTeX, Syntax-Highlighting, PDF](3E-0004-render-lift-und-export.md)
 **Zielversion**: 0.10.0
 
@@ -10,32 +10,59 @@ Mermaid-Diagramme sind in technischer und Projektmanagement-Dokumentation weit v
 
 ## Lösungsansatz
 
-Skelett, wird vor Umsetzung vertieft.
+### Bibliothek und Lazy-Loading
 
-### Bibliothek und Integration
+- Dependency: `mermaid` ^11.x.
+- Mermaid sitzt nicht im Haupt-Renderer-Bundle (~3 MB Aufschlag wäre unverhältnismäßig für Dokumente ohne Diagramme). Stattdessen separater esbuild-Lauf:
+  - `src/renderer/mermaid-entry.js` re-exportiert `mermaid` als ESM-Default-Export.
+  - `scripts/build-mermaid.js` bundlet diesen Entry zu `src/renderer/mermaid.bundle.js`.
+  - `scripts/build-renderer.js` ruft den Mermaid-Build vor dem Haupt-Bundle auf (analog zu Hljs/KaTeX-Assets).
+- Lazy-Load im Renderer per `import(new URL('./mermaid.bundle.js', import.meta.url).href)`. esbuild kann diesen variablen Import nicht statisch auflösen und reicht ihn zur Laufzeit durch; das Mermaid-Bundle wird damit erst beim ersten Mermaid-Block geholt.
+- Falls Mermaid intern Worker oder dynamische Sub-Module nachlädt, die sich im `asar`-Archiv nicht öffnen lassen: `mermaid.bundle.js` in `build.asarUnpack` aufnehmen. Erst nach realem Build prüfen.
 
-- Dependency: `mermaid` (offizielles Paket).
-- **Lazy-Loading**: Nicht in das Renderer-Bundle aufnehmen. Beim Render eines Dokuments wird das HTML-Output nach `<pre><code class="language-mermaid">…</code></pre>` durchsucht. Bei mindestens einem Treffer wird `mermaid` per `import()` dynamisch geladen, dann initialisiert und die Blöcke umgerendert.
-- Initialisierung: `mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: themeName })`. `themeName` wird je nach System-Theme auf `default` (Light) oder `dark` gesetzt und bei Theme-Wechsel zur Laufzeit aktualisiert (alle bestehenden Diagramme neu rendern).
-- Render-Schritt: für jeden gefundenen Block `mermaid.render(id, source)` aufrufen, das resultierende SVG in den Container einsetzen, ursprüngliches `<pre>` ersetzen.
+### Erkennung von Mermaid-Blöcken
+
+- 4T-0023 setzt für jeden Fenced-Code-Block mit Sprach-Tag aktuell nur dann eine `language-X`-Klasse, wenn die Sprache in hljs registriert ist. Unbekannte Tags wie `mermaid` bekommen keine Klasse → Selektor unzuverlässig.
+- **Add-on-Fix im Highlight-Callback** in `preload.js`: auch bei unbekanntem Tag die `language-${lang}`-Klasse mitschreiben (sonst Verhalten unverändert). Damit findet der Mermaid-Post-Processor zuverlässig `pre > code.language-mermaid`.
+
+### Post-Render-Hook im Renderer
+
+- Neue Funktion `applyMermaidIfPresent(container)` in `renderer.js`. Aufruf nach jedem Setzen von `els.renderedHtml.innerHTML = api.renderMarkdown(...)`.
+- Bei mindestens einem `code.language-mermaid` wird Mermaid lazy geladen und mit `{ startOnLoad: false, securityLevel: 'strict', theme: currentMermaidTheme() }` initialisiert.
+- Pro Block: `mermaid.render(id, source)` aufrufen, das `<pre>` durch einen `<div class="mermaid-block" data-source="...">` mit dem SVG ersetzen. `data-source` bleibt für späteres Re-Rendering bei Theme-Wechsel erhalten.
+
+### Render-Cache
+
+- Modul-Level-Map `Map<sourceHash + ':' + theme, svgString>`. Schlanker FNV-1a-Hash über den Quelltext. Verhindert wiederholten Mermaid-Parse beim Tippen im Edit-Modus (Debounce 150 ms → ohne Cache jede Iteration teuer).
+
+### Theme-Sync zur Laufzeit
+
+- `api.onThemeChanged(...)`: alle vorhandenen `.mermaid-block`-Container lesen `dataset.source`, werden mit dem neuen Theme neu gerendert (Cache greift bei Wiederholung).
 
 ### Fehlerverhalten
 
-- Bei Syntax-Fehlern im Mermaid-Quellcode zeigt Mermaid normalerweise ein Fehler-SVG. Das ist akzeptabel; zusätzlich wird darunter dezent der Original-Quellcode als `<pre>` erhalten, sodass die Bearbeitung im Edit-Modus klar bleibt. (Im Edit-Modus ist der Quellcode im Editor ohnehin sichtbar.)
-- Keine roten Toast-Meldungen oder modale Fehler-Dialoge.
-
-### Theme-Sync
-
-- Bei Wechsel des System-Themes wird die Mermaid-Konfiguration aktualisiert und alle gerenderten Diagramme im aktuellen Render-Pane neu gerendert. Bei vielen Diagrammen mit Debounce, um Flackern bei schnellen Theme-Wechseln zu vermeiden.
+- `mermaid.render()` wirft bei Syntax-Fehler. Catch → Container bekommt `class="mermaid-block mermaid-error"`, zeigt Original-Quelltext im `<pre>` plus die Mermaid-Fehlermeldung als gedämpfter Sekundär-Text. Kein Toast, kein Modal. Render-Pane bleibt funktionsfähig.
 
 ### Sicherheit
 
-- `securityLevel: 'strict'` verhindert Skript-Tags und externe Ressourcen-Loads aus dem Mermaid-Quellcode.
-- Keine Aktivierung der Mermaid-Plug-Ins, die externe Konfigurationen laden würden.
+- `securityLevel: 'strict'` deckt Skript-Tags und externe Loads aus dem Mermaid-Quellcode ab.
+- SVG wird per `innerHTML` eingesetzt; bei `strict` ist der Mermaid-Output sicher.
 
-### Edit-Live-Update
+## Akzeptanz-Smoke-Tests
 
-- Beim Editieren im Edit-Modus (Render-Pane mit Live-Update alle 150 ms) werden Mermaid-Blöcke jedes Mal neu gerendert. Effizienz: Blöcke mit unverändertem Quellcode werden nicht neu gerendert (Vergleich Hash oder Texte vor dem `mermaid.render`-Aufruf).
+1. Flowchart `graph TD A-->B`.
+2. Sequence `sequenceDiagram` mit zwei Akteuren.
+3. Gantt mit zwei Tasks.
+4. ClassDiagram mit zwei Klassen.
+5. Fehlerhaftes Mermaid → dezente Fehlerdarstellung, restlicher Render-Pane funktioniert.
+6. Dokument ohne Mermaid-Blöcke: `mermaid.bundle.js` wird **nicht** geladen (DevTools-Network oder Performance-Profile als Verifikation).
+7. Theme-Wechsel: alle Diagramme rendern in der neuen Palette.
+8. Edit-Modus: Tippen aktualisiert das Diagramm nach Debounce.
+9. Code-Block mit anderer Sprache (z.B. `javascript`) bleibt Code-Block, nicht Mermaid.
+
+## PDF-Vorbereitung
+
+- 4T-0024 muss vor `printToPDF` warten, bis alle `applyMermaidIfPresent`-Promises aufgelöst sind. Hier wird der Aufruf als `async`-Funktion exportiert; 4T-0024 baut darauf auf.
 
 ## Akzeptanzkriterien
 

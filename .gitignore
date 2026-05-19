@@ -13,6 +13,11 @@ src/renderer/hljs-themes.css
 # aus node_modules/katex kopiert (siehe scripts/build-katex-assets.js).
 src/renderer/katex/
 
+# 4T-0021: separater Mermaid-Bundle (Lazy-Load-Ziel; ~3MB minified).
+# Wird vom Renderer per dynamischem import() nachgeladen (siehe
+# scripts/build-mermaid.js).
+src/renderer/mermaid.bundle.js
+
 # Build-Ergebnisse (Output-Verzeichnisse)
 dist/
 out/

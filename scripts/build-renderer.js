@@ -20,6 +20,11 @@ buildHljsThemes();
 const { buildKatexAssets } = require('./build-katex-assets.js');
 buildKatexAssets();
 
+// 4T-0021: separater Mermaid-Bundle, der vom Renderer lazy geladen wird.
+// Wird hier synchron gebaut, damit das Ergebnis bereits liegt, bevor das
+// Haupt-Renderer-Bundle gebaut wird.
+const { buildMermaid } = require('./build-mermaid.js');
+
 const args = process.argv.slice(2);
 const watch = args.includes('--watch');
 
@@ -35,15 +40,19 @@ const buildOptions = {
   logLevel: 'info',
 };
 
-if (watch) {
-  (async () => {
+async function main() {
+  // 4T-0021: Mermaid-Bundle vor dem Haupt-Renderer-Bundle bauen.
+  await buildMermaid();
+  if (watch) {
     const ctx = await esbuild.context(buildOptions);
     await ctx.watch();
     console.log('build-renderer: watching for changes…');
-  })();
-} else {
-  esbuild.build(buildOptions).catch((err) => {
-    console.error(err);
-    process.exit(1);
-  });
+  } else {
+    await esbuild.build(buildOptions);
+  }
 }
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

@@ -440,6 +440,189 @@ const foldChangeNotifier = ViewPlugin.fromClass(class {
 
 const api = window.api;
 
+// --- Mermaid (4T-0021) ------------------------------------------------------
+// Mermaid wird per dynamischem import() lazy geladen (siehe scripts/
+// build-mermaid.js fuer den separaten Bundle), sodass Dokumente ohne
+// Mermaid-Bloecke den ~3MB-Bundle gar nicht erst holen. Das Post-Render-Hook
+// applyMermaidIfPresent ersetzt jedes <pre><code class="language-mermaid">…
+// </code></pre> durch ein <div class="mermaid-block"> mit dem gerenderten SVG.
+// Bei Theme-Wechsel rendert rerenderAllMermaidBlocks alle Diagramme neu.
+let mermaidPromise = null;
+function loadMermaid() {
+  if (mermaidPromise) return mermaidPromise;
+  const url = new URL('./mermaid.bundle.js', import.meta.url).href;
+  mermaidPromise = import(url).then((mod) => mod.default || mod);
+  return mermaidPromise;
+}
+
+let mermaidConfiguredTheme = null;
+function currentMermaidTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default';
+}
+function ensureMermaidConfigured(mermaid, theme) {
+  if (mermaidConfiguredTheme === theme) return;
+  mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme });
+  mermaidConfiguredTheme = theme;
+}
+
+// Modul-Level-Cache (svgString je Quelltext+Theme). Verhindert wiederholten
+// Mermaid-Parse beim Live-Tippen im Edit-Modus.
+const mermaidRenderCache = new Map();
+function mermaidHash(str) {
+  // FNV-1a 32-bit, kompakt und kollisionsarm fuer normale Diagramm-Groessen.
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16);
+}
+async function applyMermaidIfPresent(container) {
+  if (!container) return;
+  const codeBlocks = container.querySelectorAll('pre > code.language-mermaid');
+  if (codeBlocks.length === 0) return;
+  let mermaid;
+  try {
+    mermaid = await loadMermaid();
+  } catch (err) {
+    console.warn('Mermaid konnte nicht geladen werden:', err);
+    return;
+  }
+  const theme = currentMermaidTheme();
+  ensureMermaidConfigured(mermaid, theme);
+
+  // Mermaid v11: <pre><code class="language-mermaid"> wird zunaechst durch
+  // unseren Wrapper-Container ersetzt, der entweder den Cache-Treffer enthaelt
+  // oder einen <div class="mermaid"> mit dem Quelltext. mermaid.run() rendert
+  // dann in-place; das ist der API-empfohlene Pfad in v11 und stabiler als
+  // mermaid.render(), das in v11 zum Legacy-Pfad gehoert.
+  const pending = [];
+  for (const codeEl of codeBlocks) {
+    const source = codeEl.textContent;
+    const preEl = codeEl.parentElement;
+    if (!preEl) continue;
+    const block = document.createElement('div');
+    block.className = 'mermaid-block';
+    block.dataset.source = source;
+    const cacheKey = `${theme}:${mermaidHash(source)}`;
+    const cached = mermaidRenderCache.get(cacheKey);
+    if (cached) {
+      block.innerHTML = cached;
+      preEl.replaceWith(block);
+      continue;
+    }
+    const inner = document.createElement('div');
+    inner.className = 'mermaid';
+    inner.textContent = source;
+    block.appendChild(inner);
+    preEl.replaceWith(block);
+    pending.push({ block, inner, source, cacheKey });
+  }
+  if (pending.length === 0) return;
+  try {
+    await mermaid.run({ nodes: pending.map((p) => p.inner), suppressErrors: true });
+  } catch (err) {
+    console.warn('mermaid.run() schlug fehl:', err);
+  }
+  // Nachbearbeitung: Bomb-SVG durch eigene Fehlerdarstellung ersetzen, sonst
+  // SVG aus dem inneren <div class="mermaid"> auf den Wrapper-Block heben und
+  // den Cache fuellen.
+  for (const item of pending) {
+    const svgHtml = item.inner.innerHTML;
+    const isError = !svgHtml || /aria-roledescription="error"/.test(svgHtml);
+    if (isError) {
+      renderMermaidErrorBlock(item.block, item.source, 'Mermaid: Syntax-Fehler im Diagramm.');
+    } else {
+      item.block.innerHTML = svgHtml;
+      item.block.classList.remove('mermaid-error');
+      mermaidRenderCache.set(item.cacheKey, svgHtml);
+    }
+  }
+  cleanupMermaidLeftovers();
+}
+
+function renderMermaidErrorBlock(block, source, message) {
+  block.classList.add('mermaid-error');
+  block.innerHTML = '';
+  const pre = document.createElement('pre');
+  pre.className = 'mermaid-error-source';
+  pre.textContent = source;
+  const msg = document.createElement('div');
+  msg.className = 'mermaid-error-msg';
+  msg.textContent = message;
+  block.appendChild(pre);
+  block.appendChild(msg);
+}
+
+// Mermaid haengt bei (Render-)Fehlern temporaere DOM-Knoten an document.body
+// an (id-Praefix "dmermaid-") und raeumt sie nicht zuverlaessig auf. Damit
+// landen sichtbare "Syntax error in text"-Bomb-SVGs ausserhalb unseres
+// Render-Pane. Wir saeubern den Body deshalb nach jedem Mermaid-Aufruf.
+function cleanupMermaidLeftovers() {
+  for (const el of Array.from(document.body.children)) {
+    if (!(el instanceof HTMLElement)) continue;
+    const id = el.id || '';
+    if (id.startsWith('dmermaid-')) {
+      el.remove();
+    }
+  }
+}
+
+async function rerenderAllMermaidBlocks() {
+  const blocks = document.querySelectorAll('.mermaid-block');
+  if (blocks.length === 0) return;
+  let mermaid;
+  try {
+    mermaid = await loadMermaid();
+  } catch (err) {
+    return;
+  }
+  const theme = currentMermaidTheme();
+  // Bei Theme-Wechsel muss mermaid mit dem neuen Theme neu initialisiert
+  // werden, damit nachfolgende Renderings die neue Palette nutzen.
+  mermaidConfiguredTheme = null;
+  ensureMermaidConfigured(mermaid, theme);
+
+  const pending = [];
+  for (const block of blocks) {
+    const source = block.dataset.source || '';
+    if (!source) continue;
+    const cacheKey = `${theme}:${mermaidHash(source)}`;
+    const cached = mermaidRenderCache.get(cacheKey);
+    if (cached) {
+      block.innerHTML = cached;
+      block.classList.remove('mermaid-error');
+      continue;
+    }
+    // Wrapper-Block zuruecksetzen und einen frischen <div class="mermaid">
+    // mit dem Quelltext einsetzen, den mermaid.run() ersetzt.
+    block.innerHTML = '';
+    block.classList.remove('mermaid-error');
+    const inner = document.createElement('div');
+    inner.className = 'mermaid';
+    inner.textContent = source;
+    block.appendChild(inner);
+    pending.push({ block, inner, source, cacheKey });
+  }
+  if (pending.length === 0) return;
+  try {
+    await mermaid.run({ nodes: pending.map((p) => p.inner), suppressErrors: true });
+  } catch (err) {
+    console.warn('mermaid.run() schlug bei Theme-Wechsel fehl:', err);
+  }
+  for (const item of pending) {
+    const svgHtml = item.inner.innerHTML;
+    const isError = !svgHtml || /aria-roledescription="error"/.test(svgHtml);
+    if (isError) {
+      renderMermaidErrorBlock(item.block, item.source, 'Mermaid: Syntax-Fehler im Diagramm.');
+    } else {
+      item.block.innerHTML = svgHtml;
+      mermaidRenderCache.set(item.cacheKey, svgHtml);
+    }
+  }
+  cleanupMermaidLeftovers();
+}
+
 // --- Konstanten -------------------------------------------------------------
 const MAX_PANES = 2;
 const MIME_TAB = 'application/x-mdv-tab';
@@ -1290,6 +1473,8 @@ function renderPreviewForPane(paneIdx) {
   const els = getPaneEls(paneIdx);
   if (!els.renderedHtml) return;
   els.renderedHtml.innerHTML = api.renderMarkdown(tab.content, tab.path);
+  // 4T-0021: Mermaid-Bloecke per Lazy-Load und Post-Processing zu SVG.
+  applyMermaidIfPresent(els.renderedHtml);
   // 4T-0014: Aktive Outline-Sektion neu ermitteln, weil DOM-Heading-Knoten
   // im Render-Pane jetzt frische BoundingClientRects haben.
   if (state.outline && state.outline.visibleByPane[paneIdx]) {
@@ -1956,6 +2141,9 @@ async function init() {
   document.documentElement.setAttribute('data-theme', initialTheme);
   api.onThemeChanged((theme) => {
     document.documentElement.setAttribute('data-theme', theme);
+    // 4T-0021: alle gerenderten Mermaid-Diagramme neu rendern, damit sie
+    // dem neuen Theme folgen. Greift nur, wenn Mermaid bereits geladen ist.
+    rerenderAllMermaidBlocks();
   });
 
   // Sprache
@@ -3059,6 +3247,8 @@ function renderPaneContent(paneIdx) {
   const tab = pane.tabs[pane.activeIndex];
   syncEditorForPane(paneIdx);
   els.renderedHtml.innerHTML = api.renderMarkdown(tab.content, tab.path);
+  // 4T-0021: Mermaid-Bloecke per Lazy-Load und Post-Processing zu SVG.
+  applyMermaidIfPresent(els.renderedHtml);
 
   // View-Mode-Klassen auf dem .content-Element setzen.
   els.content.classList.remove('view-source', 'view-split', 'view-rendered');

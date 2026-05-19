@@ -85,7 +85,10 @@ const md = new MarkdownIt({
   // 4T-0023: Syntax-Highlighting fuer Fenced-Code-Bloecke mit Sprach-Tag.
   // Keine Auto-Detection ohne Tag — Fehlerkennungen bei kurzen Snippets
   // stiften mehr Verwirrung als Nutzen. Unbekannte Sprache und Tokenizer-
-  // Fehler fallen still auf den Plain-Block mit hljs-Klasse zurueck.
+  // Fehler fallen still auf den Plain-Block mit hljs-Klasse zurueck. Die
+  // `language-<tag>`-Klasse wird auch bei unbekannten Tags mitgesetzt, damit
+  // das Renderer-seitige Post-Processing (z.B. Mermaid in 4T-0021) Bloecke
+  // zuverlaessig per Klassennamen finden kann.
   highlight(str, lang) {
     if (lang && hljs.getLanguage(lang)) {
       try {
@@ -95,7 +98,8 @@ const md = new MarkdownIt({
         // Fall durch zum Plain-Fallback
       }
     }
-    return `<pre><code class="hljs">${escapeHtml(str)}</code></pre>`;
+    const classes = lang ? `hljs language-${escapeHtml(lang)}` : 'hljs';
+    return `<pre><code class="${classes}">${escapeHtml(str)}</code></pre>`;
   },
 });
 md.use(taskLists, { enabled: false, label: true });

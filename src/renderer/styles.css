@@ -757,6 +757,38 @@ select {
   padding: 0;
   font-size: 0.9em;
 }
+
+/* 4T-0021: Mermaid-Diagramm-Container. */
+.markdown-body .mermaid-block {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 1em 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--code-bg);
+  overflow-x: auto;
+}
+.markdown-body .mermaid-block svg {
+  max-width: 100%;
+  height: auto;
+}
+.markdown-body .mermaid-block.mermaid-error {
+  flex-direction: column;
+  align-items: stretch;
+  border-color: #cc0000;
+}
+.markdown-body .mermaid-block.mermaid-error .mermaid-error-source {
+  margin: 0 0 6px 0;
+  font-size: 0.9em;
+}
+.markdown-body .mermaid-block.mermaid-error .mermaid-error-msg {
+  color: #cc0000;
+  font-size: 0.85em;
+  font-family: var(--editor-font-family);
+}
+
 .markdown-body blockquote {
   border-left: 4px solid var(--border-strong);
   margin: 0.6em 0;
