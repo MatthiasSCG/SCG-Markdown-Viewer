@@ -3978,6 +3978,7 @@ const HELP_FEATURE_GROUPS = [
       'help.feature.theme',
       'help.feature.languages',
       'help.feature.menuBar',
+      'help.feature.updateCheck',
     ],
   },
 ];

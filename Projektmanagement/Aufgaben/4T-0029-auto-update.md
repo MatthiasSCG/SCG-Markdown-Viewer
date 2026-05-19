@@ -1,8 +1,9 @@
 # 4T-0029 — Update-Erkennung und Benachrichtigung mit Link
 
-**Status**: Wartet auf Test (Test am 2026-05-19 bestanden; finale Schließung beim Abschluss-Sammeltask)
+**Status**: Erledigt
 **Epic**: [3E-0005 — Auto-Update, Theme-Umschalter und Statusbar-Icons](3E-0005-update-theme-statusbar-icons.md)
 **Zielversion**: 0.11.0
+**Release**: [v0.11.0](https://github.com/MatthiasSCG/SCG-Markdown/releases/tag/v0.11.0)
 
 > **Scope-Reduktion (2026-05-19):** Ursprünglich war dieser Task umfassender mit Auto-Download und Auto-Installation geplant. Aufgrund der SmartScreen-Risiken bei unsigniertem Installer wurde der Auto-Install-Teil in [4T-0032](4T-0032-auto-install.md) ausgelagert und auf den Zeitpunkt nach Einführung eines Code-Signing-Zertifikats zurückgestellt. 4T-0029 deckt jetzt nur noch Update-**Erkennung** und **Benachrichtigung mit Link** zur GitHub-Release-Seite ab.
 

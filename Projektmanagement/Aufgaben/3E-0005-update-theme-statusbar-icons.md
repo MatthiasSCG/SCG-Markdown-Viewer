@@ -1,8 +1,9 @@
 # 3E-0005 — Auto-Update, Theme-Umschalter und Statusbar-Icons
 
-**Status**: Offen
+**Status**: Erledigt — 4T-0029/0030/0031/0033 abgeschlossen und in 0.11.0 ausgeliefert; 4T-0032 zurückgestellt
 **Zielversion**: 0.11.0
 **Vorgängerversion**: 0.10.0
+**Release**: [v0.11.0](https://github.com/MatthiasSCG/SCG-Markdown/releases/tag/v0.11.0)
 
 ## Ziel
 
@@ -40,11 +41,11 @@ Drei eigenständige Quality-of-Life-Verbesserungen, in einem Release 0.11.0 geb�
 
 ## Untergeordnete Tasks
 
-- [x] [4T-0029 — Update-Erkennung und Benachrichtigung mit Link](4T-0029-auto-update.md) — Test bestanden am 2026-05-19, Commits drin, gepushed (Scope am 2026-05-19 reduziert, Auto-Install nach [4T-0032](4T-0032-auto-install.md) ausgelagert)
-- [x] [4T-0030 — Theme-Umschalter Hell / Dunkel / System](4T-0030-theme-toggle.md) — Test bestanden am 2026-05-19, Commits drin, gepushed
-- [x] [4T-0031 — Statusbar-Buttons als Icons](4T-0031-statusbar-icons.md) — Test bestanden am 2026-05-19, Commits drin, gepushed
+- [x] [4T-0029 — Update-Erkennung und Benachrichtigung mit Link](4T-0029-auto-update.md) — erledigt, in v0.11.0 (Scope am 2026-05-19 reduziert, Auto-Install nach [4T-0032](4T-0032-auto-install.md) ausgelagert)
+- [x] [4T-0030 — Theme-Umschalter Hell / Dunkel / System](4T-0030-theme-toggle.md) — erledigt, in v0.11.0
+- [x] [4T-0031 — Statusbar-Buttons als Icons](4T-0031-statusbar-icons.md) — erledigt, in v0.11.0
 - [ ] [4T-0032 — Auto-Download und Auto-Installation des Updates](4T-0032-auto-install.md) — **Zurückgestellt** bis Code-Signing-Zertifikat vorliegt; nicht Teil von 0.11.0
-- [ ] Abschluss-Sammeltask wird erst angelegt, wenn 4T-0029 auf `Wartet auf Test` steht (Konvention aus [CLAUDE.md](../../CLAUDE.md)).
+- [x] [4T-0033 — Hilfe-Dialog, CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.11.0](4T-0033-changelog-release-0110.md) — erledigt, in v0.11.0
 
 ## Architekturentscheidungen
 

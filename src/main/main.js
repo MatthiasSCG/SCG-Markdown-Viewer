@@ -16,12 +16,13 @@ const backlinks = require('./backlinks');
 //   manuell. Hintergrund: SmartScreen-Risiken bei unsigniertem Installer
 //   (Auto-Install ist nach 4T-0032 verschoben).
 // - autoInstallOnAppQuit=false: konsequent zu autoDownload=false.
-// - allowPrerelease=true: waehrend der 0.11.0-Entwicklung pruefen wir gegen
-//   das Pre-Release v0.11.0-rc1. VOR dem finalen v0.11.0-Release wieder auf
-//   false setzen, damit die Live-App nur stabile Releases vorschlaegt.
+// - allowPrerelease=false: die Live-App schlaegt nur stabile Releases vor.
+//   Waehrend der 0.11.0-Entwicklung war das auf true gesetzt, um gegen das
+//   Pre-Release v0.11.0-rc1 zu testen; vor dem finalen 0.11.0-Release in
+//   4T-0033 wieder auf false zurueckgesetzt.
 autoUpdater.autoDownload = false;
 autoUpdater.autoInstallOnAppQuit = false;
-autoUpdater.allowPrerelease = true;
+autoUpdater.allowPrerelease = false;
 
 // 4T-0029: Datei-Logger fuer electron-updater-Diagnose.
 // Schreibt nach %APPDATA%/SCG Markdown/logs/update.log. Macht es leicht,

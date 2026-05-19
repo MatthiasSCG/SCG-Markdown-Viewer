@@ -356,18 +356,21 @@ die Multi-Resolution-`icon.ico` (16/24/32/48/64/128/256 px) und
 
 ## Status
 
-Version `0.10.0` — Render-Lift: Syntax-Highlighting für Code-Blöcke,
-KaTeX-Mathematik (Inline und Block) und Mermaid-Diagramme im Render-Pane.
-Der Render-Pane folgt damit dem Niveau, das von GitHub und ähnlichen Tools
-gewohnt ist. Mermaid sitzt in einem separat geladenen Bundle und wird nur
-geholt, wenn das Dokument auch Diagramme enthält. KaTeX, Highlight-Themes
-und Mermaid-Bundle werden im neuen Build-Step der Renderer-Pipeline aus
-`node_modules` aufbereitet. Der ursprünglich für dieses Release geplante
-PDF-Export wurde während der Umsetzung zurückgestellt
-([4T-0024](Projektmanagement/Aufgaben/4T-0024-pdf-export.md)) und kommt in
-einem späteren Release zurück.
+Version `0.11.0` — Theme-Wahl, Statusbar-Icons und Update-Erkennung. Das
+Theme lässt sich jetzt manuell zwischen Hell, Dunkel und System umschalten
+(Menü `Ansicht → Theme` oder Sonnen-/Mond-/Monitor-Icon in der Statusbar
+zwischen Edit-Stift und Sprach-Wahl). Die acht Wort-Buttons unten links
+in der Statusbar wurden durch Inline-SVG-Icons aus Lucide ersetzt; die
+Reihe ist deutlich kompakter, Tooltips bleiben lokalisiert. Die App
+prüft im Hintergrund auf neue Versionen (45 Sekunden nach Start, danach
+alle 24 Stunden) und manuell über `Hilfe → Auf Updates prüfen…`; bei
+Treffer öffnet sich ein Dialog mit Link zur GitHub-Release-Seite.
+Automatischer Download und Installation kommen mit einer signierten
+Setup-EXE in einem späteren Release
+([4T-0032](Projektmanagement/Aufgaben/4T-0032-auto-install.md)).
 
-Aufsetzend auf Editor-UX und -Komfort aus 0.9.0 (Listen-Indent, Zoom,
+Aufsetzend auf Render-Lift aus 0.10.0 (Syntax-Highlighting, KaTeX,
+Mermaid), Editor-UX und -Komfort aus 0.9.0 (Listen-Indent, Zoom,
 Schriftart, Fokus-Modus, Markdown-Linter), Strukturnavigation aus 0.8.0
 (Folding, Inhaltsverzeichnis, Backlinks) und Multi-Window-Bedienung aus
 0.7.0. Funktional vollständig für den aktuellen Funktionsumfang,
@@ -384,3 +387,9 @@ Lizenz- und Copyright-Notice in abgeleiteten Werken erhalten bleibt.
 Das verwendete App-Icon basiert auf dem
 [Markdown Mark](https://github.com/dcurtis/markdown-mark) von Dustin Curtis,
 welches separat unter **CC0 1.0 (Public Domain)** veröffentlicht ist.
+
+Die acht Statusbar-Icons (Inhalt, Backlinks, Gliederung, Nummern,
+Umbruch, Quellcode, Geteilt, Gerendert) stammen aus
+[Lucide](https://lucide.dev) und stehen unter der **ISC-Lizenz**. Die
+SVG-Pfade sind inline in `src/renderer/index.html` eingebettet; es gibt
+keine NPM- oder Runtime-Abhängigkeit.

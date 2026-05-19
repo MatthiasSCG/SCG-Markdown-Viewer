@@ -1,8 +1,9 @@
 # 4T-0030 — Theme-Umschalter Hell / Dunkel / System
 
-**Status**: Wartet auf Test (Test am 2026-05-19 bestanden; finale Schließung beim Abschluss-Sammeltask)
+**Status**: Erledigt
 **Epic**: [3E-0005 — Auto-Update, Theme-Umschalter und Statusbar-Icons](3E-0005-update-theme-statusbar-icons.md)
 **Zielversion**: 0.11.0
+**Release**: [v0.11.0](https://github.com/MatthiasSCG/SCG-Markdown/releases/tag/v0.11.0)
 
 ## Warum
 

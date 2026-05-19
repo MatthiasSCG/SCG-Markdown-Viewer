@@ -73,16 +73,22 @@ Format: immer `v` vorangestellt (z.B. `v0.5.0`).
 ### 3. GitHub-Release anlegen
 
 ```bash
-gh release create v0.6.0 \
-  --title "v0.6.0 — <Schlagwort>" \
+gh release create v0.11.0 \
+  --title "v0.11.0 — <Schlagwort>" \
   --notes-file <notes-tempfile.md> \
   --latest \
-  "releases/SCG Markdown-0.6.0-Setup.exe" \
-  "releases/SCG Markdown-0.6.0-Portable.exe"
+  "releases/SCG Markdown-0.11.0-Setup.exe" \
+  "releases/SCG Markdown-0.11.0-Portable.exe" \
+  "releases/SCG Markdown-0.11.0-Setup.exe.blockmap" \
+  "releases/latest.yml"
 ```
 
 - `--latest` setzt die neue Version als „Latest" auf der GitHub-Repo-Seite.
 - Bei Bugfix-Tags ohne neue Features (z.B. `--latest=false`) entsprechend nicht setzen.
+- **Vier Asset-Dateien ab 0.11.0**: zusätzlich zu Setup- und Portable-EXE werden seit der Einführung der Update-Erkennung in 4T-0029 zwei weitere Dateien als Asset gebraucht:
+  - `latest.yml` — Update-Manifest für `electron-updater`. Ohne diese Datei meldet die Update-Prüfung in der installierten App „no published versions on GitHub".
+  - `SCG Markdown-<version>-Setup.exe.blockmap` — Blockmap für künftige differenzielle Updates (relevant ab 4T-0032).
+  Beide Dateien werden vom `postbuild`-Hook (`scripts/archive-build.js`) automatisch nach `releases/` verschoben.
 
 ### Release-Notes-Struktur
 

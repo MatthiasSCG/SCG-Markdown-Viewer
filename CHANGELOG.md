@@ -5,6 +5,40 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.11.0] - 2026-05-19 — Theme-Wahl, Statusbar-Icons und Update-Erkennung
+
+Feature-Release, das die App um drei eigenständige Komfort-Verbesserungen erweitert. Umgesetzt als Epic [3E-0005](Projektmanagement/Aufgaben/3E-0005-update-theme-statusbar-icons.md) in den Tasks [4T-0030](Projektmanagement/Aufgaben/4T-0030-theme-toggle.md) (Theme-Umschalter), [4T-0031](Projektmanagement/Aufgaben/4T-0031-statusbar-icons.md) (Statusbar-Icons) und [4T-0029](Projektmanagement/Aufgaben/4T-0029-auto-update.md) (Update-Erkennung), inklusive Abschluss-Sammeltask [4T-0033](Projektmanagement/Aufgaben/4T-0033-changelog-release-0110.md). Der Auto-Install-Pfad ([4T-0032](Projektmanagement/Aufgaben/4T-0032-auto-install.md)) wurde wegen SmartScreen-Risiken bei unsigniertem Installer zurückgestellt, bis ein Code-Signing-Zertifikat vorliegt.
+
+### Neu
+
+- **Theme-Umschalter Hell / Dunkel / System** ([4T-0030](Projektmanagement/Aufgaben/4T-0030-theme-toggle.md)): Drei-Wege-Wahl statt der bisherigen rein systemgesteuerten Theme-Logik. Auswahl an zwei Stellen: Menü `Ansicht → Theme` mit drei Radio-Items und ein Statusbar-Icon (Sonne / Mond / Monitor) zwischen Edit-Stift und Sprach-Wahl, das per Klick zyklisch Hell → Dunkel → System → Hell durchschaltet. Persistenz in `electron-store` (Schlüssel `themePref`, Default `system`), sodass die Wahl App-Neustarts überlebt. Multi-Window-Sync über zwei Broadcast-Kanäle: Statusbar-Icon und Menü-Radio bleiben in allen Fenstern synchron. Mermaid-Diagramme und Syntax-Highlighting passen sich beim Theme-Wechsel ohne Reload an. Native System-Dialoge folgen über `nativeTheme.themeSource` ebenfalls dem gewählten Theme.
+- **Statusbar-Buttons als Icons** ([4T-0031](Projektmanagement/Aufgaben/4T-0031-statusbar-icons.md)): Die acht Wort-Buttons unten links (Inhalt, Backlinks, Gliederung, Nummern, Umbruch, Quellcode, Geteilt, Gerendert) werden durch Inline-SVG-Icons aus [Lucide](https://lucide.dev) (ISC-Lizenz) ersetzt. Konzept-Phase mit visuellem Mockup für die Icon-Auswahl unter [Projektmanagement/Mockups/4T-0031-icon-mockup.html](Projektmanagement/Mockups/4T-0031-icon-mockup.html). Finale Auswahl: `list-tree`, `link-2`, `chevrons-down-up`, `list-ordered`, `wrap-text`, `code`, `columns-2`, `eye`. Keine NPM-Dependency, kein Runtime-CDN, kein Netzwerk-Zugriff. Tooltips bei Hover und `aria-label`-Beschriftungen für Screen-Reader sind in allen fünf Sprachen lokalisiert (`data-i18n-aria-label`-Erweiterung in `i18n.js`). Statusbar-Reihe links unten ist dadurch deutlich schmaler, rechte Statusbar-Sektion bekommt entsprechend mehr Platz.
+- **Update-Erkennung mit Link zur GitHub-Release-Seite** ([4T-0029](Projektmanagement/Aufgaben/4T-0029-auto-update.md)): Die App prüft im Hintergrund auf neue Versionen, **erstmaliger Check 45 Sekunden nach App-Start**, danach alle 24 Stunden. Manueller Trigger über Menü `Hilfe → Auf Updates prüfen…`. Bei verfügbarem Update öffnet sich ein Dialog mit drei Optionen: „Zum Download öffnen" (öffnet die GitHub-Release-Seite im Standard-Browser), „Später erinnern" und „Diese Version überspringen" (persistiert in `electron-store` unter `update.skippedVersion`; manueller Check ignoriert die Skip-Liste). Setup- und Portable-EXE werden einheitlich behandelt — kein automatischer Download, keine automatische Installation. Beim Hintergrund-Check stille Fehler-Behandlung; beim manuellen Check Fehler-Dialog mit Heuristik für Netzwerk-Fehler. Diagnose-Logger schreibt nach `%APPDATA%/SCG Markdown/logs/update.log`.
+- **Hilfe-Dialog um den Update-Eintrag erweitert** ([4T-0033](Projektmanagement/Aufgaben/4T-0033-changelog-release-0110.md)): `help.feature.updateCheck` in der Gruppe „Allgemein". Der bestehende `help.feature.theme`-Eintrag wurde inhaltlich auf die Drei-Wege-Wahl angepasst.
+
+### Geändert
+
+- **Versions-Bump** 0.10.0 → 0.11.0 ([package.json](package.json)).
+- **Build-Pipeline um electron-updater-Assets erweitert** ([scripts/archive-build.js](scripts/archive-build.js)): `latest.yml` und die Setup-Blockmap landen nach jedem Build neben den EXEs in `releases/`, damit der Release-Prozess sie als GitHub-Asset hochladen kann. Die SemVer-Regex im Archive-Script unterstützt jetzt Pre-Release-Suffixe (`-rc1`, `-dev.0`, `-alpha.5` etc.).
+- **`publish`-Block in `package.json.build`** mit Provider `github` aktiviert die `latest.yml`-Erzeugung von `electron-builder`.
+- **`electron-updater@6.8.3`** als neue Production-Dependency.
+
+### Behoben
+
+- **Sidebar-Sektionen lassen sich wieder unabhängig ein-/ausblenden** (Pre-existing-Bugfix aus 4T-0014/4T-0015, Commit `8f7da17`): Die CSS-Regel `.sidebar-section { display: flex; }` überschrieb seit der Einführung von Outline und Backlinks die User-Agent-Default `[hidden] { display: none; }` (gleiche Spezifität, spätere Quellreihenfolge gewinnt). Eine spezifischere Regel `.sidebar-section[hidden] { display: none; }` stellt das erwartete Verhalten wieder her. Aufgefallen während des Tests von 4T-0031.
+
+### Zurückgestellt
+
+- **Auto-Download und Auto-Installation des Updates** ([4T-0032](Projektmanagement/Aufgaben/4T-0032-auto-install.md)): Ursprünglich Teil des Update-Tasks; wegen SmartScreen-Risiken bei unsigniertem Setup-Installer (Auto-Install kann je nach Windows-Version, Sicherheitsstufe und Hash-Reputation stillschweigend zulassen, mit Warnung zulassen oder vollständig blockieren) in einen eigenen, zurückgestellten Task ausgelagert. Voraussetzung für den Wiederanlauf: Code-Signing-Zertifikat (OV oder EV) für die Setup-EXE. Die in 4T-0029 etablierte Infrastruktur (electron-updater, GitHub-Provider, `latest.yml`, Dialog-Struktur) wird dort nahtlos weiterverwendet.
+
+### i18n
+
+- 24 neue Keys über die fünf unterstützten Sprachen (DE, EN, FR, ES, IT):
+  - Theme-Umschalter: 7 Keys (`menu.view.theme/Light/Dark/System`, `statusbar.theme.tooltipLight/Dark/System`) je Sprache.
+  - Update-Erkennung: 11 Keys (`menu.help.checkForUpdates`, `update.dialogTitle/Text`, `update.btnOpenRelease/RemindLater/SkipVersion`, `update.statusUpToDateTitle/Message`, `update.errorTitle/Offline/Generic`) je Sprache.
+  - Sammeltask: 2 Keys (`help.feature.updateCheck`, `about.lucide`) je Sprache.
+  - Plus inhaltliche Anpassung von `help.feature.theme` (Drei-Wege-Wahl statt automatische Kopplung).
+
 ## [0.10.0] - 2026-05-19 — Render-Lift: Syntax-Highlighting, KaTeX-Mathematik und Mermaid-Diagramme
 
 Feature-Release, das den Render-Pane auf das Niveau hebt, das Nutzer von GitHub und ähnlichen Tools kennen. Umgesetzt als Epic [3E-0004](Projektmanagement/Aufgaben/3E-0004-render-lift-und-export.md) in den Tasks [4T-0023](Projektmanagement/Aufgaben/4T-0023-code-syntax-highlighting.md) (Syntax-Highlighting), [4T-0022](Projektmanagement/Aufgaben/4T-0022-katex.md) (KaTeX) und [4T-0021](Projektmanagement/Aufgaben/4T-0021-mermaid.md) (Mermaid), inklusive Abschluss-Sammeltask [4T-0028](Projektmanagement/Aufgaben/4T-0028-changelog-release-0100.md).

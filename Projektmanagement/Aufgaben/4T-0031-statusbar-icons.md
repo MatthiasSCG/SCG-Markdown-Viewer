@@ -1,8 +1,9 @@
 # 4T-0031 — Statusbar-Buttons als Icons
 
-**Status**: Wartet auf Test (Umsetzung am 2026-05-19 abgeschlossen)
+**Status**: Erledigt
 **Epic**: [3E-0005 — Auto-Update, Theme-Umschalter und Statusbar-Icons](3E-0005-update-theme-statusbar-icons.md)
 **Zielversion**: 0.11.0
+**Release**: [v0.11.0](https://github.com/MatthiasSCG/SCG-Markdown/releases/tag/v0.11.0)
 
 > **Konzept-Phase abgeschlossen.** Die Icon-Auswahl ist mit dem Nutzer abgestimmt (siehe Abschnitt „Finale Icon-Auswahl"). Die ursprüngliche Konditionalität ist damit aufgelöst, der Task wird umgesetzt.
 
