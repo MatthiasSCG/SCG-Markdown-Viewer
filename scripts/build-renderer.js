@@ -11,6 +11,11 @@ const root = path.join(__dirname, '..');
 const entry = path.join(root, 'src', 'renderer', 'renderer.js');
 const outfile = path.join(root, 'src', 'renderer', 'renderer.bundle.js');
 
+// 4T-0023: highlight.js-Themes vor dem Bundle bauen. Erzeugt
+// src/renderer/hljs-themes.css aus den GitHub-Light/Dark-Themes.
+const { buildHljsThemes } = require('./build-hljs-themes.js');
+buildHljsThemes();
+
 const args = process.argv.slice(2);
 const watch = args.includes('--watch');
 

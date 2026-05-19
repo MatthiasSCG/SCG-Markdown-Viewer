@@ -10,6 +10,39 @@ const MarkdownIt = require('markdown-it');
 const taskLists = require('markdown-it-task-lists');
 const markdownItAnchor = require('markdown-it-anchor');
 
+// 4T-0023: highlight.js als Core-Bundle plus kuratierte Sprachliste. Damit
+// landet nur das benoetigte Set im Bundle, nicht das gesamte Default-Bundle
+// mit ueber 190 Sprachen. Aliase wie js/ts/sh/py/c#/c++ deckt highlight.js
+// intern ueber die jeweiligen language-Definitionen ab.
+const hljs = require('highlight.js/lib/core');
+const HLJS_LANGUAGES = [
+  'javascript',
+  'typescript',
+  'python',
+  'java',
+  'csharp',
+  'cpp',
+  'go',
+  'rust',
+  'bash',
+  'sql',
+  'json',
+  'yaml',
+  'xml',
+  'css',
+  'markdown',
+  'plaintext',
+];
+for (const lang of HLJS_LANGUAGES) {
+  try {
+    const def = require(`highlight.js/lib/languages/${lang}`);
+    hljs.registerLanguage(lang, def);
+  } catch (err) {
+    console.warn(`hljs: Sprache '${lang}' konnte nicht geladen werden:`, err.message);
+  }
+}
+// HTML wird vom xml-Modul mitabgedeckt.
+
 // 4T-0017: Electron-Standard-Zoom (Strg + +/-/0, Strg + Mausrad) komplett
 // abschalten. Der Renderer implementiert einen eigenen, pro-Tab gehaltenen
 // Zoom ueber CSS auf den Inhalts-Containern. Ohne diese Limits wuerde
@@ -31,12 +64,38 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+// 4T-0023: HTML-Escape fuer den highlight-Fallback. Bewusst eigene Funktion
+// statt md.utils.escapeHtml, damit sie auch innerhalb des Konstruktor-
+// Callbacks verfuegbar ist (md existiert dann noch nicht).
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 // markdown-it mit GFM-naher Konfiguration.
 const md = new MarkdownIt({
   html: false, // Sicherheit: kein rohes HTML aus Markdown
   linkify: true, // Auto-Links
   typographer: true,
   breaks: false,
+  // 4T-0023: Syntax-Highlighting fuer Fenced-Code-Bloecke mit Sprach-Tag.
+  // Keine Auto-Detection ohne Tag — Fehlerkennungen bei kurzen Snippets
+  // stiften mehr Verwirrung als Nutzen. Unbekannte Sprache und Tokenizer-
+  // Fehler fallen still auf den Plain-Block mit hljs-Klasse zurueck.
+  highlight(str, lang) {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        const value = hljs.highlight(str, { language: lang, ignoreIllegals: true }).value;
+        return `<pre><code class="hljs language-${escapeHtml(lang)}">${value}</code></pre>`;
+      } catch (err) {
+        // Fall durch zum Plain-Fallback
+      }
+    }
+    return `<pre><code class="hljs">${escapeHtml(str)}</code></pre>`;
+  },
 });
 md.use(taskLists, { enabled: false, label: true });
 

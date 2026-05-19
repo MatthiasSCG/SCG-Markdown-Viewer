@@ -5,6 +5,10 @@ node_modules/
 # renderer.js und seinen Imports erzeugt; siehe scripts/build-renderer.js).
 src/renderer/renderer.bundle.js
 
+# 4T-0023: highlight.js-Themes werden vor dem Renderer-Build aus
+# node_modules generiert (siehe scripts/build-hljs-themes.js).
+src/renderer/hljs-themes.css
+
 # Build-Ergebnisse (Output-Verzeichnisse)
 dist/
 out/
