@@ -43,7 +43,7 @@ Stufe 2 und Stufe 3 sind als Folge-Epics geplant und nicht Bestandteil von 3E-00
 - **Zell-Level-Attribute** wie `| style="text-align: center" | Inhalt`. In Stufe 1 nicht unterstützt.
 - **`colspan` und `rowspan`** — Stufe 2.
 - **Spaltenausrichtung** (links / zentriert / rechts) — Stufe 2.
-- **Verschachtelte `scg-table` in einer Zelle** — Stufe 2 oder 3 (rekursives scg-table-Rendering wird in Stufe 1 nicht implementiert; rekursives Markdown in Zellen funktioniert, aber kein verschachteltes scg-table).
+- **Verschachtelte `scg-table` in einer Zelle** — Stufe 3 (siehe [3E-0008](3E-0008-scg-table-konverter-verschachtelung.md)). Rekursives scg-table-Rendering wird in Stufe 1 nicht implementiert; rekursives Markdown in Zellen funktioniert, aber kein verschachteltes scg-table.
 - **Konverter „scg-table → HTML-Tabelle inline"** für maximale Portabilität — Stufe 3, eigenes Folge-Epic.
 
 ## Untergeordnete Tasks
@@ -61,8 +61,9 @@ Stufe 2 und Stufe 3 sind als Folge-Epics geplant und nicht Bestandteil von 3E-00
 - **CSS-Klasse `scg-table` auf der erzeugten `<table>`.** Erlaubt späteres CSS-Styling, ohne dass Hooks angefasst werden müssen. Stufe 1 erbt den Look der Pipe-Tabellen via gemeinsame `table`-Regeln; eine minimale Ergänzung für `.scg-table caption` (Padding, Kursivschrift) kommt hinzu.
 - **Tabellen-Level-Attribute werden stillschweigend ignoriert.** Was nach `{|` auf der Eröffnungszeile steht, wird verworfen. Erst Stufe 2 könnte selektiv Attribute honorieren.
 - **Stufenkonzept als Folge-Epics**:
-  - Stufe 2 (`colspan`/`rowspan`, Zellausrichtung, Zell-Level-Attribute) → eigenes Folge-Epic 3E-0007, voraussichtlich Zielversion 0.13.0.
-  - Stufe 3 (Konverter `scg-table` → HTML-Tabelle für Portabilität) → eigenes Folge-Epic 3E-0008, eigenständig planbar.
+  - Stufe 2 (`colspan`/`rowspan`, Zellausrichtung, Accessibility-`scope` auf Header) → [3E-0007](3E-0007-scg-table-spans-ausrichtung.md), voraussichtlich Zielversion 0.13.0.
+  - Stufe 3 (Konverter `scg-table` → HTML-Tabelle für Portabilität, plus Verschachtelung von `scg-table` in Zellen) → [3E-0008](3E-0008-scg-table-konverter-verschachtelung.md), eigenständig planbar.
+  - Stufe 4 (Sortierbare Tabellen und Status-Hervorhebung über semantische Klassen für Zellen und Zeilen) → [3E-0009](3E-0009-scg-table-sortierung-status.md), eigenständig planbar.
   - Diese Aufteilung wahrt die Projekt-Konvention „1 Epic = 1 Versionssprung".
 
 ## Reihenfolge der Umsetzung

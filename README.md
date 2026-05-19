@@ -183,10 +183,10 @@ fest gesetzt. Die Wahl wird persistent gespeichert.
 ### Hilfe-Dialog
 
 Über `Hilfe → Hilfe` oder `F1`: Modal mit drei Tabs — Funktionen
-(19 Bullets, gruppiert nach Datei und Sitzung, Bearbeitung, Ansicht,
-Navigation, Allgemein), Tastenkürzel (17 Zeilen) und SCG Table (eigene
-Doku-Seite mit Syntax-Übersicht und gerenderten Beispielen). Schließbar
-per `Esc`, OK-Button oder Klick auf den Hintergrund.
+(gruppiert nach Datei und Sitzung, Bearbeitung, Ansicht, Navigation,
+Allgemein), Tastenkürzel und SCG Table (eigene Doku-Seite mit
+Syntax-Übersicht und gerenderten Beispielen). Schließbar per `Esc`,
+OK-Button oder Klick auf den Hintergrund.
 
 ### Markdown-Umfang
 
