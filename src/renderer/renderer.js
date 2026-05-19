@@ -3963,6 +3963,8 @@ const HELP_FEATURE_GROUPS = [
       'help.feature.newTab',
       'help.feature.save',
       'help.feature.autoSave',
+      // 4T-0042 (Epic 3E-0008): Export 'Portables Markdown...' fuer SCG-Tabellen.
+      'help.feature.exportPortable',
       'help.feature.autoReload',
       'help.feature.restoreSession',
       'help.feature.windowState',

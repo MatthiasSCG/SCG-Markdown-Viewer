@@ -188,6 +188,83 @@ Resultado:
 
 Las celdas de encabezado (`!`) reciben automáticamente el atributo `scope` apropiado: `scope="col"` para encabezados en la fila de cabecera, `scope="row"` para encabezados dentro de filas de datos. Esto permite a los lectores de pantalla asociar las celdas de datos con sus encabezados.
 
+## Tablas anidadas y exportación HTML
+
+Dos extensiones añadidas en la versión 0.14.0: las tablas SCG pueden anidarse unas dentro de otras, y un archivo con tablas SCG puede exportarse como «Markdown portable» con tablas HTML en línea, para que también se muestre como una tabla real en renderizadores de terceros (vista previa de GitHub, VS Code, etc.).
+
+### Tablas anidadas
+
+Una celda puede contener a su vez una tabla SCG — hasta tres niveles de profundidad. Importante: cada cerca de código exterior debe tener al menos un acento grave más que la siguiente interior (estándar CommonMark).
+
+| Nivel | Cerca exterior        | Contenido de ejemplo                                                                                  |
+|-------|-----------------------|-------------------------------------------------------------------------------------------------------|
+| 1     | tres acentos graves   | solo la tabla, sin bloque de código incrustado                                                        |
+| 2     | cuatro acentos graves | tabla con una tabla interior (tres acentos graves)                                                    |
+| 3     | cinco acentos graves  | tabla con una tabla interior (cuatro acentos graves) que a su vez contiene otra tabla (tres acentos graves) |
+
+Un cuarto nivel ya no se renderiza como tabla sino como bloque de código (protección por límite de profundidad).
+
+Ejemplo de código fuente con dos niveles:
+
+`````markdown
+````scg-table
+{|
+|+ Tabla exterior
+|-
+| Esfuerzo por posición
+| ```scg-table
+{|
+|-
+! Posición
+! Horas
+|-
+| Requisitos
+| 8
+|}
+```
+|}
+````
+`````
+
+Resultado:
+
+````scg-table
+{|
+|+ Tabla exterior
+|-
+| Esfuerzo por posición
+| ```scg-table
+{|
+|-
+! Posición
+! Horas
+|-
+| Requisitos
+| 8
+|}
+```
+|}
+````
+
+### Exportación HTML para renderizadores Markdown de terceros
+
+Los archivos `.md` con tablas SCG solo se muestran como tablas en este visor. En renderizadores de terceros (vista previa de GitHub, VS Code, otros editores) el bloque de código `scg-table` aparece sin cambios como texto fuente.
+
+Con **Archivo → Exportar → Markdown portable…** guardas una variante del archivo en la que las tablas SCG se reemplazan por tablas HTML en línea. Estas tablas HTML se muestran como tablas reales en cualquier renderizador compatible con CommonMark (GitHub, VS Code, etc.).
+
+- **Diálogo Guardar como** con valor por defecto `<nombrebase>-portable.md` en el directorio del archivo fuente. La ruta y el nombre son libremente editables.
+- **El archivo original** permanece sin cambios; la exportación siempre escribe en un nuevo archivo.
+- **Atributos de celda** (`colspan`, `rowspan`, `align`, `valign`) se traducen en atributos HTML estándar y estilos en línea.
+- **El atributo `scope`** de accesibilidad en las celdas de encabezado se conserva.
+- **Anidamiento**: hasta tres niveles se convierten recursivamente.
+- **Formato en línea en celdas** (negrita, cursiva, código, enlaces) se convierte en HTML para que también aparezca correctamente en renderizadores de terceros.
+
+#### Marcador para la visualización en el visor
+
+Para que el archivo exportado también se muestre **como tabla en el visor SCG Markdown** (en lugar de como texto fuente con etiquetas `<table>`), el convertidor inserta el marcador `<!-- scg-portable -->` al principio del archivo. El visor reconoce este marcador y cambia el archivo a un modo de renderizado compatible con HTML.
+
+**Nota de seguridad**: los archivos `.md` regulares siguen abriéndose sin renderizado HTML — no se ejecuta ningún HTML del Markdown. Solo el marcador desbloquea el renderizado HTML. Para un archivo `.md` de terceros que lleve este marcador (caso límite), debes confiar en la fuente, ya que el contenido HTML allí se ejecutaría.
+
 ## Consejos
 
 **`|-` es obligatorio entre filas de la tabla.** Sin `|-`, las celdas `|` siguientes se interpretan como celdas adicionales de la misma fila, no como una nueva fila. Tropiezo más frecuente al empezar.
@@ -208,5 +285,4 @@ Los archivos `.md` con bloques `scg-table` solo se renderizan como tablas en est
 
 Extensiones planeadas:
 
-- **Convertidor HTML y tablas anidadas**: convertidor `scg-table` → tabla HTML en línea para máxima portabilidad en renderizadores Markdown de terceros, más tablas SCG anidadas dentro de las celdas.
 - **Ordenación, resaltado de estado y alineación predeterminada**: tablas ordenables, resaltado de estado (error/advertencia/ok) mediante clases semánticas y alineación predeterminada por columna.

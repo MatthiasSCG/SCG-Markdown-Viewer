@@ -188,6 +188,83 @@ Ergebnis:
 
 Header-Zellen (`!`) bekommen automatisch das passende `scope`-Attribut: `scope="col"` für Header in der Tabellen-Header-Zeile, `scope="row"` für Header innerhalb von Datenzeilen. Damit verbinden Screen-Reader Datenzellen mit ihren Headern.
 
+## Verschachtelte Tabellen und HTML-Export
+
+Zwei Erweiterungen, die in Version 0.14.0 dazugekommen sind: SCG-Tabellen können ineinander verschachtelt werden, und eine Datei mit SCG-Tabellen kann als „portables Markdown" mit inline HTML-Tabellen exportiert werden, damit sie auch in fremden Renderern (GitHub-Vorschau, VS Code etc.) als echte Tabelle erscheint.
+
+### Verschachtelte Tabellen
+
+Eine Zelle kann selbst eine SCG-Tabelle enthalten — bis zu drei Ebenen tief. Wichtig: jede äußere Code-Fence muss mindestens eine Backtick mehr haben als die nächste innere (CommonMark-Standard).
+
+| Ebene | Äußere Fence    | Beispiel-Inhalt                                                          |
+|-------|-----------------|--------------------------------------------------------------------------|
+| 1     | drei Backticks  | nur Tabelle, kein eingeschachtelter Code-Block                           |
+| 2     | vier Backticks  | Tabelle mit innerer Tabelle (drei Backticks)                             |
+| 3     | fünf Backticks  | Tabelle mit innerer Tabelle (vier Backticks), die ihrerseits eine Tabelle (drei Backticks) enthält |
+
+Eine vierte Ebene rendert nicht mehr als Tabelle, sondern als Code-Block (Tiefen-Limit-Schutz vor pathologischen Eingaben).
+
+Quelltext-Beispiel für zwei Ebenen:
+
+`````markdown
+````scg-table
+{|
+|+ Äußere Tabelle
+|-
+| Aufwand pro Position
+| ```scg-table
+{|
+|-
+! Position
+! Stunden
+|-
+| Anforderungen
+| 8
+|}
+```
+|}
+````
+`````
+
+Ergebnis:
+
+````scg-table
+{|
+|+ Äußere Tabelle
+|-
+| Aufwand pro Position
+| ```scg-table
+{|
+|-
+! Position
+! Stunden
+|-
+| Anforderungen
+| 8
+|}
+```
+|}
+````
+
+### HTML-Export für externe Markdown-Renderer
+
+`.md`-Dateien mit SCG-Tabellen rendern nur in diesem Viewer als Tabelle. In fremden Renderern (GitHub-Vorschau, VS Code, andere Editoren) erscheint der `scg-table`-Codeblock unverändert als Quelltext.
+
+Mit **Datei → Exportieren → Portables Markdown…** speicherst du eine Variante der Datei, in der die SCG-Tabellen durch inline HTML-Tabellen ersetzt sind. Diese HTML-Tabellen rendert jeder CommonMark-konforme Renderer (GitHub, VS Code etc.) als echte Tabelle.
+
+- **Save-As-Dialog** mit Vorbelegung `<basename>-portable.md` im Verzeichnis der Quell-Datei. Pfad und Name lassen sich frei ändern.
+- **Original-Datei** bleibt unverändert; der Export schreibt immer in eine neue Datei.
+- **Zell-Attribute** (`colspan`, `rowspan`, `align`, `valign`) werden in HTML-Standard-Attribute und Inline-Styles übersetzt.
+- **Accessibility-`scope`** auf Header-Zellen bleibt erhalten.
+- **Verschachtelung**: bis zu drei Ebenen werden rekursiv mitkonvertiert.
+- **Inline-Formatierung in Zellen** (fett, kursiv, Code, Links) wird zu HTML konvertiert, damit auch sie in fremden Renderern korrekt erscheint.
+
+#### Marker für die Viewer-Anzeige
+
+Damit die exportierte Datei **auch im SCG Markdown Viewer** als Tabelle gerendert wird (statt als Quelltext mit `<table>`-Tags), fügt der Konverter am Datei-Anfang den Marker `<!-- scg-portable -->` ein. Der Viewer erkennt diesen Marker und schaltet die Datei in einen HTML-fähigen Render-Modus.
+
+**Sicherheits-Hinweis**: reguläre `.md`-Dateien werden weiterhin ohne HTML-Rendering geöffnet — kein HTML aus dem Markdown wird ausgeführt. Erst der Marker schaltet das HTML-Rendering frei. Bei einer fremden `.md`-Datei mit diesem Marker (Edge-Case) musst du der Quelle vertrauen, weil der HTML-Inhalt dort ausgeführt würde.
+
 ## Tipps
 
 **`|-` ist Pflicht zwischen Tabellenzeilen.** Ohne `|-` werden Folge-`|`-Zellen als weitere Zellen derselben Zeile interpretiert, nicht als neue Zeile. Häufigster Stolperstein beim Einstieg.
@@ -208,5 +285,4 @@ Header-Zellen (`!`) bekommen automatisch das passende `scope`-Attribut: `scope="
 
 Geplante Erweiterungen:
 
-- **HTML-Konverter und verschachtelte Tabellen**: Konverter `scg-table` → HTML-Tabelle inline für maximale Portabilität in fremden Markdown-Renderern, plus verschachtelte SCG-Tabellen in Zellen.
 - **Sortierung, Status-Hervorhebung und Spalten-Default**: sortierbare Tabellen, Status-Hervorhebung (Fehler/Warnung/OK) über semantische Klassen und Standard-Ausrichtung pro Spalte.

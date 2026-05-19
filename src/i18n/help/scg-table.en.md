@@ -188,6 +188,83 @@ Result:
 
 Header cells (`!`) automatically receive the appropriate `scope` attribute: `scope="col"` for headers in the table header row, `scope="row"` for headers inside data rows. This lets screen readers associate data cells with their headers.
 
+## Nested tables and HTML export
+
+Two extensions added in version 0.14.0: SCG tables can be nested inside each other, and a file with SCG tables can be exported as "portable Markdown" with inline HTML tables, so it also renders as a real table in third-party renderers (GitHub preview, VS Code, etc.).
+
+### Nested tables
+
+A cell can itself contain an SCG table — up to three levels deep. Important: each outer code fence must have at least one more backtick than the next inner one (CommonMark standard).
+
+| Level | Outer fence       | Example content                                                       |
+|-------|-------------------|-----------------------------------------------------------------------|
+| 1     | three backticks   | just the table, no embedded code block                                |
+| 2     | four backticks    | table with an inner table (three backticks)                           |
+| 3     | five backticks    | table with an inner table (four backticks) which itself contains another table (three backticks) |
+
+A fourth level no longer renders as a table but as a code block (depth-limit protection against pathological inputs).
+
+Source example with two levels:
+
+`````markdown
+````scg-table
+{|
+|+ Outer table
+|-
+| Effort per position
+| ```scg-table
+{|
+|-
+! Position
+! Hours
+|-
+| Requirements
+| 8
+|}
+```
+|}
+````
+`````
+
+Result:
+
+````scg-table
+{|
+|+ Outer table
+|-
+| Effort per position
+| ```scg-table
+{|
+|-
+! Position
+! Hours
+|-
+| Requirements
+| 8
+|}
+```
+|}
+````
+
+### HTML export for third-party Markdown renderers
+
+`.md` files with SCG tables only render as tables in this viewer. In third-party renderers (GitHub preview, VS Code, other editors) the `scg-table` code block appears unchanged as source text.
+
+Use **File → Export → Portable Markdown…** to save a variant of the file in which SCG tables are replaced with inline HTML tables. These HTML tables render as real tables in any CommonMark-compliant renderer (GitHub, VS Code, etc.).
+
+- **Save-As dialog** with default name `<basename>-portable.md` in the source file's directory. Path and name are freely editable.
+- **Original file** stays unchanged; the export always writes to a new file.
+- **Cell attributes** (`colspan`, `rowspan`, `align`, `valign`) translate to HTML standard attributes and inline styles.
+- **Accessibility `scope`** on header cells is preserved.
+- **Nesting**: up to three levels are converted recursively.
+- **Inline formatting in cells** (bold, italic, code, links) is converted to HTML so it appears correctly in third-party renderers too.
+
+#### Marker for the viewer's display
+
+To make the exported file also render **as a table in the SCG Markdown viewer** (instead of as source text with `<table>` tags), the converter inserts the marker `<!-- scg-portable -->` at the start of the file. The viewer detects this marker and switches the file into an HTML-capable render mode.
+
+**Security note**: regular `.md` files still open without HTML rendering — no HTML from the Markdown is executed. Only the marker unlocks HTML rendering. For a third-party `.md` file carrying this marker (edge case), you must trust the source, since the HTML content there would be executed.
+
 ## Tips
 
 **`|-` is required between table rows.** Without `|-` any following `|` cells are interpreted as additional cells in the same row, not a new row. Most common beginner pitfall.
@@ -208,5 +285,4 @@ Header cells (`!`) automatically receive the appropriate `scope` attribute: `sco
 
 Planned extensions:
 
-- **HTML converter and nested tables**: converter `scg-table` → inline HTML table for maximum portability in third-party Markdown renderers, plus nested SCG tables in cells.
 - **Sorting, status highlighting and column-default**: sortable tables, status highlighting (error/warning/ok) via semantic classes, and column-default alignment.

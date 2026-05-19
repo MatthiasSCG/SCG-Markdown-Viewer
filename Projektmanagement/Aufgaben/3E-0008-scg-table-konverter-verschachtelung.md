@@ -49,7 +49,7 @@ Beide Punkte stehen funktional unabhängig voneinander, werden aber im selben Ep
 ## Untergeordnete Tasks
 
 - [x] [4T-0040 — Verschachtelte SCG-Tabellen](4T-0040-scg-table-verschachtelung.md) — erledigt, Commit `ef6c746`, gepushed
-- [ ] [4T-0041 — HTML-Konverter: Export portables Markdown](4T-0041-scg-table-html-konverter.md)
+- [x] [4T-0041 — HTML-Konverter: Export portables Markdown](4T-0041-scg-table-html-konverter.md) — erledigt, Commit `191cfb2`, gepushed
 - [ ] [4T-0042 — Hilfe-Tab um Verschachtelung und HTML-Export erweitern](4T-0042-scg-table-hilfe-tab-stufe-3.md)
 - [ ] [4T-0043 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.14.0](4T-0043-changelog-release-0140.md)
 

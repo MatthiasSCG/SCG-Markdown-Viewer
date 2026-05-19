@@ -188,6 +188,83 @@ Résultat :
 
 Les cellules d'en-tête (`!`) reçoivent automatiquement l'attribut `scope` approprié : `scope="col"` pour les en-têtes de la ligne d'en-tête, `scope="row"` pour les en-têtes au sein des lignes de données. Cela permet aux lecteurs d'écran d'associer les cellules de données à leurs en-têtes.
 
+## Tableaux imbriqués et export HTML
+
+Deux extensions ajoutées dans la version 0.14.0 : les tableaux SCG peuvent être imbriqués les uns dans les autres, et un fichier contenant des tableaux SCG peut être exporté sous forme de « Markdown portable » avec des tableaux HTML en ligne, afin qu'il s'affiche aussi comme un véritable tableau dans les rendus tiers (aperçu GitHub, VS Code, etc.).
+
+### Tableaux imbriqués
+
+Une cellule peut elle-même contenir un tableau SCG — jusqu'à trois niveaux de profondeur. Important : chaque clôture de code extérieure doit avoir au moins une apostrophe inverse de plus que la suivante intérieure (standard CommonMark).
+
+| Niveau | Clôture extérieure       | Contenu d'exemple                                                                                            |
+|--------|--------------------------|--------------------------------------------------------------------------------------------------------------|
+| 1      | trois apostrophes inv.   | uniquement le tableau, pas de bloc de code imbriqué                                                          |
+| 2      | quatre apostrophes inv.  | tableau avec un tableau intérieur (trois apostrophes inv.)                                                   |
+| 3      | cinq apostrophes inv.    | tableau avec un tableau intérieur (quatre apostrophes inv.) qui contient lui-même un tableau (trois apostrophes inv.) |
+
+Un quatrième niveau ne s'affiche plus comme tableau mais comme bloc de code (protection contre les profondeurs pathologiques).
+
+Exemple source avec deux niveaux :
+
+`````markdown
+````scg-table
+{|
+|+ Tableau extérieur
+|-
+| Charge par poste
+| ```scg-table
+{|
+|-
+! Position
+! Heures
+|-
+| Exigences
+| 8
+|}
+```
+|}
+````
+`````
+
+Résultat :
+
+````scg-table
+{|
+|+ Tableau extérieur
+|-
+| Charge par poste
+| ```scg-table
+{|
+|-
+! Position
+! Heures
+|-
+| Exigences
+| 8
+|}
+```
+|}
+````
+
+### Export HTML pour les rendus Markdown tiers
+
+Les fichiers `.md` contenant des tableaux SCG ne s'affichent comme tableaux que dans ce viewer. Dans les rendus tiers (aperçu GitHub, VS Code, autres éditeurs), le bloc de code `scg-table` apparaît tel quel comme texte source.
+
+Avec **Fichier → Exporter → Markdown portable…**, tu enregistres une variante du fichier dans laquelle les tableaux SCG sont remplacés par des tableaux HTML en ligne. Ces tableaux HTML s'affichent comme de vrais tableaux dans tout rendu conforme à CommonMark (GitHub, VS Code, etc.).
+
+- **Boîte de dialogue Enregistrer sous** avec valeur par défaut `<nomdebase>-portable.md` dans le répertoire du fichier source. Chemin et nom librement modifiables.
+- **Le fichier original** reste inchangé ; l'export écrit toujours dans un nouveau fichier.
+- **Attributs de cellule** (`colspan`, `rowspan`, `align`, `valign`) sont traduits en attributs HTML standard et styles en ligne.
+- **L'attribut `scope`** d'accessibilité sur les cellules d'en-tête est préservé.
+- **Imbrication** : jusqu'à trois niveaux sont convertis récursivement.
+- **Mise en forme en ligne dans les cellules** (gras, italique, code, liens) est convertie en HTML afin de s'afficher correctement aussi dans les rendus tiers.
+
+#### Marqueur pour l'affichage dans le viewer
+
+Pour que le fichier exporté s'affiche **aussi comme un tableau dans le viewer SCG Markdown** (au lieu de texte source avec balises `<table>`), le convertisseur insère le marqueur `<!-- scg-portable -->` au début du fichier. Le viewer reconnaît ce marqueur et passe le fichier dans un mode de rendu compatible HTML.
+
+**Note de sécurité** : les fichiers `.md` réguliers s'ouvrent toujours sans rendu HTML — aucun HTML du Markdown n'est exécuté. Seul le marqueur déverrouille le rendu HTML. Pour un fichier `.md` tiers portant ce marqueur (cas limite), tu dois faire confiance à la source, car le contenu HTML qui s'y trouve serait exécuté.
+
 ## Astuces
 
 **`|-` est obligatoire entre les lignes du tableau.** Sans `|-`, les cellules `|` suivantes sont interprétées comme des cellules supplémentaires de la même ligne, pas comme une nouvelle ligne. Piège le plus fréquent au début.
@@ -208,5 +285,4 @@ Les fichiers `.md` avec des blocs `scg-table` ne s'affichent comme tableaux que 
 
 Extensions prévues :
 
-- **Convertisseur HTML et tableaux imbriqués** : convertisseur `scg-table` → tableau HTML en ligne pour une portabilité maximale dans les rendus Markdown tiers, plus tableaux SCG imbriqués dans les cellules.
 - **Tri, mise en évidence des statuts et alignement par défaut** : tableaux triables, mise en évidence des statuts (erreur/avertissement/ok) via classes sémantiques et alignement par défaut par colonne.

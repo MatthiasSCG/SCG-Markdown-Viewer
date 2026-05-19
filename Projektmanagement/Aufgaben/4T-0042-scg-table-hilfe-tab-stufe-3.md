@@ -1,6 +1,6 @@
 # 4T-0042 — Hilfe-Tab um Verschachtelung und HTML-Export erweitern
 
-**Status**: Offen
+**Status**: Erledigt — 2026-05-19, gepushed
 **Epic**: [3E-0008 — SCG Table Stufe 3](3E-0008-scg-table-konverter-verschachtelung.md)
 **Zielversion**: 0.14.0
 
@@ -79,4 +79,38 @@ In der Reihenfolge:
 
 ## Lösung
 
-(wird nach Abschluss der Umsetzung gefüllt)
+Umgesetzt am 2026-05-19, Test bestanden (mit einer Scope-Erweiterung während des Tests).
+
+### Hilfe-Tab-Inhalt (5 Sprachen)
+
+In den fünf Hilfe-Inhaltsdateien (`src/i18n/help/scg-table.{de,en,fr,es,it}.md`) eingefügt **zwischen** „Spans und Ausrichtung" und „Tipps":
+
+- **Neue Sektion** „Verschachtelte Tabellen und HTML-Export" mit drei Unterabschnitten:
+  1. Einleitung (zwei Sätze zur Übersicht beider Funktionen).
+  2. **Verschachtelte Tabellen**: Fence-Längen-Tabelle (drei Ebenen, jeweils mit Backtick-Anzahl und Beispielinhalt), Hinweis auf das Tiefen-Limit max. 3, konkretes Quelltext-Beispiel mit zweistufiger Verschachtelung plus gerendete Tabelle direkt darunter.
+  3. **HTML-Export**: Bedienung (Datei → Exportieren → Portables Markdown…), Save-As-Verhalten, Hinweis zu erhaltenen Zell-Attributen und Accessibility, Rekursion bei Verschachtelung, Inline-Formatierung in Zellen wird zu HTML.
+  4. Subsection **Marker für die Viewer-Anzeige** mit Erklärung des `<!-- scg-portable -->`-Markers und Sicherheits-Hinweis zu fremden Dateien mit diesem Marker.
+- **Ausblick-Block** entsprechend gekürzt: HTML-Konverter-und-Verschachtelung-Bullet entfernt (jetzt umgesetzt). Nur noch der Sortierung/Status/Spalten-Default-Bullet bleibt.
+- Keine Stufen-Begriffe in der User-Sicht, konsistent mit der Konvention seit 4T-0038.
+
+### Scope-Erweiterung während des Tests: Funktions-Eintrag in „Datei und Sitzung"
+
+Im Test fiel auf, dass der HTML-Export im Funktions-Tab des Hilfe-Dialogs nicht entdeckbar war — er taucht zwar als Menü-Eintrag „Datei → Exportieren → Portables Markdown…" auf, aber wer im Hilfe-Dialog nach Funktionen sucht, sah nur den scg-table-Eintrag in „Bearbeitung". Streng nach Konvention wäre der Funktions-Eintrag im Abschluss-Sammeltask [4T-0043](4T-0043-changelog-release-0140.md) gehoben worden (Pattern wie scgTable in 4T-0035), aber da die Frage im laufenden Test aufkam und die Implementation klein ist, wurde sie in diesem Task mitgenommen.
+
+- Neuer Eintrag `help.feature.exportPortable` in der Gruppe „Datei und Sitzung", einsortiert zwischen `autoSave` und `autoReload` (nach den Speicher-Operationen, vor Datei-Beobachtung).
+- HELP_FEATURE_GROUPS in [src/renderer/renderer.js](../../src/renderer/renderer.js) entsprechend erweitert.
+- 5 i18n-Keys (DE, EN, FR, ES, IT) mit beschreibendem Text plus Querverweis auf den „SCG Table"-Tab.
+
+### Smoke-Test (2026-05-19)
+
+- Hilfe-Tab „SCG Table" zeigt neue Sektion an richtiger Stelle.
+- Verschachtelungs-Beispiel im Tab rendert tatsächlich rekursiv (äußere und innere Tabelle als HTML).
+- HTML-Export-Erklärung lesbar; Menü-Pfad und Save-Verhalten beschrieben.
+- Marker-Mechanismus mit Sicherheits-Hinweis dokumentiert.
+- Sprachwechsel funktioniert.
+- Ausblick zeigt nur noch eine offene Erweiterung.
+- Funktions-Tab → Gruppe „Datei und Sitzung" zeigt den neuen Export-Eintrag.
+
+### Konsequenz für 4T-0043
+
+Der Funktions-Eintrag-Pflegepunkt aus dem Sammeltask-Standard ist damit bereits hier erledigt. 4T-0043 muss in seinem Schritt „Hilfe-Dialog" nichts mehr zum exportPortable-Eintrag tun.

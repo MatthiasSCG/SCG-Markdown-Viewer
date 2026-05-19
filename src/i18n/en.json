@@ -77,6 +77,7 @@
   "help.feature.editMode": "Edit Markdown content in the source pane (pencil in the status bar or Ctrl+E). Edit mode is only available in source or split view; clicking the pencil in render view automatically switches to split and activates the editor.",
   "help.feature.save": "Save (Ctrl+S) and Save As (Ctrl+Shift+S). Unsaved changes are marked with • in the tab and window title; closing a modified tab shows a confirmation dialog. On external change with a dirty buffer, the app asks whether to reload or keep the local version.",
   "help.feature.autoSave": "Optional: auto-save (File → Auto Save). Saves 2 seconds after the last edit or on window focus loss. Tabs without a path (“Untitled”) are not auto-saved.",
+  "help.feature.exportPortable": "Use File → Export → Portable Markdown… to save the current file as portable Markdown. SCG tables are replaced with inline HTML tables, so the file also renders as a real table in third-party Markdown renderers (GitHub, VS Code). Details in the 'SCG Table' help tab.",
   "help.feature.searchReplace": "Search and Replace (Ctrl+H) in edit mode, with regex backreferences ($1, $2, …) in the replacement text. “Replace All” is a single transaction — Ctrl+Z undoes it as a whole.",
   "help.feature.menuBar": "Native menu bar with File, View, and Help menus. Alt activates keyboard control; mnemonics (e.g. Alt+F for File) jump directly to the menu.",
   "help.feature.newTab": "File → New (Ctrl+N) opens an empty “Untitled” tab in the active window, in edit mode with split view. The first save opens Save As.",

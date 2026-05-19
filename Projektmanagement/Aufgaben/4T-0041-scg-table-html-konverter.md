@@ -1,6 +1,6 @@
 # 4T-0041 — HTML-Konverter: Export portables Markdown
 
-**Status**: Erledigt — 2026-05-19, gepushed
+**Status**: Erledigt — 2026-05-19, gepushed (Commit `191cfb2`)
 **Epic**: [3E-0008 — SCG Table Stufe 3](3E-0008-scg-table-konverter-verschachtelung.md)
 **Zielversion**: 0.14.0
 

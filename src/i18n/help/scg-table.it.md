@@ -188,6 +188,83 @@ Risultato:
 
 Le celle di intestazione (`!`) ricevono automaticamente l'attributo `scope` appropriato: `scope="col"` per le intestazioni nella riga di intestazione, `scope="row"` per le intestazioni all'interno delle righe di dati. Questo permette ai lettori di schermo di associare le celle di dati con le loro intestazioni.
 
+## Tabelle annidate ed esportazione HTML
+
+Due estensioni aggiunte nella versione 0.14.0: le tabelle SCG possono essere annidate l'una nell'altra, e un file con tabelle SCG può essere esportato come «Markdown portabile» con tabelle HTML inline, in modo che venga visualizzato come una vera tabella anche nei renderer di terze parti (anteprima di GitHub, VS Code, ecc.).
+
+### Tabelle annidate
+
+Una cella può a sua volta contenere una tabella SCG — fino a tre livelli di profondità. Importante: ogni recinzione di codice esterna deve avere almeno un apice inverso in più rispetto alla successiva interna (standard CommonMark).
+
+| Livello | Recinzione esterna       | Contenuto di esempio                                                                                  |
+|---------|--------------------------|-------------------------------------------------------------------------------------------------------|
+| 1       | tre apici inversi        | solo la tabella, senza blocco di codice annidato                                                      |
+| 2       | quattro apici inversi    | tabella con una tabella interna (tre apici inversi)                                                   |
+| 3       | cinque apici inversi     | tabella con una tabella interna (quattro apici inversi) che a sua volta contiene una tabella (tre apici inversi) |
+
+Un quarto livello non viene più reso come tabella ma come blocco di codice (protezione tramite limite di profondità).
+
+Esempio sorgente con due livelli:
+
+`````markdown
+````scg-table
+{|
+|+ Tabella esterna
+|-
+| Impegno per posizione
+| ```scg-table
+{|
+|-
+! Posizione
+! Ore
+|-
+| Requisiti
+| 8
+|}
+```
+|}
+````
+`````
+
+Risultato:
+
+````scg-table
+{|
+|+ Tabella esterna
+|-
+| Impegno per posizione
+| ```scg-table
+{|
+|-
+! Posizione
+! Ore
+|-
+| Requisiti
+| 8
+|}
+```
+|}
+````
+
+### Esportazione HTML per renderer Markdown di terze parti
+
+I file `.md` con tabelle SCG vengono visualizzati come tabelle solo in questo viewer. Nei renderer di terze parti (anteprima di GitHub, VS Code, altri editor) il blocco di codice `scg-table` appare invariato come testo sorgente.
+
+Con **File → Esporta → Markdown portabile…** salvi una variante del file in cui le tabelle SCG sono sostituite da tabelle HTML inline. Queste tabelle HTML vengono visualizzate come tabelle reali in qualsiasi renderer conforme a CommonMark (GitHub, VS Code, ecc.).
+
+- **Finestra di dialogo Salva con nome** con preimpostazione `<nomebase>-portable.md` nella directory del file sorgente. Percorso e nome sono liberamente modificabili.
+- **Il file originale** rimane invariato; l'esportazione scrive sempre in un nuovo file.
+- **Attributi di cella** (`colspan`, `rowspan`, `align`, `valign`) vengono tradotti in attributi HTML standard e stili inline.
+- **L'attributo `scope`** di accessibilità sulle celle di intestazione viene preservato.
+- **Annidamento**: fino a tre livelli vengono convertiti ricorsivamente.
+- **Formattazione inline nelle celle** (grassetto, corsivo, codice, link) viene convertita in HTML per apparire correttamente anche nei renderer di terze parti.
+
+#### Marcatore per la visualizzazione nel viewer
+
+Affinché il file esportato venga visualizzato **anche come tabella nel viewer SCG Markdown** (invece di come testo sorgente con tag `<table>`), il convertitore inserisce il marcatore `<!-- scg-portable -->` all'inizio del file. Il viewer riconosce questo marcatore e passa il file in una modalità di rendering compatibile con HTML.
+
+**Nota di sicurezza**: i file `.md` regolari continuano ad aprirsi senza rendering HTML — nessun HTML dal Markdown viene eseguito. Solo il marcatore sblocca il rendering HTML. Per un file `.md` di terze parti che porta questo marcatore (caso limite), devi fidarti della fonte, perché il contenuto HTML lì verrebbe eseguito.
+
 ## Suggerimenti
 
 **`|-` è obbligatorio tra le righe della tabella.** Senza `|-`, le celle `|` successive vengono interpretate come ulteriori celle della stessa riga, non come una nuova riga. Inciampo più frequente all'inizio.
@@ -208,5 +285,4 @@ I file `.md` con blocchi `scg-table` si visualizzano come tabelle solo in questo
 
 Estensioni pianificate:
 
-- **Convertitore HTML e tabelle annidate**: convertitore `scg-table` → tabella HTML inline per la massima portabilità in renderer Markdown di terze parti, più tabelle SCG annidate nelle celle.
 - **Ordinamento, evidenziazione dello stato e allineamento predefinito**: tabelle ordinabili, evidenziazione dello stato (errore/avviso/ok) tramite classi semantiche e allineamento predefinito per colonna.
