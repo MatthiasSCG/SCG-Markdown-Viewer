@@ -477,6 +477,106 @@ function mermaidHash(str) {
   }
   return (h >>> 0).toString(16);
 }
+// 4T-0046 (Epic 3E-0009): Sortierbare SCG-Tabellen. Nach jedem renderMarkdown
+// werden alle <table class="scg-table sortable"> im Render-DOM mit Klick-
+// Handlern auf den Header-Zellen versehen. Drei Zustaende zyklisch:
+// neutral -> aufsteigend -> absteigend -> neutral (reset). Bei reset wird die
+// urspruengliche Reihenfolge wiederhergestellt. Sort-Heuristik: numerisch
+// wenn moeglich, sonst lexikographisch mit Locale (localeCompare, numeric
+// option). Bei mehrzeiligen Zellen wird nach der ersten Zeile sortiert.
+const SCG_SORT_ICON_SVG = {
+  neutral: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="7 15 12 20 17 15"/><polyline points="7 9 12 4 17 9"/></svg>',
+  asc:     '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>',
+  desc:    '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>',
+};
+
+function enhanceScgTableSorting(container) {
+  if (!container) return;
+  const tables = container.querySelectorAll('table.scg-table.sortable');
+  for (const table of tables) {
+    setupScgTableSort(table);
+  }
+}
+
+function setupScgTableSort(table) {
+  if (table.dataset.scgSortReady === '1') return;
+  const thead = table.querySelector(':scope > thead');
+  if (!thead) return;
+  const headerRow = thead.querySelector(':scope > tr');
+  if (!headerRow) return;
+  const headers = Array.from(headerRow.querySelectorAll(':scope > th'));
+  const tbody = table.querySelector(':scope > tbody');
+  if (!tbody || headers.length === 0) return;
+
+  // Original-Reihenfolge sichern fuer Reset.
+  const originalRows = Array.from(tbody.querySelectorAll(':scope > tr'));
+
+  headers.forEach((th, colIdx) => {
+    // Bestehenden Inhalt in einen Wrapper packen, damit das Icon getrennt
+    // rechts daneben sitzt.
+    const wrapper = document.createElement('span');
+    wrapper.className = 'scg-th-content';
+    while (th.firstChild) wrapper.appendChild(th.firstChild);
+    th.appendChild(wrapper);
+
+    const icon = document.createElement('span');
+    icon.className = 'scg-sort-icon';
+    icon.innerHTML = SCG_SORT_ICON_SVG.neutral;
+    th.appendChild(icon);
+
+    th.classList.add('scg-th-sortable');
+    th.dataset.scgSortState = 'none';
+
+    th.addEventListener('click', () => {
+      const currentState = th.dataset.scgSortState || 'none';
+      const nextState = currentState === 'none' ? 'asc'
+        : currentState === 'asc' ? 'desc'
+        : 'none';
+
+      // Alle anderen Header zuruecksetzen.
+      headers.forEach((other) => {
+        if (other !== th) {
+          other.dataset.scgSortState = 'none';
+          const otherIcon = other.querySelector(':scope > .scg-sort-icon');
+          if (otherIcon) otherIcon.innerHTML = SCG_SORT_ICON_SVG.neutral;
+        }
+      });
+
+      th.dataset.scgSortState = nextState;
+      // Dataset 'none' mappt auf das neutral-Icon (Konsistenz: CSS-Selektor
+      // bleibt data-scg-sort-state="none", Icon-Key ist 'neutral').
+      icon.innerHTML = SCG_SORT_ICON_SVG[nextState === 'none' ? 'neutral' : nextState];
+
+      if (nextState === 'none') {
+        // Reset.
+        originalRows.forEach((row) => tbody.appendChild(row));
+      } else {
+        const rows = Array.from(tbody.querySelectorAll(':scope > tr'));
+        rows.sort((a, b) => compareScgSortCells(a.cells[colIdx], b.cells[colIdx]));
+        if (nextState === 'desc') rows.reverse();
+        rows.forEach((row) => tbody.appendChild(row));
+      }
+    });
+  });
+
+  table.dataset.scgSortReady = '1';
+}
+
+function compareScgSortCells(a, b) {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  const aText = (a.textContent || '').split('\n')[0].trim();
+  const bText = (b.textContent || '').split('\n')[0].trim();
+  if (aText === bText) return 0;
+  const aNum = Number(aText);
+  const bNum = Number(bText);
+  if (Number.isFinite(aNum) && Number.isFinite(bNum) && aText !== '' && bText !== '') {
+    return aNum - bNum;
+  }
+  return aText.localeCompare(bText, undefined, { numeric: true, sensitivity: 'base' });
+}
+
 async function applyMermaidIfPresent(container) {
   if (!container) return;
   const codeBlocks = container.querySelectorAll('pre > code.language-mermaid');
@@ -1525,6 +1625,8 @@ function renderPreviewForPane(paneIdx) {
   els.renderedHtml.innerHTML = api.renderMarkdown(tab.content, tab.path);
   // 4T-0021: Mermaid-Bloecke per Lazy-Load und Post-Processing zu SVG.
   applyMermaidIfPresent(els.renderedHtml);
+  // 4T-0046: Click-Handler und Sort-Indikatoren auf .scg-table.sortable.
+  enhanceScgTableSorting(els.renderedHtml);
   // 4T-0014: Aktive Outline-Sektion neu ermitteln, weil DOM-Heading-Knoten
   // im Render-Pane jetzt frische BoundingClientRects haben.
   if (state.outline && state.outline.visibleByPane[paneIdx]) {
@@ -3341,6 +3443,8 @@ function renderPaneContent(paneIdx) {
   els.renderedHtml.innerHTML = api.renderMarkdown(tab.content, tab.path);
   // 4T-0021: Mermaid-Bloecke per Lazy-Load und Post-Processing zu SVG.
   applyMermaidIfPresent(els.renderedHtml);
+  // 4T-0046: Click-Handler und Sort-Indikatoren auf .scg-table.sortable.
+  enhanceScgTableSorting(els.renderedHtml);
 
   // View-Mode-Klassen auf dem .content-Element setzen.
   els.content.classList.remove('view-source', 'view-split', 'view-rendered');

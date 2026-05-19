@@ -1,6 +1,6 @@
 # 4T-0046 — Sortierbare SCG-Tabellen
 
-**Status**: Offen
+**Status**: Erledigt — 2026-05-19, gepushed
 **Epic**: [3E-0009 — SCG Table Stufe 4](3E-0009-scg-table-sortierung-status.md)
 **Zielversion**: 0.15.0
 
@@ -112,4 +112,41 @@ Der HTML-Konverter (4T-0041) hat **keinen JavaScript-Hook** im Output, weil das 
 
 ## Lösung
 
-(wird nach Abschluss der Umsetzung gefüllt)
+Umgesetzt am 2026-05-19, Test bestanden (mit zwei Korrekturen im Test).
+
+### Code-Änderungen
+
+- **[src/main/preload.js](../../src/main/preload.js)**:
+  - `parseScgTableHeaderAttrs` erweitert um `+sortable`-Erkennung. Regex `\bsortable\b` und `\bcols="([^"]*)"` mit Wort-Grenze, akzeptiert sowohl `+sortable`/`+cols=` als auch `sortable`/`cols=` (mit Whitespace davor). Damit funktioniert die Kombination `{|+sortable cols="left right"`.
+  - `parseScgTableBlock`-Return enthält `sortable`.
+  - `renderScgTable` → `buildScgTableHtml` reicht `sortable` durch.
+  - `buildScgTableHtml`: prüft, ob irgendeine Zelle `colspan`/`rowspan` hat (`hasSpans`). Setzt `class="scg-table sortable"` nur wenn `sortable` UND `!hasSpans` UND eine `<thead>`-Zeile existiert. Portable-Pfad ignoriert `sortable` komplett (kein JS in fremden Renderern).
+- **[src/renderer/renderer.js](../../src/renderer/renderer.js)**:
+  - Konstante `SCG_SORT_ICON_SVG` mit drei Inline-SVG-Icons im Lucide-Stil: `neutral` (chevrons-up-down), `asc` (chevron-up), `desc` (chevron-down).
+  - `enhanceScgTableSorting(container)` durchläuft alle `table.scg-table.sortable` im Container.
+  - `setupScgTableSort(table)`: wickelt Header-Text in `<span class="scg-th-content">`, fügt Sort-Icon-Span an, registriert Click-Handler. Drei Zustände zyklisch: `none` → `asc` → `desc` → `none`. Original-Reihenfolge wird beim Setup in einem Array gesichert; bei Reset werden die Zeilen darauf zurückgesetzt. Beim Klick auf eine neue Spalte werden alle anderen Header auf neutral zurückgesetzt.
+  - `compareScgSortCells(a, b)`: numerisch wenn beide Werte mit `Number()` parsbar sind und nicht leer; sonst `localeCompare` mit `numeric: true`-Option (sortiert „item10" > „item2" korrekt).
+  - Aufruf von `enhanceScgTableSorting(els.renderedHtml)` direkt nach beiden `api.renderMarkdown`-Stellen, parallel zu `applyMermaidIfPresent`.
+- **[src/renderer/styles.css](../../src/renderer/styles.css)**:
+  - Cursor `pointer` und `user-select: none` auf sortierbaren Header-Zellen.
+  - Hover-Effekt mit `var(--bg-alt)`-Hintergrund.
+  - Sort-Icon: gedämpft (`opacity: 0.5`) im neutral-Zustand, hervorgehoben mit `var(--accent)`-Farbe und voller Deckkraft bei aktivem `asc`/`desc`.
+
+### Korrektur-Iteration im Test
+
+**Bug 1: „undefined"-Text statt Icon nach Reset-Klick.** Mein State-Name war `'none'` (für dataset-Attribut und CSS-Selektor), aber im Icon-Mapping nutze ich `'neutral'` als Key. Beim dritten Klick suchte der Code `SCG_SORT_ICON_SVG['none']`, was `undefined` zurückgab, und das wurde als String ins HTML geschrieben. Fix: beim Icon-Lookup `'none'` auf `'neutral'` mappen — `SCG_SORT_ICON_SVG[nextState === 'none' ? 'neutral' : nextState]`.
+
+**Bug 2: Spalten-Default griff nicht bei Kombination `{|+sortable cols="…"`.** Mein Regex suchte nach `\+cols=` (mit Pflicht-`+`), aber bei der Kombi-Syntax kommt `cols=` ohne `+` (nach Whitespace). Fix: Regex auf `\bcols="…"` umstellen (Wort-Grenze, akzeptiert sowohl `+cols=` als auch ` cols=`). Gleicher Fix bei `sortable` (`\bsortable\b` statt `\+sortable\b`).
+
+### Smoke-Test (2026-05-19)
+
+Sechs Test-Abschnitte im Render-Pane geprüft:
+
+1. Einfache sortierbare Tabelle mit numerischer und lexikographischer Sortierung; Klick-Zyklus auf/ab/reset; Indikator-Icons in jedem Header.
+2. Kombination mit Spalten-Default-Ausrichtung (`{|+sortable cols="left right right"`).
+3. Sortierung deaktiviert bei `colspan`: keine Sort-Icons, Klicks haben keinen Effekt.
+4. Sortierung mit Status-Hervorhebung kombinierbar; Farben bleiben beim Sortieren auf den richtigen Zeilen.
+5. Lexikographische Sortierung mit Umlauten (Locale-basiert).
+6. Portable Export: keine `sortable`-Klasse im Output, keine Sort-Icons.
+
+Alle Punkte bestanden nach den zwei Korrekturen.

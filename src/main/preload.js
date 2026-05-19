@@ -333,19 +333,26 @@ function buildScgTableCellAttrs(attrs, cellType, isHeaderRow, statusClass, colum
 let scgTableRecursionDepth = 0;
 const SCG_TABLE_MAX_DEPTH = 3;
 
-// 4T-0045 (Epic 3E-0009): Tabellen-Header-Attribute auf der {| - Zeile parsen.
+// 4T-0045/4T-0046 (Epic 3E-0009): Tabellen-Header-Attribute auf der {|-Zeile.
 // Aktuell unterstuetzt:
-//   +cols="left center right"   -> Spalten-Default-Ausrichtung pro Spalte
+//   +cols="left center right"   -> Spalten-Default-Ausrichtung (4T-0045)
+//   +sortable                   -> Tabelle sortierbar (4T-0046)
 // Ungueltige Werte werden auf null abgebildet (kein Default fuer diese Spalte).
-// Gibt ein Object mit columnDefaults zurueck (Array, leer wenn nichts gefunden).
 function parseScgTableHeaderAttrs(headerLine) {
-  const result = { columnDefaults: [] };
-  const colsMatch = String(headerLine || '').match(/\+cols="([^"]*)"/);
+  const result = { columnDefaults: [], sortable: false };
+  const text = String(headerLine || '');
+  // \b matcht sowohl nach '+' als auch nach Whitespace, sodass die Header-
+  // Zeile in beiden Schreibweisen verarbeitet wird: '{|+cols="..."',
+  // '{|+sortable cols="..."', '{|+sortable +cols="..."'.
+  const colsMatch = text.match(/\bcols="([^"]*)"/);
   if (colsMatch) {
     result.columnDefaults = colsMatch[1].split(/\s+/).filter(Boolean).map((v) => {
       if (v === 'left' || v === 'center' || v === 'right') return v;
       return null;
     });
+  }
+  if (/\bsortable\b/.test(text)) {
+    result.sortable = true;
   }
   return result;
 }
@@ -467,7 +474,12 @@ function parseScgTableBlock(content) {
   }
   commitRow();
 
-  return { caption, rows, columnDefaults: headerAttrs.columnDefaults };
+  return {
+    caption,
+    rows,
+    columnDefaults: headerAttrs.columnDefaults,
+    sortable: headerAttrs.sortable,
+  };
 }
 
 function renderScgTable(content) {
@@ -478,13 +490,13 @@ function renderScgTable(content) {
   try {
     const parsed = parseScgTableBlock(content);
     if (!parsed) return null;
-    return buildScgTableHtml(parsed.caption, parsed.rows, parsed.columnDefaults);
+    return buildScgTableHtml(parsed.caption, parsed.rows, parsed.columnDefaults, parsed.sortable);
   } finally {
     scgTableRecursionDepth--;
   }
 }
 
-function buildScgTableHtml(caption, rows, columnDefaults) {
+function buildScgTableHtml(caption, rows, columnDefaults, sortable) {
   // thead, wenn die erste Zeile ausschliesslich Header-Zellen enthaelt.
   let theadRow = null;
   let bodyRows = rows;
@@ -492,7 +504,20 @@ function buildScgTableHtml(caption, rows, columnDefaults) {
     theadRow = rows[0];
     bodyRows = rows.slice(1);
   }
-  const out = ['<table class="scg-table">'];
+  // 4T-0046: Sortierung deaktivieren, wenn irgendeine Zelle colspan oder
+  // rowspan hat. Layout-Risiko zu hoch, daher sicherer Default.
+  let hasSpans = false;
+  for (const row of rows) {
+    for (const cell of row.cells) {
+      if (cell.attrs && (cell.attrs.colspan || cell.attrs.rowspan)) {
+        hasSpans = true;
+        break;
+      }
+    }
+    if (hasSpans) break;
+  }
+  const tableClass = sortable && !hasSpans && theadRow ? 'scg-table sortable' : 'scg-table';
+  const out = [`<table class="${tableClass}">`];
   if (caption !== null && caption !== '') {
     out.push(`<caption>${md.renderInline(caption)}</caption>`);
   }

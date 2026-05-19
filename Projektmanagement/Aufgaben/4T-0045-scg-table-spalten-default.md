@@ -1,6 +1,6 @@
 # 4T-0045 — Spalten-Default-Ausrichtung in SCG-Tabellen
 
-**Status**: Erledigt — 2026-05-19, gepushed
+**Status**: Erledigt — 2026-05-19, gepushed (Commit `143c970`)
 **Epic**: [3E-0009 — SCG Table Stufe 4](3E-0009-scg-table-sortierung-status.md)
 **Zielversion**: 0.15.0
 

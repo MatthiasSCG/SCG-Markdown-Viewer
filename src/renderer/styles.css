@@ -888,6 +888,32 @@ select {
 [data-theme="dark"] .markdown-body .scg-table .status-ok      { background-color: #1f4a23; color: #a5d6a7; }
 [data-theme="dark"] .markdown-body .scg-table .status-info    { background-color: #1f3a4a; color: #90caf9; }
 [data-theme="dark"] .markdown-body .scg-table .status-neutral { background-color: #303030; color: #bdbdbd; }
+
+/* 4T-0046: Sortierbare Tabellen. Header-Zellen bekommen cursor: pointer und
+   ein Sort-Indikator-Icon (Lucide-Stil, Inline-SVG). Aktiver Sort-State
+   hebt das Icon farblich hervor. */
+.markdown-body .scg-table.sortable th.scg-th-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+.markdown-body .scg-table.sortable th.scg-th-sortable:hover {
+  background-color: var(--bg-alt);
+}
+.markdown-body .scg-table .scg-th-content {
+  display: inline;
+}
+.markdown-body .scg-table .scg-sort-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  vertical-align: middle;
+  opacity: 0.5;
+}
+.markdown-body .scg-table th.scg-th-sortable[data-scg-sort-state="asc"] .scg-sort-icon,
+.markdown-body .scg-table th.scg-th-sortable[data-scg-sort-state="desc"] .scg-sort-icon {
+  opacity: 1;
+  color: var(--accent);
+}
 .markdown-body img { max-width: 100%; height: auto; }
 .markdown-body hr {
   border: none;
