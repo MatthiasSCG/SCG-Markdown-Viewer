@@ -58,6 +58,10 @@ Beide Mechanismen teilen sich technisch ein Pattern: ein Trigger-Zeichen im Edit
 - [x] [4T-0058 — Hilfe-Dialog um Wiki-Link-Ausbau und Tag-System erweitern](4T-0058-hilfe-dialog-wiki-link-tag.md) — erledigt 2026-05-20, Commit `1d70005`, gepushed
 - [x] [4T-0059 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.17.0](4T-0059-changelog-release-0170.md) — erledigt 2026-05-20, Commit `b76e761`, Tag `v0.17.0` als Latest auf GitHub
 
+### Hotfix-Tasks (nach Auslieferung)
+
+- [x] [4T-0060 — Tag-Parser-Fehlpositive bei Hex-Farbcodes, Zahlen und Markdown-Anker-Links](4T-0060-tag-parser-fehlpositive.md) — erledigt 2026-05-20, ausgeliefert in v0.17.1
+
 **Schnitt-Entscheidung zum Epic-Start (2026-05-20):** Linter-Erweiterung (Heading- und Block-Anker-Prüfung) wurde mit Task 1 (Wiki-Link-Parser) zusammengelegt, weil beide denselben Parser-Pfad anpassen und der Linter eine kleine Folge-Änderung ist. Damit sechs Tasks statt der ursprünglich vorgesehenen sieben.
 
 ## Architekturentscheidungen

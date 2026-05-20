@@ -58,8 +58,24 @@ const FENCE_RE = /^\s{0,3}(```+|~~~+)/;
 
 // 4T-0056: Inline-Tags `#tag` im Body. Gleiches Pattern wie tagsPlugin in
 // preload.js. Negativer Look-behind verhindert Treffer mitten in Woertern
-// (z.B. 'foo#bar') und nach `##` (Markdown-Heading-Doppelhash).
-const TAG_RE = /(?<![\p{L}\p{N}_#])#([\p{L}\p{N}_/-]+)/gu;
+// (z.B. 'foo#bar'), nach `##` (Markdown-Heading-Doppelhash) und in
+// Markdown-Link-Zielen `](#anker)` (4T-0060).
+const TAG_RE = /(?<![\p{L}\p{N}_#])(?<!\]\()#([\p{L}\p{N}_/-]+)/gu;
+// 4T-0060: Hex-Farbcodes (3-, 4-, 6- oder 8-stellig, alles Hex) sind kein
+// Tag. Schliesst CSS-Farb-Notationen wie #fff, #ffffff, #c0392b aus.
+const HEX_COLOR_RE = /^[0-9a-f]{3,8}$/i;
+// 4T-0060: Tags muessen mindestens einen Buchstaben enthalten, damit reine
+// Zahlen (Issue-Referenzen, Fussnoten) nicht als Tag indexiert werden.
+const TAG_LETTER_RE = /[\p{L}]/u;
+
+// 4T-0060: Pruefung, ob ein Tag-Kandidat tatsaechlich ein Tag ist.
+function isValidTag(tag) {
+  if (!tag) return false;
+  if (tag.startsWith('/') || tag.endsWith('/')) return false;
+  if (!TAG_LETTER_RE.test(tag)) return false; // reine Zahlen raus
+  if (HEX_COLOR_RE.test(tag)) return false;    // Hex-Codes raus
+  return true;
+}
 
 // Relative Markdown-Links: [Text](pfad.md) oder (pfad.md#anker). Kein http:,
 // kein https:, kein mailto:, kein data:.
@@ -228,15 +244,23 @@ function parseFile(filePath) {
       blockIds.push(blockMatch[1]);
     }
 
-    // 4T-0056: Inline-Tags `#tag` sammeln. Code-Bloecke sind durch das
-    // inFence-Flag schon ausgeschlossen. Ein Tag mitten in einem Inline-
-    // Code (`#tag`) wuerde theoretisch falsch gezaehlt; im Praxis-Workflow
-    // selten und ohne grossen Schaden.
+    // 4T-0056: Inline-Tags `#tag` sammeln. Fenced-Code-Bloecke sind durch
+    // das inFence-Flag schon ausgeschlossen.
+    // 4T-0060: Inline-Code-Spans aus der Zeile maskieren, damit Tags wie
+    // `#btn-open` in CSS-Selektor-Beispielen nicht indexiert werden.
+    // Zwei Paesse: zuerst Doppel-Backticks (lazy, fuer ``code mit ` darin``),
+    // dann Single-Backticks. Die Reihenfolge ist wichtig, weil Single-Pass
+    // allein die inneren Single-Backticks eines Doppel-Backtick-Spans
+    // missdeutet und den Tag-Inhalt unmaskiert laesst.
+    const lineForTags = line
+      .replace(/``(?:[^`\n]|`(?!`))+?``/g, (m) => ' '.repeat(m.length))
+      .replace(/`[^`\n]+`/g, (m) => ' '.repeat(m.length));
     TAG_RE.lastIndex = 0;
     let tagMatch;
-    while ((tagMatch = TAG_RE.exec(line)) !== null) {
+    while ((tagMatch = TAG_RE.exec(lineForTags)) !== null) {
       const tag = tagMatch[1];
-      if (!tag.startsWith('/') && !tag.endsWith('/')) {
+      // 4T-0060: Hex-Codes, reine Zahlen und Slash-Randlagen filtern.
+      if (isValidTag(tag)) {
         tagsSet.add(tag);
       }
     }

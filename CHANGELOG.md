@@ -5,6 +5,27 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.17.1] - 2026-05-20 — Tag-Parser-Hotfix
+
+Bugfix-Release. Direkt nach Auslieferung von 0.17.0 wurden im Praxis-Einsatz mehrere Klassen von Fehlpositiven in der Tag-Sidebar sichtbar: Hex-Farbcodes, reine Zahlen, Markdown-Anker-Link-Ziele und CSS-/HTML-Selektor-Beispiele in Inline-Code wurden als Tag indexiert. Umgesetzt als Hotfix-Task [4T-0060](Projektmanagement/Aufgaben/4T-0060-tag-parser-fehlpositive.md) im Epic [3E-0011](Projektmanagement/Aufgaben/3E-0011-wiki-link-ausbau-und-tag-system.md).
+
+### Behoben
+
+- **Hex-Farbcodes werden nicht mehr als Tag indexiert** (4T-0060): 3-, 4-, 6- und 8-stellige reine Hex-Sequenzen (`#fff`, `#ffff`, `#ffffff`, `#ffffffff`) werden vom Tag-Parser verworfen. Schließt CSS-Farb-Notationen wie `#c0392b`, `#ff7b72`, `#ffeeee` aus dem Tag-Index aus.
+- **Reine Zahlen sind keine Tags mehr** (4T-0060): Tag-Texte ohne mindestens einen Buchstaben werden verworfen. Schließt Issue-Referenzen (`#16444`), Fußnoten (`#2`) und Zeilennummern (`#31999`) aus. Verhalten ist konsistent zur Obsidian-Konvention.
+- **Markdown-Anker-Link-Ziele werden nicht mehr als Tag indexiert** (4T-0060): Ein zusätzlicher negativer Look-behind `(?<!\]\()` im Tag-Pattern schließt `[Text](#anker)`-Notationen aus. Bisher wurden alle solchen Vorkommen vom zeilenweisen Index-Parser fälschlich als Tag erfasst, weil der Look-behind das `(` als nicht-Wort-Zeichen passieren ließ.
+- **Inline-Code-Tags werden nicht mehr als Tag indexiert** (4T-0060): Inline-Code-Spans mit Single- und Doppel-Backticks (`` `#btn-open` `` und `` `` `#help-modal` `` ``) werden vor dem Tag-Match aus der Zeile maskiert. Im Render-Pane übernahm markdown-it den Schutz, im Backlinks-Index fehlte er bisher. Betraf besonders PM-Doku-Dateien mit CSS-/HTML-Selektor-Beispielen.
+- **Gleiche Filter im Render-Pane** (4T-0060): Der `tagsPlugin` in [src/main/preload.js](src/main/preload.js) wendet die drei Tag-Filter (Buchstabe, Hex, Markdown-Anker) ebenfalls an. Inline-Code ist im Render-Pane ohnehin durch markdown-it abgedeckt.
+
+### Konvention zur Tag-Erkennung
+
+Ab 0.17.1 gilt:
+
+- Ein Tag muss mindestens einen Buchstaben enthalten.
+- Tags dürfen keine reinen Hex-Farbcodes sein.
+- Inline-Code (`` `#…` ``, `` `` `#…` `` ``) und Markdown-Anker-Link-Ziele (`[Text](#…)`) sind keine Tags.
+- Tags im freien Fließtext bleiben erkennbar (Obsidian-Konvention): „Die Sektion #section beschreibt das" erzeugt weiterhin den Tag `#section`.
+
 ## [0.17.0] - 2026-05-20 — Wiki-Link-Ausbau und Tag-System
 
 Feature-Release. Zweites Etappenziel aus dem Meta-Plan „Obsidian-Parity-Roadmap" (sieben Sub-Epics, 0.16.0 bis 1.0.0). Epic [3E-0011](Projektmanagement/Aufgaben/3E-0011-wiki-link-ausbau-und-tag-system.md) umgesetzt in den Tasks [4T-0054](Projektmanagement/Aufgaben/4T-0054-wiki-link-heading-block-anker.md) (Wiki-Link-Anker und Linter), [4T-0055](Projektmanagement/Aufgaben/4T-0055-wiki-embeds.md) (Wiki-Embeds), [4T-0056](Projektmanagement/Aufgaben/4T-0056-tag-system.md) (Tag-System), [4T-0057](Projektmanagement/Aufgaben/4T-0057-autocomplete-framework.md) (Autocomplete), [4T-0058](Projektmanagement/Aufgaben/4T-0058-hilfe-dialog-wiki-link-tag.md) (Hilfe-Dialog) und Abschluss-Sammeltask [4T-0059](Projektmanagement/Aufgaben/4T-0059-changelog-release-0170.md).

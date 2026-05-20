@@ -504,6 +504,9 @@ md.use(wikiEmbedsPlugin);
 // laeuft. Code-Bloecke (Inline und Fenced) sind ebenfalls aussen vor —
 // markdown-it laesst Inline-Rules darin nicht laufen.
 function tagsPlugin(mdInstance) {
+  // 4T-0060: Hex-Farbcodes und reine Zahlen sind kein Tag.
+  const HEX_COLOR = /^[0-9a-f]{3,8}$/i;
+  const HAS_LETTER = /[\p{L}]/u;
   function tokenize(state, silent) {
     const start = state.pos;
     if (state.src.charCodeAt(start) !== 0x23 /* # */) return false;
@@ -511,6 +514,13 @@ function tagsPlugin(mdInstance) {
     if (start > 0) {
       const prevCh = state.src.charAt(start - 1);
       if (/[\p{L}\p{N}_#]/u.test(prevCh)) return false;
+    }
+    // 4T-0060: Markdown-Link-Ziel `](#anker)` ist kein Tag. Wenn die zwei
+    // Zeichen vor '#' das Muster `](` zeigen, abbrechen. Der Render-Pfad
+    // sieht das normalerweise nicht (link-Ruler konsumiert vorher), aber
+    // konsistent zur Index-Logik.
+    if (start >= 2 && state.src.charAt(start - 1) === '(' && state.src.charAt(start - 2) === ']') {
+      return false;
     }
     // Tag-Zeichen einlesen.
     let pos = start + 1;
@@ -524,6 +534,10 @@ function tagsPlugin(mdInstance) {
     if (!tagText) return false;
     // Hierarchie-Trenner '/' darf nicht am Anfang oder Ende stehen.
     if (tagText.startsWith('/') || tagText.endsWith('/')) return false;
+    // 4T-0060: Tag muss mindestens einen Buchstaben enthalten.
+    if (!HAS_LETTER.test(tagText)) return false;
+    // 4T-0060: Hex-Farbcodes (3-, 4-, 6- oder 8-stellig) ausschliessen.
+    if (HEX_COLOR.test(tagText)) return false;
 
     if (!silent) {
       const open = state.push('link_open', 'a', 1);
