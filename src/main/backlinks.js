@@ -603,6 +603,89 @@ function filesForTag(entry, tag) {
   return [...set].sort((a, b) => a.localeCompare(b));
 }
 
+// 4T-0057 (Epic 3E-0011): Autocomplete-Suggestions fuer Wiki-Link-Trigger
+// `[[`. Liefert die Liste aller Datei-Basenames (ohne .md) und Aliases
+// im aktiven Suchraum, je mit Hinweis-Detail (Verzeichnis bzw. Ziel-
+// Datei). Renderer filtert clientseitig per Prefix und sortiert. Liefert
+// alle Kandidaten ohne serverseitiges Limit; bei 2000 Dateien (Backlinks-
+// Cap) bleibt die Liste handhabbar.
+function wikiLinkAutocompleteSuggestions(activeFile) {
+  if (!activeFile) return { status: 'unavailable', suggestions: [] };
+  const root = rootFor(activeFile);
+  if (!root) return { status: 'unavailable', suggestions: [] };
+  const entry = indexes.get(root);
+  if (!entry) return { status: 'unavailable', suggestions: [] };
+  if (entry.status === 'oversized') return { status: 'unavailable', suggestions: [] };
+  if (entry.status === 'indexing') return { status: 'indexing', suggestions: [] };
+
+  const suggestions = [];
+  const seenFiles = new Set();
+  for (const f of entry.files.keys()) {
+    const base = path.basename(f).replace(MD_EXT_RE, '');
+    const key = base.toLowerCase();
+    if (seenFiles.has(key)) continue;
+    seenFiles.add(key);
+    suggestions.push({ name: base, kind: 'file', detail: path.dirname(f) });
+  }
+  for (const [aliasLower, fileSet] of entry.aliasMap) {
+    let displayAlias = aliasLower;
+    for (const filePath of fileSet) {
+      const fileAliases = entry.aliasesPerFile.get(filePath) || [];
+      const found = fileAliases.find((a) => String(a).toLowerCase() === aliasLower);
+      if (found) { displayAlias = found; break; }
+    }
+    const firstFile = [...fileSet][0];
+    const detail = firstFile ? path.basename(firstFile).replace(MD_EXT_RE, '') : '';
+    suggestions.push({ name: displayAlias, kind: 'alias', detail });
+  }
+  return { status: 'ready', suggestions };
+}
+
+// 4T-0057: Heading-/Block-Anker-Suggestions fuer Wiki-Link-Anker-Trigger
+// `[[Datei#` bzw. `[[Datei#^`. Loest den Basename ueber Datei-Namen und
+// Aliases auf und sammelt die Union aller Anker der gefundenen Datei(en).
+function anchorAutocompleteSuggestions(activeFile, basename, anchorType) {
+  if (!activeFile || !basename) return { status: 'unavailable', suggestions: [] };
+  if (anchorType !== 'heading' && anchorType !== 'block') {
+    return { status: 'unavailable', suggestions: [] };
+  }
+  const root = rootFor(activeFile);
+  if (!root) return { status: 'unavailable', suggestions: [] };
+  const entry = indexes.get(root);
+  if (!entry) return { status: 'unavailable', suggestions: [] };
+  if (entry.status === 'oversized') return { status: 'unavailable', suggestions: [] };
+  if (entry.status === 'indexing') return { status: 'indexing', suggestions: [] };
+
+  let candidates = resolveWikiLink(entry, basename);
+  if (candidates.length === 0) {
+    candidates = filesByAlias(entry, basename);
+  }
+  if (candidates.length === 0) return { status: 'ready', suggestions: [] };
+
+  const seen = new Set();
+  for (const candPath of candidates) {
+    const meta = entry.anchorsPerFile.get(candPath);
+    if (!meta) continue;
+    const collection = anchorType === 'block' ? meta.blockIds : meta.headings;
+    for (const a of collection) seen.add(a);
+  }
+  return { status: 'ready', suggestions: [...seen].sort((a, b) => a.localeCompare(b)) };
+}
+
+// 4T-0057: Tag-Autocomplete-Suggestions fuer den `#`-Trigger ausserhalb
+// von Wiki-Link-Kontexten. Nutzt direkt getAllTagsWithCounts; sortiert
+// also nach Haeufigkeit (absteigend) und alphabetisch.
+function tagAutocompleteSuggestions(activeFile) {
+  if (!activeFile) return { status: 'unavailable', suggestions: [] };
+  const root = rootFor(activeFile);
+  if (!root) return { status: 'unavailable', suggestions: [] };
+  const entry = indexes.get(root);
+  if (!entry) return { status: 'unavailable', suggestions: [] };
+  if (entry.status === 'oversized') return { status: 'unavailable', suggestions: [] };
+  if (entry.status === 'indexing') return { status: 'indexing', suggestions: [] };
+  return { status: 'ready', suggestions: getAllTagsWithCounts(entry) };
+}
+
 // 4T-0056: High-level-API fuer Renderer. Liefert Tag-Liste mit Counts
 // und ggf. Datei-Liste fuer einen ausgewaehlten Filter-Tag. Pattern
 // analog zu backlinksFor: kein ensureIndex-Aufruf, nutzt nur vorhandenen
@@ -1006,4 +1089,8 @@ module.exports = {
   extractEmbedSnippet,
   // 4T-0056: Tag-System.
   tagsFor,
+  // 4T-0057: Autocomplete-Suggestions.
+  wikiLinkAutocompleteSuggestions,
+  anchorAutocompleteSuggestions,
+  tagAutocompleteSuggestions,
 };

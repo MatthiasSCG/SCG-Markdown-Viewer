@@ -16,6 +16,9 @@ import {
   hoverTooltip,
 } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+// 4T-0057 (Epic 3E-0011): CodeMirror-Autocomplete fuer Wiki-Link-Trigger
+// `[[`, Anker-Trigger `[[Datei#`/`[[Datei#^` und Tag-Trigger `#`.
+import { autocompletion } from '@codemirror/autocomplete';
 import { markdown } from '@codemirror/lang-markdown';
 import {
   syntaxHighlighting,
@@ -1715,6 +1718,8 @@ function createEditorState(opts = {}) {
       searchHighlightField,
       // 4T-0049: YAML-Frontmatter im Source-Pane visuell abgesetzt darstellen.
       frontmatterField,
+      // 4T-0057: Autocomplete fuer Wiki-Links und Tags.
+      autocompleteExtension,
       EditorView.updateListener.of((update) => {
         const pIdx = paneEditors.indexOf(update.view);
         if (pIdx < 0) return;
@@ -5137,6 +5142,181 @@ async function loadTagsSettings() {
   state.tags.visibleByPane[0] = !!v0;
   state.tags.visibleByPane[1] = !!v1;
 }
+
+// --- Autocomplete-Quellen (4T-0057, Epic 3E-0011) ---------------------------
+// Zwei Completion-Sources fuer CodeMirror: Wiki-Link (`[[…`) und Tag (`#…`).
+// Beide arbeiten asynchron mit IPC-Lookups gegen den Backlinks-Index. Render-
+// Limit pro Dropdown: 30 Eintraege (clientseitig nach Sortierung).
+
+const AUTOCOMPLETE_RENDER_LIMIT = 30;
+
+function paneIdxForCmView(view) {
+  return paneEditors.indexOf(view);
+}
+
+function activeFileForCmView(view) {
+  const paneIdx = paneIdxForCmView(view);
+  if (paneIdx < 0) return null;
+  const pane = state.panes[paneIdx];
+  if (!pane || pane.activeIndex < 0) return null;
+  const tab = pane.tabs[pane.activeIndex];
+  return tab && tab.path ? tab.path : null;
+}
+
+async function wikiLinkCompletionSource(context) {
+  const lineObj = context.state.doc.lineAt(context.pos);
+  const lineText = lineObj.text;
+  const offsetInLine = context.pos - lineObj.from;
+  const textBefore = lineText.slice(0, offsetInLine);
+
+  // Sind wir in einem offenen [[-Block? Letzte [[-Position muss nach
+  // letzter ]]-Position liegen.
+  const lastOpen = textBefore.lastIndexOf('[[');
+  if (lastOpen < 0) return null;
+  const lastClose = textBefore.lastIndexOf(']]');
+  if (lastClose > lastOpen) return null;
+
+  const inner = textBefore.slice(lastOpen + 2);
+  if (inner.includes('\n') || inner.includes('[')) return null;
+  // Im Label-Modus (nach '|') kein Autocomplete.
+  if (inner.includes('|')) return null;
+
+  const activeFile = activeFileForCmView(context.view);
+  if (!activeFile) return null;
+
+  const hashIdx = inner.indexOf('#');
+
+  // Anker-Modus: [[Datei#... oder [[Datei#^...
+  if (hashIdx >= 0) {
+    const basename = inner.slice(0, hashIdx).trim();
+    const anchorSofar = inner.slice(hashIdx + 1);
+    const isBlock = anchorSofar.startsWith('^');
+    const anchorType = isBlock ? 'block' : 'heading';
+    const anchorQuery = isBlock ? anchorSofar.slice(1) : anchorSofar;
+    let result;
+    try {
+      result = await api.autocompleteAnchors(activeFile, basename, anchorType);
+    } catch { return null; }
+    if (!result || result.status !== 'ready') return null;
+    const queryLower = anchorQuery.toLowerCase();
+    const items = (result.suggestions || [])
+      .filter((s) => !queryLower || s.toLowerCase().includes(queryLower))
+      .sort((a, b) => {
+        const aPrefix = a.toLowerCase().startsWith(queryLower) ? 0 : 1;
+        const bPrefix = b.toLowerCase().startsWith(queryLower) ? 0 : 1;
+        if (aPrefix !== bPrefix) return aPrefix - bPrefix;
+        return a.localeCompare(b);
+      })
+      .slice(0, AUTOCOMPLETE_RENDER_LIMIT)
+      .map((s) => ({
+        label: isBlock ? '^' + s : s,
+        type: 'variable',
+        detail: isBlock
+          ? (t('autocomplete.detail.blockId') || 'Block-Anker')
+          : (t('autocomplete.detail.heading') || 'Heading'),
+      }));
+    return {
+      from: context.pos - anchorQuery.length,
+      options: items,
+      validFor: /^[\p{L}\p{N}_^/-]*$/u,
+    };
+  }
+
+  // Basename-Modus: [[Prefix
+  const prefix = inner;
+  let result;
+  try {
+    result = await api.autocompleteWikiTargets(activeFile);
+  } catch { return null; }
+  if (!result || result.status !== 'ready') return null;
+  const prefixLower = prefix.toLowerCase();
+  const items = (result.suggestions || [])
+    .filter((s) => !prefixLower || s.name.toLowerCase().includes(prefixLower))
+    .sort((a, b) => {
+      const aPrefix = a.name.toLowerCase().startsWith(prefixLower) ? 0 : 1;
+      const bPrefix = b.name.toLowerCase().startsWith(prefixLower) ? 0 : 1;
+      if (aPrefix !== bPrefix) return aPrefix - bPrefix;
+      // Dateien vor Aliases bei gleichem Rang.
+      if (a.kind !== b.kind) return a.kind === 'file' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    })
+    .slice(0, AUTOCOMPLETE_RENDER_LIMIT)
+    .map((s) => ({
+      label: s.name,
+      type: s.kind === 'alias' ? 'keyword' : 'class',
+      detail: s.kind === 'alias'
+        ? (t('autocomplete.detail.alias') || 'Alias')
+          + (s.detail ? ' → ' + s.detail : '')
+        : (t('autocomplete.detail.file') || 'Datei'),
+    }));
+  return {
+    from: context.pos - prefix.length,
+    options: items,
+    validFor: /^[\p{L}\p{N}_-]*$/u,
+  };
+}
+
+async function tagCompletionSource(context) {
+  const lineObj = context.state.doc.lineAt(context.pos);
+  const lineText = lineObj.text;
+  const offsetInLine = context.pos - lineObj.from;
+  const textBefore = lineText.slice(0, offsetInLine);
+
+  // # darf nicht direkt in einem [[-Block stehen — sonst geht der Wiki-
+  // Anker-Pfad in wikiLinkCompletionSource.
+  const lastOpen = textBefore.lastIndexOf('[[');
+  const lastClose = textBefore.lastIndexOf(']]');
+  if (lastOpen >= 0 && lastClose < lastOpen) return null;
+
+  // Heading-Marker am Zeilenanfang ist kein Tag-Trigger. Erkennung:
+  // 1-6 Hashes plus ein Leerzeichen am Anfang der ungetrimmten Zeile.
+  if (/^\s*#{1,6}\s/.test(lineText)) return null;
+
+  // Tag-Pattern: # nach Zeilenanfang oder Nicht-Wort-Zeichen.
+  const tagMatch = textBefore.match(/(?:^|[^\p{L}\p{N}_#])#([\p{L}\p{N}_/-]*)$/u);
+  if (!tagMatch) return null;
+
+  const activeFile = activeFileForCmView(context.view);
+  if (!activeFile) return null;
+  const tagPrefix = tagMatch[1];
+
+  let result;
+  try {
+    result = await api.autocompleteTags(activeFile);
+  } catch { return null; }
+  if (!result || result.status !== 'ready') return null;
+  const prefixLower = tagPrefix.toLowerCase();
+  const items = (result.suggestions || [])
+    .filter((entry) => !prefixLower || entry.tag.toLowerCase().includes(prefixLower))
+    .sort((a, b) => {
+      const aPrefix = a.tag.toLowerCase().startsWith(prefixLower) ? 0 : 1;
+      const bPrefix = b.tag.toLowerCase().startsWith(prefixLower) ? 0 : 1;
+      if (aPrefix !== bPrefix) return aPrefix - bPrefix;
+      if (b.count !== a.count) return b.count - a.count;
+      return a.tag.localeCompare(b.tag);
+    })
+    .slice(0, AUTOCOMPLETE_RENDER_LIMIT)
+    .map((entry) => ({
+      label: entry.tag,
+      type: 'keyword',
+      detail: (t('autocomplete.detail.tag') || 'Tag') + ' (' + entry.count + ')',
+    }));
+  return {
+    from: context.pos - tagPrefix.length,
+    options: items,
+    validFor: /^[\p{L}\p{N}_/-]*$/u,
+  };
+}
+
+// 4T-0057: Extension fuer CodeMirror. override=[...] ersetzt die Default-
+// Completion-Quellen. activateOnTyping=true triggert bei jedem Wortzeichen.
+const autocompleteExtension = autocompletion({
+  override: [wikiLinkCompletionSource, tagCompletionSource],
+  activateOnTyping: true,
+  defaultKeymap: true,
+  closeOnBlur: true,
+  maxRenderedOptions: AUTOCOMPLETE_RENDER_LIMIT,
+});
 
 // 4T-0056: Render-Token pro Pane verhindert Race bei mehrfachen Triggern.
 // Zwischen innerHTML='' und appendChild-Schleife liegt ein await; ohne

@@ -1277,6 +1277,13 @@ contextBridge.exposeInMainWorld('api', {
   // Haeufigkeit) und optional Datei-Liste fuer einen Filter-Tag.
   requestTags: (filePath, filterTag) =>
     ipcRenderer.invoke('tags:request', { filePath, filterTag: filterTag || null }),
+  // 4T-0057: Autocomplete-Suggestions fuer Wiki-Link- und Tag-Trigger.
+  autocompleteWikiTargets: (filePath) =>
+    ipcRenderer.invoke('autocomplete:wikiTargets', { filePath }),
+  autocompleteAnchors: (filePath, basename, anchorType) =>
+    ipcRenderer.invoke('autocomplete:anchors', { filePath, basename, anchorType }),
+  autocompleteTags: (filePath) =>
+    ipcRenderer.invoke('autocomplete:tags', { filePath }),
   onBacklinksInvalidated: (cb) => ipcRenderer.on('backlinks:invalidated', (_e, payload) => cb(payload)),
 
   // Multi-Window

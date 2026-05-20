@@ -1,6 +1,6 @@
 # 4T-0056 — Tag-System: Parser, Index und Sidebar
 
-**Status**: Erledigt — 2026-05-20, Test bestanden
+**Status**: Erledigt — 2026-05-20, gepushed (Commit `0215393`)
 **Epic**: [3E-0011 — Wiki-Link-Ausbau und Tag-System](3E-0011-wiki-link-ausbau-und-tag-system.md)
 **Zielversion**: 0.17.0
 

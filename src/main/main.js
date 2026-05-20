@@ -1101,6 +1101,25 @@ function registerIpc() {
     return backlinks.tagsFor(filePath, filterTag);
   });
 
+  // 4T-0057 (Epic 3E-0011): Autocomplete-Suggestions fuer drei Quellen:
+  // Wiki-Link-Ziele ([[), Heading-/Block-Anker ([[Datei#, [[Datei#^),
+  // Tags (#). Pro Trigger ein IPC, weil die Quellen unterschiedliche
+  // Eingabe-Parameter brauchen.
+  ipcMain.handle('autocomplete:wikiTargets', (_event, params) => {
+    const filePath = params && params.filePath;
+    return backlinks.wikiLinkAutocompleteSuggestions(filePath);
+  });
+  ipcMain.handle('autocomplete:anchors', (_event, params) => {
+    const filePath = params && params.filePath;
+    const basename = params && params.basename;
+    const anchorType = params && params.anchorType;
+    return backlinks.anchorAutocompleteSuggestions(filePath, basename, anchorType);
+  });
+  ipcMain.handle('autocomplete:tags', (_event, params) => {
+    const filePath = params && params.filePath;
+    return backlinks.tagAutocompleteSuggestions(filePath);
+  });
+
   // 4T-0020: Linter-Lookup fuer broken-wiki-link. Batch-Endpunkt: pro Lint-
   // Lauf ein Roundtrip mit allen Basenames des Dokuments. Antwort siehe
   // existingWikiTargets in backlinks.js (status + Liste der gefundenen).
