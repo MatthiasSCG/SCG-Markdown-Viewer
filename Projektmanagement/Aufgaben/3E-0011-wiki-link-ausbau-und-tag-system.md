@@ -1,7 +1,8 @@
 # 3E-0011 — Wiki-Link-Ausbau und Tag-System
 
-**Status**: In Umsetzung — seit 2026-05-20
+**Status**: Erledigt — in v0.17.0 ausgeliefert am 2026-05-20
 **Zielversion**: 0.17.0
+**Release**: v0.17.0 (2026-05-20)
 **Vorgängerversion**: 0.16.0
 **Reihenfolge im Meta-Plan**: Epic 2 von 6 (B → C → D → E → A → F)
 **Aufsetzend auf**: [3E-0010 — Frontmatter, Aliases und Properties](3E-0010-frontmatter-aliases-properties.md) (nutzt Aliases-Auflösung)
@@ -54,8 +55,8 @@ Beide Mechanismen teilen sich technisch ein Pattern: ein Trigger-Zeichen im Edit
 - [x] [4T-0055 — Wiki-Embeds `![[…]]`](4T-0055-wiki-embeds.md) — erledigt 2026-05-20, Commit `b1f6ad7`, gepushed
 - [x] [4T-0056 — Tag-System: Parser, Index und Sidebar](4T-0056-tag-system.md) — erledigt 2026-05-20, Commit `0215393`, gepushed
 - [x] [4T-0057 — Autocomplete-Framework für `[[` und `#`](4T-0057-autocomplete-framework.md) — erledigt 2026-05-20, Commit `4804b63`, gepushed
-- [x] [4T-0058 — Hilfe-Dialog um Wiki-Link-Ausbau und Tag-System erweitern](4T-0058-hilfe-dialog-wiki-link-tag.md) — erledigt 2026-05-20
-- [ ] [4T-0059 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.17.0](4T-0059-changelog-release-0170.md)
+- [x] [4T-0058 — Hilfe-Dialog um Wiki-Link-Ausbau und Tag-System erweitern](4T-0058-hilfe-dialog-wiki-link-tag.md) — erledigt 2026-05-20, Commit `1d70005`, gepushed
+- [x] [4T-0059 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.17.0](4T-0059-changelog-release-0170.md) — erledigt 2026-05-20
 
 **Schnitt-Entscheidung zum Epic-Start (2026-05-20):** Linter-Erweiterung (Heading- und Block-Anker-Prüfung) wurde mit Task 1 (Wiki-Link-Parser) zusammengelegt, weil beide denselben Parser-Pfad anpassen und der Linter eine kleine Folge-Änderung ist. Damit sechs Tasks statt der ursprünglich vorgesehenen sieben.
 

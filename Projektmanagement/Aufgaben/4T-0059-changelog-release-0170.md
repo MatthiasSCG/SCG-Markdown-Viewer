@@ -1,6 +1,6 @@
 # 4T-0059 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.17.0
 
-**Status**: Offen
+**Status**: Erledigt — 2026-05-20, in v0.17.0 ausgeliefert
 **Epic**: [3E-0011 — Wiki-Link-Ausbau und Tag-System](3E-0011-wiki-link-ausbau-und-tag-system.md)
 **Zielversion**: 0.17.0
 
@@ -87,4 +87,23 @@ Gemäß [CLAUDE.md, Abschnitt „Release-Prozess"](../../CLAUDE.md#release-proze
 
 ## Lösung
 
-(noch leer, wird nach Abschluss der Umsetzung gefüllt)
+Umgesetzt am 2026-05-20. Release v0.17.0 als „latest" auf GitHub veröffentlicht.
+
+### Doku-Änderungen
+
+- **[CHANGELOG.md](../../CHANGELOG.md)**: neuer Block `## [0.17.0] - 2026-05-20 — Wiki-Link-Ausbau und Tag-System` ganz oben mit Subsektionen „Neu", „Geändert", „Behoben", „i18n". Verweise auf 3E-0011 und die fünf zugehörigen Tasks.
+- **`dist/release-notes-0.17.0.md`**: Release-Notes nach der Template-Struktur abgeleitet. Untertitel-Satz, Download-Tabelle, „Was ist neu seit v0.16.0" sektioniert nach den vier Hauptfeatures (Wiki-Link-Anker, Wiki-Embeds, Tag-System, Autocomplete) plus „Verbessert" und „Behoben". Gitignored.
+- **[README.md](../../README.md)**: Status-Sektion auf 0.17.0 umgeschrieben (zweites Etappenziel der Obsidian-Parity-Roadmap). Links-Tabelle um Wiki-Link-Anker, Wiki-Embeds und Tags erweitert. Neue Sektion „Wiki-Link-Anker, Embeds und Tags" nach „Frontmatter und Properties" mit ausführlicher Beschreibung aller vier Features. Markdown-Umfang-Sektion: Wiki-Link-Bullets erweitert, neue Bullets für Embeds, Tags, Block-Anker. Tastenkürzel-Tabelle um `Strg + Umschalt + T` ergänzt.
+
+### Release-Schritte
+
+1. Doku-Commit mit Status-Updates und Hash-Nachtrag für 4T-0058.
+2. `npm run build` für die finale Setup- und Portable-EXE, `latest.yml` und Setup-Blockmap (Archivierung über `postbuild`-Hook in `releases/`).
+3. Tag `v0.17.0` auf den Doku-Commit gesetzt und gepushed.
+4. GitHub-Release `v0.17.0` als `--latest` mit den vier Asset-Dateien erstellt.
+
+### Status-Updates
+
+- Alle fünf Code-Tasks (4T-0054 bis 4T-0058) waren bereits auf „Erledigt" mit Commit-Hash-Nachtrag.
+- 4T-0059 (dieser Task) auf „Erledigt".
+- Epic 3E-0011 auf „Erledigt — in v0.17.0 ausgeliefert", `Release`-Frontmatter-Zeile ergänzt.

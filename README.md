@@ -144,6 +144,10 @@ Pfad des aktuellen Dokuments aufgelöst und als Base64-Data-URI eingebettet.
 | `relative/datei.md`         | in neuem Tab öffnen                    |
 | `[[Datei]]` (Wiki-Link)     | `Datei.md` in neuem Tab öffnen         |
 | `[[Alias]]` (Wiki-Link)     | über Frontmatter-`aliases:` aufgelöst (siehe Frontmatter und Properties); bei mehrdeutigem Alias erscheint ein Auswahl-Dialog |
+| `[[Datei#Heading]]`         | öffnet `Datei.md` und springt zum Heading-Anker |
+| `[[Datei#^id]]`             | öffnet `Datei.md` und springt zum Block-Anker |
+| `![[Datei]]` (Wiki-Embed)   | Inhalt von `Datei` direkt im Render-Pane einbinden (Bild, Markdown, PDF) |
+| `#tag`, `#projekt/x`        | im Render-Pane klickbar, filtert die Tag-Sidebar |
 | Andere relative Dateien     | werden ignoriert                       |
 
 ### Frontmatter und Properties
@@ -186,6 +190,55 @@ und Backlinks:
   `×`-Button bei Hover. Bei bekannten Schlüsselnamen (z.B. `tags`,
   `aliases`, `date`, `draft`) wird der Typ automatisch vorgeschlagen.
 - Sichtbarkeit pro Spalte persistent.
+
+### Wiki-Link-Anker, Embeds und Tags
+
+**Wiki-Link-Heading- und Block-Anker** zielen gezielt auf einen Teil
+einer Datei:
+
+- `[[Datei#Heading]]` springt zum Heading der Ziel-Datei. Slug-Erzeugung
+  wie auf GitHub.
+- `[[Datei#^id]]` springt zum benannten Block-Anker.
+- **Block-Anker** werden mit `^id` am Ende einer Zeile gesetzt und auf
+  den umschließenden Block (Absatz, Listen-Eintrag, Tabellen-Zeile,
+  Code-Block) registriert.
+- Auch ohne Dateinamen: `[[#Heading]]` und `[[#^id]]` springen innerhalb
+  des aktuellen Dokuments.
+- Der **Markdown-Linter** prüft beide Anker-Arten und markiert defekte
+  Ziele mit eigenem Hinweistext.
+
+**Wiki-Embeds `![[…]]`** binden Inhalte direkt im Render-Pane ein:
+
+- **Bilder** (PNG, JPG, GIF, SVG, WebP) als inline `<img>`.
+  Größen-Modifikator: `![[bild.png|400]]` oder `![[bild.png|400x300]]`.
+- **Markdown-Dateien** als gerenderter Block. Mit Anker
+  (`![[Datei#Heading]]`, `![[Datei#^id]]`) gezielt ein Teilausschnitt.
+- **PDFs** als interaktiver Viewer (PDF.js) mit Seiten-Steuerung und
+  Zoom.
+- **Embed-Tiefe** auf zwei Ebenen begrenzt.
+
+**Tag-System** mit eigener Sidebar-Sektion:
+
+- `#projekt/x` im Fließtext und `tags:` in der Frontmatter werden
+  gleichberechtigt indexiert. Hierarchische Tags über Slash-Trennung.
+- **Tag-Sidebar** als vierte Sektion neben Inhaltsverzeichnis,
+  Properties und Backlinks. Reihenfolge: Inhalt → Properties →
+  Tags → Backlinks.
+- **Filter-Eingabe**, **Häufigkeits-Sortierung**, Klick auf einen Tag
+  filtert die Trefferliste der Dateien.
+- Toggle über `Ansicht → Tags`, Statusbar-Icon oder `Strg + Umschalt + T`.
+- Live-Update über den File-Watcher.
+
+**Autocomplete** unterstützt beim Schreiben:
+
+- `[[` schlägt Dateinamen und Aliases vor.
+- `[[Datei#` schlägt Heading-Anker der Ziel-Datei vor, `[[Datei#^`
+  Block-IDs.
+- `#` im Fließtext schlägt Tags vor (Heading-Marker am Zeilenanfang
+  werden ausgeschlossen).
+- Sortierung: Prefix-Treffer zuerst, dann Häufigkeit bzw. Datei vor
+  Alias, dann alphabetisch.
+- Pfeil-Tasten navigieren, Enter oder Tab wählt aus, Esc schließt.
 
 ### Sprachen
 
@@ -246,8 +299,21 @@ Zusätzlich:
 - **Wiki-Links** im Stil von Obsidian/Logseq:
   - `[[Datei]]` — Link zu `Datei.md` im selben Verzeichnis
   - `[[Datei|Anzeigetext]]` — Link mit eigenem Text
+  - `[[Datei#Heading]]` — Sprung zum Heading-Anker der Ziel-Datei
+  - `[[Datei#^id]]` — Sprung zum Block-Anker der Ziel-Datei
+  - `[[Alias]]` — über Frontmatter-`aliases:` aufgelöst
   - Hat das Ziel bereits eine Endung (z.B. `[[bild.png]]`), wird sie
     nicht durch `.md` ersetzt
+- **Wiki-Embeds** `![[Datei]]` binden Inhalte direkt im Render-Pane
+  ein (Bilder, Markdown-Dateien, PDFs). Mit Anker
+  (`![[Datei#Heading]]`, `![[Datei#^id]]`) gezielt ein Teilausschnitt;
+  bei Bildern Größen-Modifikator `|breite` oder `|breitexhoehe`. Siehe
+  Sektion „Wiki-Link-Anker, Embeds und Tags".
+- **Tags** (`#projekt/x`) im Fließtext werden erkannt und als klickbare
+  Pillen gerendert. Hierarchische Tags über Slash-Trennung. Siehe
+  Sektion „Wiki-Link-Anker, Embeds und Tags".
+- **Block-Anker** `^id` am Zeilenende setzen einen benannten Anker auf
+  den umschließenden Block, referenzierbar per `[[Datei#^id]]`.
 - **Mermaid-Diagramme** in Fenced-Code-Blöcken mit Sprach-Tag `mermaid`
   (Flowchart, Sequence, Gantt, Class und weitere Typen). Werden im
   Render-Pane als SVG dargestellt, folgen dem Theme, lazy geladen.
@@ -406,6 +472,7 @@ sie in den Versions-Archiv-Ordner `releases/`:
 | `Strg + Umschalt + O`          | Inhaltsverzeichnis-Sidebar umschalten           |
 | `Strg + Umschalt + B`          | Backlinks-Sidebar umschalten                    |
 | `Strg + ;`                     | Properties-Sidebar umschalten                   |
+| `Strg + Umschalt + T`          | Tag-Sidebar umschalten                          |
 | `Strg + Umschalt + [` / `Strg + Umschalt + ]` | Region am Cursor ein- / ausklappen |
 | `Tab` / `Umschalt + Tab`       | Listenelement eine Ebene ein- / ausrücken       |
 | `Strg + F`                     | Suche öffnen                                    |
@@ -427,30 +494,30 @@ die Multi-Resolution-`icon.ico` (16/24/32/48/64/128/256 px) und
 
 ## Status
 
-Version `0.16.0` — Erstes Etappenziel aus dem Meta-Plan
+Version `0.17.0` — Zweites Etappenziel aus dem Meta-Plan
 „Obsidian-Parity-Roadmap" (sieben Sub-Epics, 0.16.0 bis 1.0.0):
-**Frontmatter, Aliases und Properties**. YAML-Frontmatter am
-Datei-Anfang (`---`-Block) wird als Metadaten erkannt und nicht
-mehr als Trennlinie gerendert. `aliases:`-Einträge machen Dateien
-unter mehreren Namen per `[[Alias]]` verlinkbar; Backlinks finden
-sie über alle Aliases und kennzeichnen Treffer mit „via Alias".
-Eine neue **Properties-Sidebar** (parallel zu Inhaltsverzeichnis
-und Backlinks) zeigt die Frontmatter-Felder live editierbar mit
-Typ-Inferenz (Text, Liste, Datum, Zahl, Wahr/Falsch, Mehrzeilig);
-Round-Trip-Schreiben erhält Kommentare und Stil. Speicherverhalten
-folgt dem globalen Auto-Save-Schalter.
+**Wiki-Link-Ausbau und Tag-System**. Wiki-Links unterstützen jetzt
+Heading- und Block-Anker (`[[Datei#Heading]]`, `[[Datei#^id]]`),
+mit Linter-Prüfung der Anker-Ziele. **Wiki-Embeds** (`![[…]]`)
+binden Bilder, Markdown-Dateien (auch mit Anker als Teilausschnitt)
+und PDFs direkt im Render-Pane ein. Ein neues **Tag-System** erkennt
+Inline-Tags (`#projekt/x`) und Frontmatter-`tags:`, mit einer
+**Tag-Sidebar** als vierte Sektion neben Inhaltsverzeichnis,
+Properties und Backlinks. **Autocomplete** schlägt beim Tippen
+Dateien, Aliases, Heading-Anker, Block-IDs und Tags vor.
 
-Aufsetzend auf SCG-Tabellen-Vollausbau aus 0.15.0 (Sortierung,
-Status-Hervorhebung, Spalten-Default), Verschachtelung und
-HTML-Export aus 0.14.0, Spans und Ausrichtung aus 0.13.0, SCG Table
-aus 0.12.0 (mehrzeilige Block-Zellen mit geschachtelten Listen,
-Code-Blöcken etc.), Theme-Wahl, Statusbar-Icons und Update-Erkennung
-aus 0.11.0, Render-Lift aus 0.10.0 (Syntax-Highlighting, KaTeX,
-Mermaid), Editor-UX und -Komfort aus 0.9.0 (Listen-Indent, Zoom,
-Schriftart, Fokus-Modus, Markdown-Linter), Strukturnavigation aus
-0.8.0 (Folding, Inhaltsverzeichnis, Backlinks) und Multi-Window-
-Bedienung aus 0.7.0. Funktional vollständig für den aktuellen
-Funktionsumfang, inklusive Windows-Build (Installer + Portable).
+Aufsetzend auf Frontmatter, Aliases und Properties aus 0.16.0,
+SCG-Tabellen-Vollausbau aus 0.15.0 (Sortierung, Status-Hervorhebung,
+Spalten-Default), Verschachtelung und HTML-Export aus 0.14.0, Spans
+und Ausrichtung aus 0.13.0, SCG Table aus 0.12.0 (mehrzeilige
+Block-Zellen mit geschachtelten Listen, Code-Blöcken etc.),
+Theme-Wahl, Statusbar-Icons und Update-Erkennung aus 0.11.0,
+Render-Lift aus 0.10.0 (Syntax-Highlighting, KaTeX, Mermaid),
+Editor-UX und -Komfort aus 0.9.0 (Listen-Indent, Zoom, Schriftart,
+Fokus-Modus, Markdown-Linter), Strukturnavigation aus 0.8.0
+(Folding, Inhaltsverzeichnis, Backlinks) und Multi-Window-Bedienung
+aus 0.7.0. Funktional vollständig für den aktuellen Funktionsumfang,
+inklusive Windows-Build (Installer + Portable).
 
 ## Lizenz
 

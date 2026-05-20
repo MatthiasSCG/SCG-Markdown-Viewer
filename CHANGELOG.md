@@ -5,6 +5,49 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.17.0] - 2026-05-20 — Wiki-Link-Ausbau und Tag-System
+
+Feature-Release. Zweites Etappenziel aus dem Meta-Plan „Obsidian-Parity-Roadmap" (sieben Sub-Epics, 0.16.0 bis 1.0.0). Epic [3E-0011](Projektmanagement/Aufgaben/3E-0011-wiki-link-ausbau-und-tag-system.md) umgesetzt in den Tasks [4T-0054](Projektmanagement/Aufgaben/4T-0054-wiki-link-heading-block-anker.md) (Wiki-Link-Anker und Linter), [4T-0055](Projektmanagement/Aufgaben/4T-0055-wiki-embeds.md) (Wiki-Embeds), [4T-0056](Projektmanagement/Aufgaben/4T-0056-tag-system.md) (Tag-System), [4T-0057](Projektmanagement/Aufgaben/4T-0057-autocomplete-framework.md) (Autocomplete), [4T-0058](Projektmanagement/Aufgaben/4T-0058-hilfe-dialog-wiki-link-tag.md) (Hilfe-Dialog) und Abschluss-Sammeltask [4T-0059](Projektmanagement/Aufgaben/4T-0059-changelog-release-0170.md).
+
+### Neu
+
+- **Wiki-Link-Heading- und Block-Anker** ([4T-0054](Projektmanagement/Aufgaben/4T-0054-wiki-link-heading-block-anker.md)): `[[Datei#Heading]]` springt zum Heading der Ziel-Datei, `[[Datei#^id]]` zum benannten Block-Anker. Block-Anker werden mit der Syntax `^id` am Ende einer Zeile gesetzt und auf den umschließenden Block (Absatz, Listen-Eintrag, Tabellen-Zeile, Code-Block) registriert. Der Markdown-Linter aus 4T-0020 prüft beide Anker-Arten und markiert defekte Ziele mit einem eigenen Hinweistext. Backlinks erfassen Anker-Bezüge ohne sie aufzulösen, das Sprung-Verhalten passiert beim Klick im Render-Pane oder im Editor-Modus.
+- **Wiki-Embeds `![[…]]`** ([4T-0055](Projektmanagement/Aufgaben/4T-0055-wiki-embeds.md)): Eingebettete Inhalte direkt im Render-Pane. Drei Embed-Typen werden unterstützt:
+  - **Bilder** (PNG, JPG, GIF, SVG, WebP) als inline `<img>` mit Größen-Modifikator `|breite` oder `|breitexhoehe`.
+  - **Markdown-Dateien** als gerenderter Block. Anker (`![[Datei#Heading]]`, `![[Datei#^id]]`) blenden gezielt Teilausschnitte ein, sonst die ganze Datei.
+  - **PDFs** als interaktiver Viewer (PDF.js) mit Blätter-Steuerung und Zoom.
+  Embed-Tiefe ist auf zwei Ebenen begrenzt, um Endlos-Schleifen zu verhindern. Nicht gefundene Ziele zeigen einen Platzhalter mit Fehlerhinweis.
+- **Tag-System** ([4T-0056](Projektmanagement/Aufgaben/4T-0056-tag-system.md)): `#projekt/x` im Fließtext und das Frontmatter-Feld `tags:` werden als Tags erkannt. Tag-Klick im Render-Pane öffnet eine vorgefilterte Suche. Neue **Tag-Sidebar** als vierte Sektion neben Inhaltsverzeichnis, Backlinks und Properties: Liste aller Tags im Suchraum mit Häufigkeitszahl, Filter-Eingabe, Klick filtert die Tag-Trefferliste pro Datei. Toggle über `Ansicht → Tags`, Statusbar-Icon oder `Strg+Umschalt+T`. Tag-Index wird im Main-Prozess gepflegt und über den File-Watcher live aktualisiert.
+- **Autocomplete-Framework** ([4T-0057](Projektmanagement/Aufgaben/4T-0057-autocomplete-framework.md)): Dropdown-Vorschläge beim Tippen im Editor.
+  - `[[` schlägt Dateinamen und Aliases aus dem Backlinks-Suchraum vor.
+  - `[[Datei#` schlägt Heading-Anker der Ziel-Datei vor, `[[Datei#^` Block-IDs.
+  - `#` im Fließtext schlägt Tags vor (mit Hierarchie und Häufigkeits-Sortierung), Heading-Marker am Zeilenanfang werden ausgeschlossen.
+  Sortierung: Prefix-Treffer zuerst, dann Häufigkeit oder Datei-vor-Alias, dann alphabetisch. Vorschlagsliste auf 30 Einträge begrenzt. Pfeil-Tasten navigieren, Enter/Tab wählt, Esc schließt.
+- **Hilfe-Dialog erweitert** ([4T-0058](Projektmanagement/Aufgaben/4T-0058-hilfe-dialog-wiki-link-tag.md)): Fünf neue Funktions-Einträge (Block-Anker, Autocomplete in der Gruppe Bearbeitung; Wiki-Link-Anker, Wiki-Embeds, Tags in der Gruppe Navigation) und ein neuer Tastenkürzel-Eintrag für `Strg+Umschalt+T`. In allen fünf Sprachen.
+
+### Geändert
+
+- **Versions-Bump** 0.16.0 → 0.17.0 ([package.json](package.json)).
+- **Neue Dependency**: `@codemirror/autocomplete@^6.20.2` für das Autocomplete-Framework.
+- **Wiki-Link-Parser** in [src/main/preload.js](src/main/preload.js): erkennt zusätzlich Heading- und Block-Anker (`#Heading`, `#^id`). Tokenisierung trennt Pfad, Anker und Label sauber. Neuer `blockAnchorsPlugin` für `^id` am Zeilenende, neuer `wikiEmbedsPlugin` für `![[…]]`, neuer `tagsPlugin` für `#tag`.
+- **Backlinks-Index** ([src/main/backlinks.js](src/main/backlinks.js)): `parseFile` liefert jetzt `{ hits, aliases, headings, blockIds, tags }`. Neue Maps `anchorsPerFile`, `tagsPerFile` und inverse `tagMap` pro Wurzel; Watcher pflegt sie bei add/change/unlink. Drei neue Lookup-Funktionen für das Autocomplete (Wiki-Targets, Anker, Tags).
+- **Markdown-Linter aus 4T-0020**: prüft zusätzlich Wiki-Link-Anker-Ziele (Heading-Slugs und Block-IDs der Ziel-Datei).
+- **Tag-Sidebar mit Token-basierter Race-Abwehr**: bei mehrfachen parallelen Render-Triggern (Tab-Wechsel, Toggle, Auto-Reload, IPC-Antwort) wird nur das jeweils letzte Render-Ergebnis übernommen.
+
+### Behoben
+
+- **Race in der Tag-Sidebar-Render-Pipeline** (4T-0056): bei mehrfachen parallelen Triggern wurden Tags doppelt bis vierfach gerendert. Ursache: async-Render zwischen Container-leeren und Listen-Anhängen. Fix: Token-basierte Validierung im async-Pfad, IPC-Antworten verworfen, wenn der Render-Token zwischenzeitlich gewechselt hat.
+- **Pseudo-Hierarchie-Einrückung in der Tag-Sidebar** (4T-0056): Tags mit `/` wurden visuell als verschachtelte Liste eingerückt, was bei mehreren Top-Level-Tags zu uneinheitlichen ersten Tags führte. Fix: flache Darstellung, Hierarchie nur über den Tag-Text sichtbar.
+
+### i18n
+
+- ~30 neue JSON-Keys über die fünf Sprachen (DE, EN, FR, ES, IT):
+  - Embeds: `embed.notFound`, `embed.depthExceeded`.
+  - Linter: `linter.brokenWikiAnchor.short`, `linter.brokenWikiAnchor.tooltip`; `linter.brokenWikiLink.tooltip` aktualisiert.
+  - Tag-Sidebar: `menu.view.tags`, `tags.title`, `tags.toggle`, `tags.toggleTitle`, `tags.filterPlaceholder`, `tags.empty`, `tags.noMatch`, `tags.unavailable`, `tags.indexing`, `tags.oversized`, `tags.back`, `tags.noFiles`.
+  - Autocomplete: `autocomplete.detail.file`, `autocomplete.detail.alias`, `autocomplete.detail.heading`, `autocomplete.detail.blockId`, `autocomplete.detail.tag`.
+  - Hilfe-Dialog: `help.feature.blockAnchors`, `help.feature.autocomplete`, `help.feature.wikiLinkAnchors`, `help.feature.wikiEmbeds`, `help.feature.tags`, `help.shortcut.toggleTags`.
+
 ## [0.16.0] - 2026-05-20 — Frontmatter, Aliases und Properties
 
 Feature-Release. Erstes Etappenziel aus dem Meta-Plan „Obsidian-Parity-Roadmap" (sieben Sub-Epics, 0.16.0 bis 1.0.0). Epic [3E-0010](Projektmanagement/Aufgaben/3E-0010-frontmatter-aliases-properties.md) umgesetzt in den Tasks [4T-0049](Projektmanagement/Aufgaben/4T-0049-frontmatter-erkennung.md) (Frontmatter-Erkennung), [4T-0050](Projektmanagement/Aufgaben/4T-0050-aliases-aufloesung.md) (Aliases-Auflösung), [4T-0051](Projektmanagement/Aufgaben/4T-0051-properties-editor.md) (Properties-Sidebar), [4T-0052](Projektmanagement/Aufgaben/4T-0052-hilfe-dialog-frontmatter-properties.md) (Hilfe-Dialog) und Abschluss-Sammeltask [4T-0053](Projektmanagement/Aufgaben/4T-0053-changelog-release-0160.md).
