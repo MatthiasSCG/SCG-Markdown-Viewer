@@ -5509,6 +5509,9 @@ const HELP_FEATURE_GROUPS = [
       // 4T-0052 (Epic 3E-0010): Frontmatter-Erkennung und Properties-Sidebar.
       'help.feature.frontmatter',
       'help.feature.properties',
+      // 4T-0058 (Epic 3E-0011): Block-Anker schreiben und Autocomplete fuer [[ und #.
+      'help.feature.blockAnchors',
+      'help.feature.autocomplete',
     ],
   },
   {
@@ -5536,6 +5539,10 @@ const HELP_FEATURE_GROUPS = [
       'help.feature.backlinks',
       // 4T-0052 (Epic 3E-0010): Aliases als alternative Wiki-Link-Ziele.
       'help.feature.aliases',
+      // 4T-0058 (Epic 3E-0011): Wiki-Link-Anker, Wiki-Embeds und Tag-System.
+      'help.feature.wikiLinkAnchors',
+      'help.feature.wikiEmbeds',
+      'help.feature.tags',
       'help.feature.anchorLinks',
       'help.feature.links',
     ],
@@ -5571,6 +5578,8 @@ const HELP_SHORTCUTS = [
   { keys: ['Strg+Umschalt+B'], descKey: 'help.shortcut.toggleBacklinks' },
   // 4T-0052 (Epic 3E-0010): Properties-Sidebar-Toggle.
   { keys: ['Strg+;'], descKey: 'help.shortcut.toggleProperties' },
+  // 4T-0058 (Epic 3E-0011): Tag-Sidebar-Toggle.
+  { keys: ['Strg+Umschalt+T'], descKey: 'help.shortcut.toggleTags' },
   { keys: ['Strg+Umschalt+['], descKey: 'help.shortcut.foldRegion' },
   { keys: ['Strg+Umschalt+]'], descKey: 'help.shortcut.unfoldRegion' },
   { keys: ['Tab', 'Umschalt+Tab'], descKey: 'help.shortcut.tabIndent' },
