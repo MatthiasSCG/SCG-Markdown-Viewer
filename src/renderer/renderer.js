@@ -4854,6 +4854,9 @@ const HELP_FEATURE_GROUPS = [
       'help.feature.scgTable',
       // 4T-0047 (Epic 3E-0009): Sortierung, Status-Hervorhebung, Spalten-Default.
       'help.feature.scgTableExtended',
+      // 4T-0052 (Epic 3E-0010): Frontmatter-Erkennung und Properties-Sidebar.
+      'help.feature.frontmatter',
+      'help.feature.properties',
     ],
   },
   {
@@ -4879,6 +4882,8 @@ const HELP_FEATURE_GROUPS = [
       'help.feature.multiWindow',
       'help.feature.outline',
       'help.feature.backlinks',
+      // 4T-0052 (Epic 3E-0010): Aliases als alternative Wiki-Link-Ziele.
+      'help.feature.aliases',
       'help.feature.anchorLinks',
       'help.feature.links',
     ],
@@ -4912,6 +4917,8 @@ const HELP_SHORTCUTS = [
   { keys: ['Strg+Umschalt+F'], descKey: 'help.shortcut.focusMode' },
   { keys: ['Strg+Umschalt+O'], descKey: 'help.shortcut.toggleOutline' },
   { keys: ['Strg+Umschalt+B'], descKey: 'help.shortcut.toggleBacklinks' },
+  // 4T-0052 (Epic 3E-0010): Properties-Sidebar-Toggle.
+  { keys: ['Strg+;'], descKey: 'help.shortcut.toggleProperties' },
   { keys: ['Strg+Umschalt+['], descKey: 'help.shortcut.foldRegion' },
   { keys: ['Strg+Umschalt+]'], descKey: 'help.shortcut.unfoldRegion' },
   { keys: ['Tab', 'Umschalt+Tab'], descKey: 'help.shortcut.tabIndent' },

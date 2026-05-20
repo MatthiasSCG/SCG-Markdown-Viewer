@@ -1,6 +1,6 @@
 # 4T-0051 — Properties-Editor für Frontmatter-Felder
 
-**Status**: Erledigt — 2026-05-20, Test bestanden. Umbau von Modal auf Sidebar-Sektion und drei Folge-Fixes (Race, Auto-Save-Alignment, Menü-Häkchen) inbegriffen.
+**Status**: Erledigt — 2026-05-20, gepushed (Commit `903448b`). Umbau von Modal auf Sidebar-Sektion und drei Folge-Fixes (Race, Auto-Save-Alignment, Menü-Häkchen) inbegriffen.
 **Epic**: [3E-0010 — Frontmatter, Aliases und Properties](3E-0010-frontmatter-aliases-properties.md)
 **Zielversion**: 0.16.0
 **Setzt voraus**: [4T-0049 — Frontmatter-Erkennung und Render-Ausschluss](4T-0049-frontmatter-erkennung.md)

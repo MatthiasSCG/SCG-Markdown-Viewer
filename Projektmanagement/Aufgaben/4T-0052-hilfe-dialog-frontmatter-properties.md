@@ -1,6 +1,6 @@
 # 4T-0052 — Hilfe-Dialog um Frontmatter, Aliases und Properties erweitern
 
-**Status**: Offen
+**Status**: Erledigt — 2026-05-20, Test bestanden
 **Epic**: [3E-0010 — Frontmatter, Aliases und Properties](3E-0010-frontmatter-aliases-properties.md)
 **Zielversion**: 0.16.0
 **Setzt voraus**: [4T-0049](4T-0049-frontmatter-erkennung.md), [4T-0050](4T-0050-aliases-aufloesung.md), [4T-0051](4T-0051-properties-editor.md)
@@ -76,4 +76,26 @@ In Gruppe „Bearbeitung": neue Einträge nach den bestehenden, in der Reihenfol
 
 ## Lösung
 
-(noch leer, wird nach Abschluss der Umsetzung gefüllt)
+Umgesetzt am 2026-05-20, Test bestanden.
+
+### Code-Änderungen
+
+- **[src/renderer/renderer.js](../../src/renderer/renderer.js)**:
+  - `HELP_FEATURE_GROUPS` Gruppe `help.group.editing`: neue Einträge `help.feature.frontmatter` und `help.feature.properties` nach `help.feature.scgTableExtended`. Inhaltlich passt das Cluster: alle vier sind Bearbeitungs-/Doku-Themen rund um Frontmatter.
+  - Gruppe `help.group.navigation`: neuer Eintrag `help.feature.aliases` zwischen `backlinks` und `anchorLinks`. Aliases sind ein Vernetzungs-Mechanismus, gehören thematisch zur Navigation.
+  - `HELP_SHORTCUTS`: neuer Eintrag `{ keys: ['Strg+;'], descKey: 'help.shortcut.toggleProperties' }`, eingereiht nach Outline- und Backlinks-Toggle, weil die drei Sidebar-Sektionen eine Gruppe bilden.
+- **i18n (DE/EN/FR/ES/IT)**: vier neue Keys pro Sprache:
+  - `help.feature.frontmatter`: Beschreibung der Frontmatter-Erkennung (4T-0049).
+  - `help.feature.properties`: Beschreibung der Properties-Sidebar (4T-0051) mit Verweis auf Menüpfad und Hotkey.
+  - `help.feature.aliases`: Beschreibung der Aliases-Auflösung (4T-0050) inklusive via-Alias-Tag in Backlinks.
+  - `help.shortcut.toggleProperties`: Kurzbeschreibung des Hotkeys, konsistent zu `toggleOutline` und `toggleBacklinks` formuliert.
+
+### Implementierungsdetails
+
+- Reihenfolge innerhalb der Gruppen wurde nach thematischer Nähe gewählt, nicht alphabetisch. Frontmatter und Properties direkt hintereinander, weil sie inhaltlich aufeinander aufbauen. Aliases bei den anderen Verlinkungs-Mechanismen.
+- Der Properties-Hotkey-Eintrag verweist explizit auf den Menüpfad „Ansicht → Properties", damit Nutzer den Strg+;-Bezug versteht und gleichzeitig die Maus-Alternative kennt.
+- Keine Änderungen an `HELP_FEATURE_GROUPS`-Gruppen-Schlüsseln oder `KEY_LABEL_KEY`: alle neuen Tasten (`Strg`, `;`) sind bereits abgedeckt.
+
+### Smoke-Test (2026-05-20)
+
+Vier Test-Punkte vom Nutzer verifiziert: zwei neue Einträge in „Bearbeitung", ein neuer Eintrag in „Navigation", neuer Hotkey-Eintrag in der Tastenkürzel-Tabelle, Sprachen- und Theme-Wechsel. Alle Punkte bestanden.

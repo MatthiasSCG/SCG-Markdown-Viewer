@@ -43,8 +43,8 @@ Die drei Punkte hängen zusammen: Frontmatter ist die Grundlage, Aliases sind ei
 
 - [x] [4T-0049 — Frontmatter-Erkennung und Render-Ausschluss](4T-0049-frontmatter-erkennung.md) — erledigt 2026-05-20, Commit `9d9508c`, gepushed
 - [x] [4T-0050 — Aliases-Auflösung in Wiki-Links und Backlinks](4T-0050-aliases-aufloesung.md) — erledigt 2026-05-20, Commit `4c52b72`, gepushed
-- [x] [4T-0051 — Properties-Editor für Frontmatter-Felder](4T-0051-properties-editor.md) — erledigt 2026-05-20, als Sidebar-Sektion statt Modal umgesetzt
-- [ ] [4T-0052 — Hilfe-Dialog um Frontmatter, Aliases und Properties erweitern](4T-0052-hilfe-dialog-frontmatter-properties.md)
+- [x] [4T-0051 — Properties-Editor für Frontmatter-Felder](4T-0051-properties-editor.md) — erledigt 2026-05-20, Commit `903448b`, gepushed; als Sidebar-Sektion statt Modal umgesetzt
+- [x] [4T-0052 — Hilfe-Dialog um Frontmatter, Aliases und Properties erweitern](4T-0052-hilfe-dialog-frontmatter-properties.md) — erledigt 2026-05-20
 - [ ] [4T-0053 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.16.0](4T-0053-changelog-release-0160.md)
 
 ## Architekturentscheidungen
