@@ -56,7 +56,7 @@ Beide Mechanismen teilen sich technisch ein Pattern: ein Trigger-Zeichen im Edit
 - [x] [4T-0056 — Tag-System: Parser, Index und Sidebar](4T-0056-tag-system.md) — erledigt 2026-05-20, Commit `0215393`, gepushed
 - [x] [4T-0057 — Autocomplete-Framework für `[[` und `#`](4T-0057-autocomplete-framework.md) — erledigt 2026-05-20, Commit `4804b63`, gepushed
 - [x] [4T-0058 — Hilfe-Dialog um Wiki-Link-Ausbau und Tag-System erweitern](4T-0058-hilfe-dialog-wiki-link-tag.md) — erledigt 2026-05-20, Commit `1d70005`, gepushed
-- [x] [4T-0059 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.17.0](4T-0059-changelog-release-0170.md) — erledigt 2026-05-20
+- [x] [4T-0059 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.17.0](4T-0059-changelog-release-0170.md) — erledigt 2026-05-20, Commit `b76e761`, Tag `v0.17.0` als Latest auf GitHub
 
 **Schnitt-Entscheidung zum Epic-Start (2026-05-20):** Linter-Erweiterung (Heading- und Block-Anker-Prüfung) wurde mit Task 1 (Wiki-Link-Parser) zusammengelegt, weil beide denselben Parser-Pfad anpassen und der Linter eine kleine Folge-Änderung ist. Damit sechs Tasks statt der ursprünglich vorgesehenen sieben.
 
