@@ -267,5 +267,7 @@
   "linter.missingAltText.short": "Testo alternativo mancante",
   "linter.missingAltText.tooltip": "Questa immagine non ha testo alternativo. Aggiungere una breve descrizione per l'accessibilità.",
   "linter.brokenWikiLink.short": "Destinazione del collegamento wiki non trovata",
-  "linter.brokenWikiLink.tooltip": "Destinazione «{target}» non trovata nell'ambito di ricerca (cartella del file e 2 livelli di sottocartelle)."
+  "linter.brokenWikiLink.tooltip": "Destinazione «{target}» non trovata nell'ambito di ricerca (cartella del file e 2 livelli di sottocartelle).",
+  "linter.brokenWikiAnchor.short": "Ancora nella destinazione del collegamento wiki non trovata",
+  "linter.brokenWikiAnchor.tooltip": "Il file di destinazione di «{target}» esiste, ma l'ancora di titolo o blocco non è stata trovata."
 }

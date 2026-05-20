@@ -267,5 +267,7 @@
   "linter.missingAltText.short": "Missing alt text",
   "linter.missingAltText.tooltip": "This image has no alt text. Add a short description for accessibility.",
   "linter.brokenWikiLink.short": "Wiki link target not found",
-  "linter.brokenWikiLink.tooltip": "Target '{target}' not found in search scope (file folder and 2 sub-folder levels)."
+  "linter.brokenWikiLink.tooltip": "Target '{target}' not found in search scope (file folder and 2 sub-folder levels).",
+  "linter.brokenWikiAnchor.short": "Anchor in wiki link target not found",
+  "linter.brokenWikiAnchor.tooltip": "Target file in '{target}' exists, but the heading or block anchor was not found there."
 }

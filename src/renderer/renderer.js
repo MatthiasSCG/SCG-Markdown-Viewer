@@ -1306,6 +1306,11 @@ const LINT_RULES = {
   emptyLinkText: { className: 'cm-linter-mark cm-linter-empty-link-text' },
   missingAltText: { className: 'cm-linter-mark cm-linter-missing-alt-text' },
   brokenWikiLink: { className: 'cm-linter-mark cm-linter-broken-wiki-link' },
+  // 4T-0054 (Epic 3E-0011): broken Heading-/Block-Anker im Wiki-Link.
+  // Selbe Decoration-CSS-Klasse wie brokenWikiLink (visuell identisch),
+  // eigener Regel-Identifier fuer den Tooltip (unterscheidet 'Datei
+  // existiert nicht' von 'Datei existiert, Anker nicht').
+  brokenWikiAnchor: { className: 'cm-linter-mark cm-linter-broken-wiki-link' },
 };
 
 function makeLintMark(ruleId) {
@@ -1407,9 +1412,12 @@ async function runLint(view) {
     pushRange(from, to, isImage ? 'missingAltText' : 'emptyLinkText');
   }
 
-  // Regel 4: broken-wiki-link. Erst alle Wiki-Link-Matches im Dokument
-  // sammeln, dann genau einen IPC-Roundtrip an den Main schicken, dort
-  // gegen den Backlinks-Index pruefen.
+  // Regel 4 + 5: broken-wiki-link und broken-wiki-anchor. Erst alle Wiki-
+  // Link-Matches im Dokument sammeln, dann genau einen IPC-Roundtrip an
+  // den Main schicken, dort gegen den Backlinks-Index pruefen.
+  // 4T-0054: targets enthalten jetzt auch Anker (z.B. 'Datei#Heading'
+  // oder 'Datei#^block-id'). Main trennt sie selbst und prueft sowohl
+  // Datei-Existenz als auch Heading-Slug bzw. Block-ID.
   const wikiMatches = [];
   for (const m of text.matchAll(LINT_WIKI_RE)) {
     const from = m.index;
@@ -1421,19 +1429,26 @@ async function runLint(view) {
     wikiMatches.push({ from, to, target });
   }
   if (wikiMatches.length > 0 && tab.path) {
-    const basenames = [...new Set(wikiMatches.map((w) => w.target))];
+    const targets = [...new Set(wikiMatches.map((w) => w.target))];
     try {
-      const result = await api.resolveWikiTargets(tab.path, basenames);
+      const result = await api.resolveWikiTargets(tab.path, targets);
       if (result && result.status === 'ready') {
         const existingSet = new Set(result.existing || []);
+        const brokenAnchorSet = new Set(result.brokenAnchor || []);
         for (const w of wikiMatches) {
-          if (!existingSet.has(w.target)) pushRange(w.from, w.to, 'brokenWikiLink');
+          if (existingSet.has(w.target)) continue;
+          if (brokenAnchorSet.has(w.target)) {
+            // 4T-0054: Datei existiert, aber Heading-/Block-Anker nicht.
+            pushRange(w.from, w.to, 'brokenWikiAnchor');
+          } else {
+            pushRange(w.from, w.to, 'brokenWikiLink');
+          }
         }
       }
-      // Bei 'indexing' / 'unavailable': Regel 4 wird in diesem Lauf
+      // Bei 'indexing' / 'unavailable': Regel 4/5 wird in diesem Lauf
       // unterdrueckt, die anderen drei Regeln werden trotzdem angewendet.
     } catch {
-      // IPC-Fehler ignorieren; Regel 4 entfaellt fuer diesen Lauf.
+      // IPC-Fehler ignorieren; Regel 4/5 entfaellt fuer diesen Lauf.
     }
   }
 
@@ -1487,7 +1502,7 @@ function buildLintTooltipDom(ruleId, target) {
   const desc = document.createElement('div');
   desc.className = 'cm-linter-tooltip-desc';
   let text = t(`linter.${ruleId}.tooltip`);
-  if (ruleId === 'brokenWikiLink') {
+  if (ruleId === 'brokenWikiLink' || ruleId === 'brokenWikiAnchor') {
     const cleaned = target.replace(/^\[\[|\]\]$/g, '').split('|')[0].trim();
     text = text.replace('{target}', cleaned);
   }
@@ -3705,18 +3720,25 @@ async function handleRenderedClick(e, paneIdx) {
     return;
   }
   if (href.startsWith('#')) {
-    const target = getPaneEls(paneIdx).renderedHtml.querySelector(href);
-    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // 4T-0054: Anker im selben Dokument. getElementById ist robust gegen
+    // Sonderzeichen im Slug (z.B. Umlaute); querySelector(href) wuerde an
+    // Sonderzeichen scheitern, wenn sie in CSS escape-pflichtig sind.
+    scrollToAnchorInPane(paneIdx, href.slice(1));
     return;
   }
   if (/^[a-z]+:/i.test(href)) {
     if (href.startsWith('mailto:')) api.openExternal(href);
     return;
   }
+  // 4T-0054: Pfad und Anker trennen. Nach dem Oeffnen der Ziel-Datei
+  // scrollen wir zum Anker (Heading-Slug oder Block-ID).
+  const hashIdx = href.indexOf('#');
+  const pathPart = hashIdx >= 0 ? href.slice(0, hashIdx) : href;
+  const anchorPart = hashIdx >= 0 ? href.slice(hashIdx + 1) : '';
   const pane = state.panes[paneIdx];
   if (!pane || pane.activeIndex < 0) return;
   const baseTab = pane.tabs[pane.activeIndex];
-  const resolved = await api.resolveLink(baseTab.path, href);
+  const resolved = await api.resolveLink(baseTab.path, pathPart);
   if (!resolved) return;
   const exists = await api.fileExists(resolved);
   if (!exists) {
@@ -3727,6 +3749,7 @@ async function handleRenderedClick(e, paneIdx) {
       const aliasTarget = await tryResolveByAlias(baseTab.path, resolved);
       if (aliasTarget) {
         await openInPane(paneIdx, [aliasTarget]);
+        if (anchorPart) scrollToAnchorAfterOpen(paneIdx, anchorPart);
       }
     }
     return;
@@ -3734,6 +3757,28 @@ async function handleRenderedClick(e, paneIdx) {
   const isMd = await api.isMarkdownPath(resolved);
   if (!isMd) return;
   await openInPane(paneIdx, [resolved]);
+  if (anchorPart) scrollToAnchorAfterOpen(paneIdx, anchorPart);
+}
+
+// 4T-0054: Nach dem Oeffnen einer Datei (Klick auf [[Datei#Anker]]) zum
+// Anker scrollen. Render-Pane braucht einen Repaint, daher Verzoegerung;
+// 100 ms reicht typischerweise auch fuer groessere Dokumente.
+function scrollToAnchorAfterOpen(paneIdx, anchorId) {
+  setTimeout(() => scrollToAnchorInPane(paneIdx, anchorId), 100);
+}
+
+function scrollToAnchorInPane(paneIdx, anchorId) {
+  const els = getPaneEls(paneIdx);
+  if (!els || !els.renderedHtml || !anchorId) return;
+  try {
+    const escaped = (typeof CSS !== 'undefined' && CSS.escape)
+      ? CSS.escape(anchorId)
+      : anchorId.replace(/(["\\])/g, '\\$1');
+    const target = els.renderedHtml.querySelector(`[id="${escaped}"]`);
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch {
+    // Ungueltiger Selector — defensive Aufgabe, kein UI-Effekt.
+  }
 }
 
 // 4T-0050: Hilfsfunktion fuer den Wiki-Link-Alias-Fallback. Bekommt den

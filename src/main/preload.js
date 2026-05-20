@@ -297,6 +297,19 @@ md.use(markdownItKatex, {
 // Wiki-Link-Plugin: [[Ziel]] und [[Ziel|Label]] -> <a href="Ziel.md">Label</a>.
 // Wenn das Ziel bereits eine Endung hat, wird .md nicht doppelt angehängt.
 // Klick-Handling im Renderer ist identisch zu normalen Markdown-Links.
+//
+// 4T-0054 (Epic 3E-0011): Erweitert um Heading- und Block-Anker.
+// Akzeptierte Formen:
+//   [[Datei]]                — Datei.md
+//   [[Datei|Label]]          — Datei.md mit eigenem Linktext
+//   [[Datei#Heading]]        — Datei.md, scrollt zum Heading-Slug
+//   [[Datei#^block-id]]      — Datei.md, scrollt zum Block mit ^block-id
+//   [[#Heading]]             — selbes Dokument, scrollt zum Heading
+//   [[#^block-id]]           — selbes Dokument, scrollt zum Block
+// Anker hinter '#' werden:
+//   - mit '^' am Anfang  -> Block-Anker, ID wird direkt verwendet
+//     (Slug-Validierung: \p{L}\p{N}_- inkl. Umlaute).
+//   - sonst              -> Heading-Anker, ueber githubLikeSlug normalisiert.
 function wikiLinksPlugin(mdInstance) {
   function tokenize(state, silent) {
     const start = state.pos;
@@ -310,18 +323,55 @@ function wikiLinksPlugin(mdInstance) {
     if (inner.length === 0 || inner.includes('\n') || inner.includes('[')) return false;
 
     const pipeIdx = inner.indexOf('|');
-    const target = (pipeIdx >= 0 ? inner.slice(0, pipeIdx) : inner).trim();
-    const label = (pipeIdx >= 0 ? inner.slice(pipeIdx + 1) : inner).trim();
-    if (!target) return false;
+    const targetRaw = (pipeIdx >= 0 ? inner.slice(0, pipeIdx) : inner).trim();
+    const labelRaw = (pipeIdx >= 0 ? inner.slice(pipeIdx + 1) : inner).trim();
+    if (!targetRaw) return false;
+
+    // 4T-0054: Anker-Trennung. '#' direkt am Anfang -> reiner Anker.
+    const hashIdx = targetRaw.indexOf('#');
+    let pathPart = targetRaw;
+    let anchorRaw = '';
+    if (hashIdx >= 0) {
+      pathPart = targetRaw.slice(0, hashIdx);
+      anchorRaw = targetRaw.slice(hashIdx + 1);
+    }
+
+    // Anker-Slug bauen. Block-Anker hat '^'-Prefix.
+    let anchorPart = '';
+    if (anchorRaw) {
+      if (anchorRaw.startsWith('^')) {
+        const id = anchorRaw.slice(1).trim();
+        if (/^[\p{L}\p{N}_-]+$/u.test(id)) {
+          anchorPart = '#' + id;
+        }
+        // Bei ungueltiger Block-ID: Anker faellt weg, Link zeigt nur auf Datei.
+      } else {
+        const slug = githubLikeSlug(anchorRaw);
+        if (slug && slug !== 'section') anchorPart = '#' + slug;
+        else if (slug === 'section') anchorPart = '#' + slug;
+      }
+    }
+
+    // Pfad: bei reinem Anker (kein Pfad-Teil) bleibt es nur beim Anker.
+    let href;
+    if (pathPart) {
+      const hasExtension = /\.[a-z0-9]{1,8}$/i.test(pathPart);
+      href = hasExtension ? pathPart : `${pathPart}.md`;
+      href += anchorPart;
+    } else if (anchorPart) {
+      // Reiner Anker im selben Dokument.
+      href = anchorPart;
+    } else {
+      // Weder Pfad noch Anker — kein gueltiger Wiki-Link.
+      return false;
+    }
 
     if (!silent) {
-      const hasExtension = /\.[a-z0-9]{1,8}$/i.test(target);
-      const href = hasExtension ? target : `${target}.md`;
       const open = state.push('link_open', 'a', 1);
       open.attrSet('href', href);
       open.attrSet('class', 'wikilink');
       const text = state.push('text', '', 0);
-      text.content = label;
+      text.content = labelRaw;
       state.push('link_close', 'a', -1);
     }
 
@@ -331,6 +381,50 @@ function wikiLinksPlugin(mdInstance) {
   mdInstance.inline.ruler.before('link', 'wikilink', tokenize);
 }
 md.use(wikiLinksPlugin);
+
+// 4T-0054 (Epic 3E-0011): Block-Anker-Syntax `^block-id` am Zeilenende.
+// Hängt id-Attribut an das umschließende Block-Open-Token (paragraph_open,
+// blockquote_open, list_item_open, td_open, etc.) und entfernt das Marker-
+// Snippet aus dem sichtbaren Text. Slug-Validierung: \p{L}\p{N}_- (inkl.
+// Umlaute), konsistent zur Block-Anker-Akzeptanz im Wiki-Link-Parser.
+function blockAnchorsPlugin(mdInstance) {
+  const BLOCK_ANCHOR_RE = /\s+\^([\p{L}\p{N}_-]+)\s*$/u;
+  mdInstance.core.ruler.push('blockAnchors', (state) => {
+    const tokens = state.tokens;
+    for (let i = 0; i < tokens.length; i++) {
+      const token = tokens[i];
+      if (token.type !== 'inline' || !token.children) continue;
+      // Letzten Text-Child finden, der nicht leer ist.
+      let lastText = null;
+      for (let j = token.children.length - 1; j >= 0; j--) {
+        const child = token.children[j];
+        if (child.type === 'text' && child.content && child.content.length > 0) {
+          lastText = child;
+          break;
+        }
+        // Nicht-Text oder leere Text-Knoten ueberspringen; aber sobald ein
+        // 'echtes' Element (z.B. link_close, em_close, code_inline) kommt,
+        // ist der ^id nicht am Zeilenende -> abbrechen.
+        if (child.type !== 'text') { lastText = null; break; }
+      }
+      if (!lastText) continue;
+      const match = lastText.content.match(BLOCK_ANCHOR_RE);
+      if (!match) continue;
+      const id = match[1];
+      // Vorheriges Block-Open-Token suchen (nesting === 1, type !== 'inline').
+      for (let k = i - 1; k >= 0; k--) {
+        const prev = tokens[k];
+        if (prev.nesting === 1 && prev.type !== 'inline') {
+          if (!prev.attrGet('id')) prev.attrSet('id', id);
+          break;
+        }
+      }
+      // ^id-Snippet aus dem sichtbaren Text entfernen.
+      lastText.content = lastText.content.slice(0, match.index);
+    }
+  });
+}
+md.use(blockAnchorsPlugin);
 
 // 4T-0041 (Epic 3E-0008): Zweite markdown-it-Instanz fuer den HTML-Konverter.
 // Unterschied zur Haupt-Instanz md: html=true, damit die vom Konverter
@@ -361,6 +455,8 @@ mdPortable.use(taskLists, { enabled: false, label: true });
 mdPortable.use(markdownItAnchor, { slugify: githubLikeSlug, tabIndex: false, permalink: false });
 mdPortable.use(markdownItKatex, { throwOnError: false, errorColor: '#cc0000' });
 mdPortable.use(wikiLinksPlugin);
+// 4T-0054: Block-Anker auch im portablen Export.
+mdPortable.use(blockAnchorsPlugin);
 
 // 4T-0034: scg-table — MediaWiki-aehnliche Tabellen-Syntax als Fenced-Code-
 // Block mit Sprach-Tag 'scg-table'. Stufe 1 des Epics 3E-0006: Basis-Tabelle

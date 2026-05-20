@@ -50,7 +50,7 @@ Beide Mechanismen teilen sich technisch ein Pattern: ein Trigger-Zeichen im Edit
 
 ## Untergeordnete Tasks
 
-- [ ] [4T-0054 — Wiki-Link-Parser für Heading- und Block-Anker (inkl. Linter-Erweiterung)](4T-0054-wiki-link-heading-block-anker.md)
+- [x] [4T-0054 — Wiki-Link-Parser für Heading- und Block-Anker (inkl. Linter-Erweiterung)](4T-0054-wiki-link-heading-block-anker.md) — erledigt 2026-05-20
 - [ ] [4T-0055 — Wiki-Embeds `![[…]]`](4T-0055-wiki-embeds.md)
 - [ ] [4T-0056 — Tag-System: Parser, Index und Sidebar](4T-0056-tag-system.md)
 - [ ] [4T-0057 — Autocomplete-Framework für `[[` und `#`](4T-0057-autocomplete-framework.md)

@@ -33,6 +33,29 @@ const WIKI_LINK_RE = /\[\[([^\]\n|]+?)(?:\|[^\]\n]*)?\]\]/g;
 // Backlinks-Index und Render-Pfad denselben Block-Bereich erkennen.
 const FRONTMATTER_END_LINE = /^(---|\.\.\.)\s*$/;
 
+// 4T-0054: Heading-Slug-Berechnung. Identisch zur githubLikeSlug-Funktion
+// in preload.js — duplizert, damit backlinks.js (Main-Modul) keine Preload-
+// Imports braucht. Bei einer spaeteren Helper-Konsolidierung kann das in
+// ein gemeinsames Modul gehoben werden.
+function githubLikeSlug(text) {
+  const normalized = String(text || '')
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^\p{L}\p{N}\-_]/gu, '');
+  return normalized || 'section';
+}
+
+// 4T-0054: ATX-Heading-Erkennung (1-6 Hashes plus mind. ein Leerzeichen).
+// Optionaler Trailing-Hash (`# Heading #`) wird abgeschnitten.
+const HEADING_RE = /^#{1,6}\s+(.+?)(?:\s+#{1,6})?\s*$/;
+// 4T-0054: Block-Anker am Zeilenende. \p{L}/\p{N} erlauben Umlaute und
+// Unicode-Buchstaben in der ID.
+const BLOCK_ANCHOR_RE = /\s+\^([\p{L}\p{N}_-]+)\s*$/u;
+// 4T-0054: Fenced-Code-Block-Marker fuer Wiki-Link-/Heading-Tracking.
+const FENCE_RE = /^\s{0,3}(```+|~~~+)/;
+
 // Relative Markdown-Links: [Text](pfad.md) oder (pfad.md#anker). Kein http:,
 // kein https:, kein mailto:, kein data:.
 const MD_LINK_RE = /\[[^\]\n]*\]\(([^)\s#?]+\.(?:md|markdown|mdown|mkd))(?:#([^)\s]+))?\)/gi;
@@ -113,7 +136,7 @@ function parseFile(filePath) {
   try {
     content = fs.readFileSync(filePath, 'utf8');
   } catch {
-    return { hits: [], aliases: [] };
+    return { hits: [], aliases: [], headings: [], blockIds: [] };
   }
   const dir = path.dirname(filePath);
   const lines = content.split(/\r?\n/);
@@ -146,9 +169,48 @@ function parseFile(filePath) {
   }
 
   const out = [];
+  // 4T-0054: Pro Datei zusaetzlich Heading-Slugs und Block-IDs sammeln,
+  // damit existingWikiTargets Anker-Prueferungen machen kann. Fenced-
+  // Code-Bloecke werden uebersprungen, damit Markdown-Beispiele im Code
+  // nicht als echte Headings/Block-IDs zaehlen.
+  const headings = [];
+  const blockIds = [];
+  let inFence = false;
+  let fenceChar = null;
+
   for (let i = fmBodyStartLine; i < lines.length; i++) {
     const line = lines[i];
     const lineNum = i + 1;
+
+    // Fenced-Code-Tracking.
+    const fenceMatch = line.match(FENCE_RE);
+    if (fenceMatch) {
+      const marker = fenceMatch[1];
+      const ch = marker.charAt(0);
+      if (!inFence) {
+        inFence = true;
+        fenceChar = ch;
+      } else if (ch === fenceChar) {
+        inFence = false;
+        fenceChar = null;
+      }
+      continue;
+    }
+    if (inFence) continue;
+
+    // 4T-0054: Heading-Erkennung (ATX).
+    const headingMatch = line.match(HEADING_RE);
+    if (headingMatch) {
+      const slug = githubLikeSlug(headingMatch[1]);
+      if (slug) headings.push(slug);
+    }
+
+    // 4T-0054: Block-Anker am Zeilenende.
+    const blockMatch = line.match(BLOCK_ANCHOR_RE);
+    if (blockMatch) {
+      blockIds.push(blockMatch[1]);
+    }
+
     // Wiki-Links
     WIKI_LINK_RE.lastIndex = 0;
     let m;
@@ -156,15 +218,17 @@ function parseFile(filePath) {
       const target = m[1].trim();
       if (!target) continue;
       // Anker im Wiki-Link: [[Foo#anker]] -> ziel=Foo, anker=anker.
-      // Wir matchen das mit '#' im Inneren, weil unser Regex '|' bereits
-      // ausschliesst.
+      // Auch [[#Anker]] (reiner Anker im selben Doc) wird erkannt, aber
+      // als ausgehender Backlink uebersprungen — ein interner Anker ist
+      // kein Verweis auf eine andere Datei.
       let anker = null;
       let ziel = target;
       const hashIdx = target.indexOf('#');
-      if (hashIdx > 0) {
+      if (hashIdx >= 0) {
         anker = target.slice(hashIdx + 1).trim() || null;
         ziel = target.slice(0, hashIdx).trim();
       }
+      if (!ziel) continue; // 4T-0054: reiner Anker — kein externer Backlink
       out.push({
         zeile: lineNum,
         linkTyp: 'wiki',
@@ -197,7 +261,7 @@ function parseFile(filePath) {
       });
     }
   }
-  return { hits: out, aliases };
+  return { hits: out, aliases, headings, blockIds };
 }
 
 // 4T-0050: Normalisiert das aliases-Feld eines Frontmatter-Objekts zu einer
@@ -264,6 +328,10 @@ function ensureIndex(rootPath) {
     // Lookup beim Wiki-Link-Klick und im Linter.
     aliasesPerFile: new Map(),
     aliasMap: new Map(),
+    // 4T-0054: Heading-Slugs und Block-IDs pro Datei fuer Anker-Pruefung
+    // im Linter. Sets fuer O(1)-Lookup.
+    //   anchorsPerFile: Map<absPath, { headings: Set<slug>, blockIds: Set<id> }>
+    anchorsPerFile: new Map(),
     fileCount: 0,
     byteSize: 0,
     watcher: null,
@@ -290,6 +358,13 @@ function ensureIndex(rootPath) {
     if (parsed.aliases.length > 0) {
       entry.aliasesPerFile.set(f, parsed.aliases);
       addToAliasMap(entry, f, parsed.aliases);
+    }
+    // 4T-0054: Headings und Block-IDs pro Datei speichern.
+    if (parsed.headings.length > 0 || parsed.blockIds.length > 0) {
+      entry.anchorsPerFile.set(f, {
+        headings: new Set(parsed.headings),
+        blockIds: new Set(parsed.blockIds),
+      });
     }
   }
   entry.status = 'ready';
@@ -336,6 +411,8 @@ function onWatcherChange(entry, filePath, kind) {
         removeFromAliasMap(entry, filePath, prevAliases);
         entry.aliasesPerFile.delete(filePath);
       }
+      // 4T-0054: Anker-Map ebenfalls aufraeumen.
+      entry.anchorsPerFile.delete(filePath);
       // byteSize nur grob; wir laufen nicht jedesmal Vollscan, akzeptabel.
       scheduleInvalidate(entry);
     }
@@ -356,6 +433,17 @@ function onWatcherChange(entry, filePath, kind) {
     addToAliasMap(entry, filePath, parsed.aliases);
   } else {
     entry.aliasesPerFile.delete(filePath);
+  }
+  // 4T-0054: Anker-Map aktualisieren. Headings und Block-IDs koennen sich
+  // pro Datei aendern (neue Heading hinzugefuegt, Block-Anker geloescht);
+  // wir setzen die Sets jedesmal neu.
+  if (parsed.headings.length > 0 || parsed.blockIds.length > 0) {
+    entry.anchorsPerFile.set(filePath, {
+      headings: new Set(parsed.headings),
+      blockIds: new Set(parsed.blockIds),
+    });
+  } else {
+    entry.anchorsPerFile.delete(filePath);
   }
   scheduleInvalidate(entry);
 }
@@ -562,26 +650,88 @@ function fileBelongsToRoot(filePath, rootPath) {
 // vorhandener Index genutzt. Damit triggert der Linter keinen Index-Aufbau
 // neben dem ohnehin laufenden Backlinks-Panel-Pfad — das wuerde Refcount-
 // und Soft-Timer-Logik durcheinanderbringen.
-function existingWikiTargets(filePath, basenames) {
-  if (!filePath || !Array.isArray(basenames)) {
-    return { status: 'unavailable', existing: [] };
+function existingWikiTargets(filePath, targets) {
+  if (!filePath || !Array.isArray(targets)) {
+    return { status: 'unavailable', existing: [], brokenAnchor: [] };
   }
   const root = rootFor(filePath);
-  if (!root) return { status: 'unavailable', existing: [] };
+  if (!root) return { status: 'unavailable', existing: [], brokenAnchor: [] };
   const entry = indexes.get(root);
-  if (!entry) return { status: 'unavailable', existing: [] };
-  if (entry.status === 'oversized') return { status: 'unavailable', existing: [] };
-  if (entry.status === 'indexing') return { status: 'indexing', existing: [] };
+  if (!entry) return { status: 'unavailable', existing: [], brokenAnchor: [] };
+  if (entry.status === 'oversized') return { status: 'unavailable', existing: [], brokenAnchor: [] };
+  if (entry.status === 'indexing') return { status: 'indexing', existing: [], brokenAnchor: [] };
   const existing = [];
-  for (const name of basenames) {
-    if (typeof name !== 'string' || !name) continue;
-    // 4T-0050: Ein Wiki-Link-Basename gilt als 'existing', wenn er
-    // entweder direkt einer Datei entspricht oder als Alias gefuehrt wird.
-    if (resolveWikiLink(entry, name).length > 0 || filesByAlias(entry, name).length > 0) {
-      existing.push(name);
+  const brokenAnchor = [];
+  const activeFileAbs = path.resolve(filePath);
+
+  for (const target of targets) {
+    if (typeof target !== 'string' || !target) continue;
+    // 4T-0054: Anker-Trennung. '#' beendet den Pfad-Teil. Reiner Anker
+    // ('#Heading' oder '#^id') zaehlt gegen die aktive Datei selbst.
+    let basename = target;
+    let anchor = null;
+    const hashIdx = target.indexOf('#');
+    if (hashIdx >= 0) {
+      basename = target.slice(0, hashIdx);
+      anchor = target.slice(hashIdx + 1).trim() || null;
     }
+
+    // Reiner Anker: prueft gegen die aktive Datei.
+    if (!basename) {
+      if (anchor && anchorExistsInFile(entry, activeFileAbs, anchor)) {
+        existing.push(target);
+      } else if (anchor) {
+        brokenAnchor.push(target);
+      }
+      // Falls weder basename noch anchor: stiller Skip.
+      continue;
+    }
+
+    // 4T-0050: Datei direkt oder ueber Alias auflösen.
+    let candidates = resolveWikiLink(entry, basename);
+    if (candidates.length === 0) {
+      candidates = filesByAlias(entry, basename);
+    }
+    if (candidates.length === 0) {
+      // Datei existiert nicht — kein 'existing'-Eintrag, kein
+      // 'brokenAnchor'-Eintrag. Renderer markiert spaeter als broken-link.
+      continue;
+    }
+
+    if (!anchor) {
+      existing.push(target);
+      continue;
+    }
+
+    // 4T-0054: Anker pruefen. Es reicht, wenn EIN Kandidat den Anker fuehrt.
+    let anchorOk = false;
+    for (const candPath of candidates) {
+      if (anchorExistsInFile(entry, candPath, anchor)) {
+        anchorOk = true;
+        break;
+      }
+    }
+    if (anchorOk) existing.push(target);
+    else brokenAnchor.push(target);
   }
-  return { status: 'ready', existing };
+  return { status: 'ready', existing, brokenAnchor };
+}
+
+// 4T-0054: Prueft, ob die Datei einen Heading-Slug oder eine Block-ID
+// fuehrt, die dem Anker entspricht. Anker mit '^'-Prefix sind Block-IDs;
+// alle anderen werden via githubLikeSlug zu einem Slug normalisiert und
+// gegen die Heading-Slugs der Datei geprueft.
+function anchorExistsInFile(entry, filePath, anchor) {
+  if (!entry || !entry.anchorsPerFile) return false;
+  const meta = entry.anchorsPerFile.get(filePath);
+  if (!meta) return false;
+  if (typeof anchor !== 'string' || !anchor) return false;
+  if (anchor.startsWith('^')) {
+    const id = anchor.slice(1);
+    return meta.blockIds.has(id);
+  }
+  const slug = githubLikeSlug(anchor);
+  return meta.headings.has(slug);
 }
 
 // 4T-0050: Aufloesung eines Wiki-Link-Basenames ueber den Alias-Index.

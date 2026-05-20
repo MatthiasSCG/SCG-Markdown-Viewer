@@ -1,6 +1,6 @@
 # 4T-0054 — Wiki-Link-Parser für Heading- und Block-Anker (inkl. Linter)
 
-**Status**: Offen
+**Status**: Erledigt — 2026-05-20, Test bestanden
 **Epic**: [3E-0011 — Wiki-Link-Ausbau und Tag-System](3E-0011-wiki-link-ausbau-und-tag-system.md)
 **Zielversion**: 0.17.0
 
@@ -97,4 +97,39 @@ Aliases-Auswertung aus 4T-0050 bleibt unverändert.
 
 ## Lösung
 
-(noch leer, wird nach Abschluss der Umsetzung gefüllt)
+Umgesetzt am 2026-05-20, Test bestanden.
+
+### Code-Änderungen
+
+- **[src/main/preload.js](../../src/main/preload.js)**:
+  - `wikiLinksPlugin` umgebaut: Anker-Teil hinter `#` wird vom Pfad getrennt. Block-Anker (Prefix `^`) bekommt eine eigene Slug-Validierung (`\p{L}\p{N}_-` inkl. Umlaute); Heading-Anker läuft durch `githubLikeSlug`. Reine Anker im selben Dokument (`[[#Heading]]`, `[[#^id]]`) werden zu reinen `href="#..."`-Links. Sonderfall: weder Pfad noch Anker → kein gültiger Wiki-Link.
+  - Neue core rule `blockAnchorsPlugin`: erkennt `\s+\^([\p{L}\p{N}_-]+)\s*$` am Zeilenende eines Inline-Tokens, sucht das vorangegangene Block-Open-Token (paragraph_open, list_item_open, blockquote_open, td_open etc.) und setzt dort `id="<block-id>"`. Das `^id`-Snippet wird aus dem sichtbaren Text-Token entfernt.
+  - Beide Plugins werden auch für `mdPortable` (HTML-Export) registriert.
+- **[src/main/backlinks.js](../../src/main/backlinks.js)**:
+  - `parseFile` liefert jetzt `{ hits, aliases, headings, blockIds }`. Fenced-Code-Blöcke werden über einen `inFence`-Flag übersprungen, damit Markdown-Beispiele im Code nicht als echte Headings/Block-IDs zählen.
+  - Wiki-Link-Erkennung im Body: `[[#Anker]]` wird nicht mehr als ausgehender Backlink-Treffer aufgenommen (reiner Anker ist kein File-Bezug).
+  - Neue Map `anchorsPerFile: Map<absPath, { headings: Set, blockIds: Set }>` im Index; `ensureIndex` und `onWatcherChange` pflegen sie.
+  - `existingWikiTargets`-Signatur umgestellt: nimmt jetzt `targets`-Array von vollständigen Wiki-Link-Targets (mit Anker) entgegen und liefert `{ existing, brokenAnchor }`. Anker-Prüfung: Heading-Slug via `githubLikeSlug`-Lookup in der Heading-Set; Block-ID direkt in der BlockId-Set.
+  - Dupliziertes `githubLikeSlug` lokal (Main-Modul kann nicht aus preload importieren).
+- **[src/renderer/renderer.js](../../src/renderer/renderer.js)**:
+  - `LINT_RULES` um `brokenWikiAnchor` erweitert (selbe CSS-Klasse wie `brokenWikiLink`, eigener Regel-Identifier für den Tooltip).
+  - `runLint` schickt vollständige Targets (mit Anker) an `resolveWikiTargets`. Im Ergebnis wird zwischen `existing`, `brokenAnchor` und „weder noch" (= broken Datei) unterschieden.
+  - `buildLintTooltipDom` ersetzt den `{target}`-Platzhalter auch für `brokenWikiAnchor`.
+  - `handleRenderedClick` trennt Pfad und Anker. Bei `[[#...]]`-Links scrollt es direkt im aktiven Pane via neuer Helper-Funktion `scrollToAnchorInPane`. Bei `[[Datei#...]]` öffnet es die Datei und scrollt mit `setTimeout(100ms)` zum Anker.
+  - `scrollToAnchorInPane` und `scrollToAnchorAfterOpen` nutzen `CSS.escape` für robuste Selektor-Erzeugung (Umlaute und andere Sonderzeichen im Slug).
+- **i18n (DE/EN/FR/ES/IT)**: zwei neue Keys je Sprache (`linter.brokenWikiAnchor.short`, `linter.brokenWikiAnchor.tooltip`).
+- **[package.json](../../package.json)**: Version-Bump 0.16.0 → 0.17.0.
+
+### Implementierungsdetails
+
+- **Block-Anker-Position bei Listen**: das Plugin setzt den Anker am direkt vorangegangenen Block-Open-Token (das wäre bei Listen-Items typischerweise das `paragraph_open` innerhalb des `<li>`). Damit landet das `id`-Attribut auf dem `<p>`, was beim Scroll-Verhalten identisch zur `<li>`-Variante wirkt.
+- **Heading-Slug-Konsistenz**: derselbe `githubLikeSlug` wird in drei Stellen verwendet (preload Wiki-Link-Plugin, preload markdown-it-anchor für `<h*>`-IDs, backlinks für Index-Lookup). Mit dieser Konsistenz funktioniert der Click-to-Scroll-Pfad zuverlässig.
+- **Fenced-Code-Tracking in `parseFile`**: einfacher Linien-Modus mit Marker-Typ (`` ` `` vs. `~`), Verschachtelung wird nicht unterstützt (markdown-it-Pattern). Pragmatisch ausreichend; pathologische Fälle (verschachtelte Fenced-Codes mit unterschiedlichen Marker-Längen) bleiben theoretisch möglich, sind im Praxis-Workflow aber selten.
+- **Race-Vermeidung beim Scroll**: das `setTimeout(100ms)` nach `openInPane` ist ein pragmatischer Trade-off. Bei sehr großen Dokumenten könnte das Rendern länger dauern; bei zu schnellem Klick ist das Element noch nicht im DOM. Falls das im echten Workflow als Problem auftaucht, kann ein `MutationObserver` oder ein Render-Complete-Event eingeführt werden.
+- **Reine Anker `[[#x]]` werden nicht als Backlinks indexiert**: das ist eine bewusste Entscheidung — ein interner Anker ist kein Verweis auf eine andere Datei und sollte nicht in der Backlinks-Sidebar erscheinen.
+
+### Smoke-Test (2026-05-20)
+
+Zehn Test-Punkte vom Nutzer verifiziert: Heading-Anker (auch mit Umlaut), Block-Anker (`^id`-Marker im Render-Pane unsichtbar), Anker plus Label, Anker im selben Dokument, Linter-Unterscheidung zwischen broken-anchor und broken-link, gültige Anker ohne Marker, bestehende Wiki-Link- und Aliases-Funktionalität, Sprachwechsel. Alle Punkte bestanden.
+
+Zusätzlich behandelt: lokale `releases/SCG Markdown-0.16.0-*` wurden vor dem Versions-Bump versehentlich überschrieben und per `gh release download v0.16.0` aus dem GitHub-Asset wiederhergestellt (analog zum 4T-0049-Vorfall mit 0.15.0).
