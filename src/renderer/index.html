@@ -321,6 +321,22 @@
       </div>
     </div>
 
+    <!-- 4T-0050 (Epic 3E-0010): Alias-Disambiguation-Dialog. Wird gezeigt,
+         wenn ein Wiki-Link auf einen Alias zeigt, den mehrere Dateien im
+         Suchraum fuehren. Inhalt (Titel-Alias und Kandidaten-Liste) wird
+         zur Laufzeit pro Aufruf befuellt. -->
+    <div id="alias-modal" class="alias-modal" hidden>
+      <div class="alias-modal-backdrop"></div>
+      <div class="alias-modal-content" role="dialog" aria-modal="true" aria-labelledby="alias-title">
+        <h2 id="alias-title" data-i18n="alias.dialogTitle">Welche Datei meinst du?</h2>
+        <p id="alias-description" class="alias-description"></p>
+        <ul id="alias-candidates" class="alias-candidates"></ul>
+        <div class="alias-buttons">
+          <button id="btn-alias-cancel" class="btn" data-i18n="alias.cancel">Abbrechen</button>
+        </div>
+      </div>
+    </div>
+
     <script type="module" src="renderer.bundle.js"></script>
   </body>
 </html>

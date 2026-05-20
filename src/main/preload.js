@@ -896,6 +896,11 @@ contextBridge.exposeInMainWorld('api', {
   // 4T-0020: Batch-Lookup fuer den Markdown-Linter (broken-wiki-link).
   resolveWikiTargets: (filePath, basenames) =>
     ipcRenderer.invoke('linter:resolveWikiTargets', { filePath, basenames }),
+  // 4T-0050: Wiki-Link-Klick mit Alias-Fallback. Renderer ruft das auf,
+  // wenn die direkte Datei nicht existiert; Antwort enthaelt Kandidaten-
+  // Liste und optional den aufloesenden Alias-Text.
+  resolveWikiTargetByAlias: (filePath, basename) =>
+    ipcRenderer.invoke('wikiLink:resolveByAlias', { filePath, basename }),
   onBacklinksInvalidated: (cb) => ipcRenderer.on('backlinks:invalidated', (_e, payload) => cb(payload)),
 
   // Multi-Window

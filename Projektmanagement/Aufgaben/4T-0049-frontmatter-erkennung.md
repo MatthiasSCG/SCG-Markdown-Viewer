@@ -1,6 +1,6 @@
 # 4T-0049 — Frontmatter-Erkennung und Render-Ausschluss
 
-**Status**: Erledigt — 2026-05-20, Test bestanden
+**Status**: Erledigt — 2026-05-20, gepushed (Commit `9d9508c`)
 **Epic**: [3E-0010 — Frontmatter, Aliases und Properties](3E-0010-frontmatter-aliases-properties.md)
 **Zielversion**: 0.16.0
 

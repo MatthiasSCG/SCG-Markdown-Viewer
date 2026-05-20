@@ -1098,6 +1098,18 @@ function registerIpc() {
     return backlinks.existingWikiTargets(filePath, basenames);
   });
 
+  // 4T-0050 (Epic 3E-0010): Wiki-Link-Klick mit Alias-Fallback. Wird vom
+  // Renderer aufgerufen, wenn die direkte Datei (Basename.md relativ zum
+  // aktiven Dokument) nicht existiert. Liefert die Liste der Dateien, die
+  // den Basename als Alias im Frontmatter fuehren. Bei eindeutigem Treffer
+  // oeffnet der Renderer direkt, bei mehrdeutigem zeigt er einen Auswahl-
+  // Dialog.
+  ipcMain.handle('wikiLink:resolveByAlias', (_event, params) => {
+    const filePath = params && params.filePath;
+    const basename = params && params.basename;
+    return backlinks.resolveWikiTargetByAlias(filePath, basename);
+  });
+
   // Renderer fordert ein neues Fenster mit initialen Panes/Tabs an.
   // Format von initialPanes: [{ paths, activeIndex, tabSettings }, ...]
   ipcMain.handle('window:openNew', (event, initialPanes) => {

@@ -11,6 +11,9 @@
 const path = require('node:path');
 const fs = require('node:fs');
 const chokidar = require('chokidar');
+// 4T-0050 (Epic 3E-0010): js-yaml fuer Frontmatter-Aliases-Auswertung.
+// Dieselbe Library wie in preload.js; SAFE-Schema, kein Code-Eval.
+const yaml = require('js-yaml');
 
 // Konstanten
 const SCAN_DEPTH = 2;
@@ -24,6 +27,11 @@ const MD_EXT_RE = /\.(md|markdown|mdown|mkd)$/i;
 // Wiki-Link: [[Foo]] oder [[Foo|Label]]. Wir nutzen non-greedy bis ]].
 // Mehrere Treffer pro Zeile moeglich, daher /g.
 const WIKI_LINK_RE = /\[\[([^\]\n|]+?)(?:\|[^\]\n]*)?\]\]/g;
+
+// 4T-0050: Frontmatter-Schluss-Erkennung. '---' oder '...' am Zeilenanfang.
+// Halt-Heuristik identisch zur extractFrontmatter in preload.js, damit
+// Backlinks-Index und Render-Pfad denselben Block-Bereich erkennen.
+const FRONTMATTER_END_LINE = /^(---|\.\.\.)\s*$/;
 
 // Relative Markdown-Links: [Text](pfad.md) oder (pfad.md#anker). Kein http:,
 // kein https:, kein mailto:, kein data:.
@@ -96,17 +104,49 @@ class OversizeError extends Error {
 // Markdown-Link gegen das Datei-Verzeichnis aufgeloest und absolut gemacht.
 // Wiki-Links speichern den Basename als ziel-Erwartung (ohne .md), Aufloesung
 // passiert spaeter beim Lookup ueber die files-Map.
+// 4T-0050: Liefert zusaetzlich die Aliases aus dem YAML-Frontmatter (Feld
+// `aliases:`, Liste oder einzelner String). Wiki-Link- und Markdown-Link-
+// Scan ueberspringt Frontmatter-Zeilen, damit YAML-Inhalte nicht als
+// ausgehende Links indexiert werden.
 function parseFile(filePath) {
   let content;
   try {
     content = fs.readFileSync(filePath, 'utf8');
   } catch {
-    return [];
+    return { hits: [], aliases: [] };
   }
   const dir = path.dirname(filePath);
   const lines = content.split(/\r?\n/);
+
+  // 4T-0050: Frontmatter erkennen. Heuristik wie in preload.js:
+  // Zeile 1 muss genau '---' sein, Schluss-Zeile '---' oder '...' an
+  // exaktem Zeilenanfang. fmBodyStartLine ist die 0-basierte Index der
+  // ersten Markdown-Zeile nach dem Frontmatter (oder 0, wenn kein
+  // Frontmatter erkannt).
+  let fmBodyStartLine = 0;
+  let aliases = [];
+  if (lines.length >= 2 && lines[0].trimEnd() === '---') {
+    for (let i = 1; i < lines.length; i++) {
+      if (FRONTMATTER_END_LINE.test(lines[i])) {
+        fmBodyStartLine = i + 1;
+        // YAML-Block ist lines[1..i-1].
+        const yamlText = lines.slice(1, i).join('\n');
+        try {
+          const parsed = yaml.load(yamlText, { schema: yaml.JSON_SCHEMA });
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            aliases = normalizeAliases(parsed.aliases);
+          }
+        } catch {
+          // Parse-Fehler: keine Aliases, Body trotzdem ab Schluss-Zeile.
+          aliases = [];
+        }
+        break;
+      }
+    }
+  }
+
   const out = [];
-  for (let i = 0; i < lines.length; i++) {
+  for (let i = fmBodyStartLine; i < lines.length; i++) {
     const line = lines[i];
     const lineNum = i + 1;
     // Wiki-Links
@@ -157,7 +197,35 @@ function parseFile(filePath) {
       });
     }
   }
-  return out;
+  return { hits: out, aliases };
+}
+
+// 4T-0050: Normalisiert das aliases-Feld eines Frontmatter-Objekts zu einer
+// Array<string>-Liste. Akzeptierte YAML-Formen:
+//   aliases: MV                    -> ['MV']
+//   aliases: [MV, Viewer]          -> ['MV', 'Viewer']
+//   aliases:
+//     - MV
+//     - Viewer                     -> ['MV', 'Viewer']
+// Einzelne Werte werden getrimmt; leere Strings, null/undefined und Nicht-
+// Strings ausgefiltert.
+function normalizeAliases(raw) {
+  if (raw === null || raw === undefined) return [];
+  if (typeof raw === 'string') {
+    const v = raw.trim();
+    return v ? [v] : [];
+  }
+  if (Array.isArray(raw)) {
+    const out = [];
+    for (const item of raw) {
+      if (typeof item === 'string') {
+        const v = item.trim();
+        if (v) out.push(v);
+      }
+    }
+    return out;
+  }
+  return [];
 }
 
 function shortSnippet(line) {
@@ -191,6 +259,11 @@ function ensureIndex(rootPath) {
     wurzel: rootPath,
     status: 'indexing',
     files: new Map(),
+    // 4T-0050: Aliases pro Datei (Original-Casing aus dem YAML) plus inverse
+    // Map alias-lowercase -> Set von Datei-Pfaden. Inverse Map fuer schnelles
+    // Lookup beim Wiki-Link-Klick und im Linter.
+    aliasesPerFile: new Map(),
+    aliasMap: new Map(),
     fileCount: 0,
     byteSize: 0,
     watcher: null,
@@ -212,7 +285,12 @@ function ensureIndex(rootPath) {
 
   // Initial-Parse aller Dateien.
   for (const f of scan.files) {
-    entry.files.set(f, parseFile(f));
+    const parsed = parseFile(f);
+    entry.files.set(f, parsed.hits);
+    if (parsed.aliases.length > 0) {
+      entry.aliasesPerFile.set(f, parsed.aliases);
+      addToAliasMap(entry, f, parsed.aliases);
+    }
   }
   entry.status = 'ready';
 
@@ -250,20 +328,73 @@ function onWatcherChange(entry, filePath, kind) {
   if (!MD_EXT_RE.test(filePath)) return;
   if (kind === 'unlink') {
     if (entry.files.has(filePath)) {
-      const prev = entry.files.get(filePath);
       entry.files.delete(filePath);
       entry.fileCount = entry.files.size;
+      // 4T-0050: Aliases der entfallenen Datei aus den Maps austragen.
+      const prevAliases = entry.aliasesPerFile.get(filePath);
+      if (prevAliases) {
+        removeFromAliasMap(entry, filePath, prevAliases);
+        entry.aliasesPerFile.delete(filePath);
+      }
       // byteSize nur grob; wir laufen nicht jedesmal Vollscan, akzeptabel.
       scheduleInvalidate(entry);
     }
     return;
   }
   // add oder change
-  const hits = parseFile(filePath);
+  const parsed = parseFile(filePath);
   const had = entry.files.has(filePath);
-  entry.files.set(filePath, hits);
+  entry.files.set(filePath, parsed.hits);
   if (!had) entry.fileCount = entry.files.size;
+  // 4T-0050: Aliases aktualisieren. Alte raus, neue rein. Bei change kann
+  // sich die Liste in beide Richtungen aendern; Diff-Logik nutzt vorhandene
+  // aliasesPerFile-Map.
+  const prevAliases = entry.aliasesPerFile.get(filePath) || [];
+  removeFromAliasMap(entry, filePath, prevAliases);
+  if (parsed.aliases.length > 0) {
+    entry.aliasesPerFile.set(filePath, parsed.aliases);
+    addToAliasMap(entry, filePath, parsed.aliases);
+  } else {
+    entry.aliasesPerFile.delete(filePath);
+  }
   scheduleInvalidate(entry);
+}
+
+// 4T-0050: Helfer fuer die inverse Alias-Map. Schluessel ist Alias-Lowercase
+// (case-insensitive Lookup), Werte sind Sets von Datei-Pfaden (mehrere
+// Dateien koennen denselben Alias fuehren). Leere Sets werden geloescht,
+// damit aliasMap.has() ein verlaesslicher Existenz-Check bleibt.
+function addToAliasMap(entry, filePath, aliases) {
+  for (const a of aliases) {
+    const key = a.trim().toLowerCase();
+    if (!key) continue;
+    let set = entry.aliasMap.get(key);
+    if (!set) {
+      set = new Set();
+      entry.aliasMap.set(key, set);
+    }
+    set.add(filePath);
+  }
+}
+
+function removeFromAliasMap(entry, filePath, aliases) {
+  for (const a of aliases) {
+    const key = a.trim().toLowerCase();
+    if (!key) continue;
+    const set = entry.aliasMap.get(key);
+    if (!set) continue;
+    set.delete(filePath);
+    if (set.size === 0) entry.aliasMap.delete(key);
+  }
+}
+
+// 4T-0050: Liefert alle Dateien im Index, die den gegebenen Alias fuehren.
+// Case-insensitive Lookup. Leeres Array bei keinem Treffer.
+function filesByAlias(entry, alias) {
+  if (!alias) return [];
+  const set = entry.aliasMap.get(String(alias).trim().toLowerCase());
+  if (!set) return [];
+  return [...set];
 }
 
 function scheduleInvalidate(entry) {
@@ -313,16 +444,47 @@ function resolveWikiLink(entry, zielBasename) {
 }
 
 // Liefert alle Treffer in der Wurzel, deren Ziel die aktive Datei ist.
+// 4T-0050: Aliases-aware. Ein Wiki-Link [[MV]] aus quelle.md gilt als
+// Backlink auf die aktive Datei, wenn entweder
+//   (a) die aktive Datei den Basename 'MV' hat, oder
+//   (b) die aktive Datei einen Alias 'MV' im Frontmatter fuehrt.
+// Im Treffer wird viaAlias='MV' gesetzt, wenn (b) zutrifft; sonst null.
 function collectBacklinksFor(activeFile, entry) {
   const activeAbs = path.resolve(activeFile);
-  const groups = new Map(); // quelldatei -> Array<{zeile, anker, snippet, linkTyp}>
+  // 4T-0050: Aliases der aktiven Datei (case-insensitive Vergleich gegen
+  // Wiki-Link-Basenames der Quelldateien).
+  const activeAliases = entry.aliasesPerFile.get(activeAbs) || [];
+  const activeAliasesLower = new Set(activeAliases.map((a) => a.trim().toLowerCase()));
+  const activeBasenameLower = path.basename(activeAbs).replace(MD_EXT_RE, '').toLowerCase();
+  const groups = new Map(); // quelldatei -> Array<{zeile, anker, snippet, linkTyp, viaAlias}>
   for (const [src, hits] of entry.files) {
     if (src === activeAbs) continue; // Eigen-Referenz ueberspringen
     for (const h of hits) {
       let isMatch = false;
+      let viaAlias = null;
       if (h.linkTyp === 'wiki') {
+        // Direkter Datei-Treffer (Basename-Match).
         const candidates = resolveWikiLink(entry, h.zielBasename);
-        if (candidates.includes(activeAbs)) isMatch = true;
+        if (candidates.includes(activeAbs)) {
+          isMatch = true;
+        } else {
+          // 4T-0050: Alias-Match? Nur greifen, wenn kein direkter
+          // Datei-Treffer existiert (sonst wuerde ein Wiki-Link auf eine
+          // echte Datei zusaetzlich als Alias-Backlink auftauchen). Wenn
+          // candidates.length === 0 und der Basename ein Alias der aktiven
+          // Datei ist, gilt der Link.
+          if (candidates.length === 0) {
+            const targetLower = String(h.zielBasename || '').trim().toLowerCase();
+            if (targetLower && targetLower === activeBasenameLower) {
+              // Sollte nicht passieren, weil resolveWikiLink den Basename
+              // matchen wuerde — Defensiv-Fallback.
+              isMatch = true;
+            } else if (targetLower && activeAliasesLower.has(targetLower)) {
+              isMatch = true;
+              viaAlias = h.zielBasename;
+            }
+          }
+        }
       } else if (h.linkTyp === 'md') {
         // Markdown-Link kann ohne .md-Endung gesetzt sein? Unser Regex faengt
         // nur .md-aehnliche Endungen, also direkter Vergleich:
@@ -335,6 +497,7 @@ function collectBacklinksFor(activeFile, entry) {
         anker: h.anker,
         snippet: h.snippet,
         linkTyp: h.linkTyp,
+        viaAlias,
       });
     }
   }
@@ -412,9 +575,45 @@ function existingWikiTargets(filePath, basenames) {
   const existing = [];
   for (const name of basenames) {
     if (typeof name !== 'string' || !name) continue;
-    if (resolveWikiLink(entry, name).length > 0) existing.push(name);
+    // 4T-0050: Ein Wiki-Link-Basename gilt als 'existing', wenn er
+    // entweder direkt einer Datei entspricht oder als Alias gefuehrt wird.
+    if (resolveWikiLink(entry, name).length > 0 || filesByAlias(entry, name).length > 0) {
+      existing.push(name);
+    }
   }
   return { status: 'ready', existing };
+}
+
+// 4T-0050: Aufloesung eines Wiki-Link-Basenames ueber den Alias-Index.
+// Wird vom Renderer aufgerufen, wenn die direkte Datei (basename.md
+// relativ zum aktiven Dokument) nicht existiert. Liefert alle Dateien,
+// die den gegebenen Basename als Alias fuehren.
+//
+// Rueckgabe:
+//   { status: 'ready'|'indexing'|'unavailable', candidates: string[], viaAlias: string|null }
+//
+// candidates ist:
+//   []         : kein Alias-Treffer (Linter markiert spaeter als broken)
+//   [pfad]     : eindeutiger Alias-Treffer (Renderer oeffnet direkt)
+//   [p1, p2..] : mehrdeutiger Alias-Treffer (Renderer zeigt Auswahl-Dialog)
+//
+// viaAlias enthaelt den eingegebenen Alias-Text (zur Anzeige im Dialog).
+function resolveWikiTargetByAlias(activeFile, basename) {
+  if (!activeFile || typeof basename !== 'string' || !basename) {
+    return { status: 'unavailable', candidates: [], viaAlias: null };
+  }
+  const root = rootFor(activeFile);
+  if (!root) return { status: 'unavailable', candidates: [], viaAlias: null };
+  const entry = indexes.get(root);
+  if (!entry) return { status: 'unavailable', candidates: [], viaAlias: null };
+  if (entry.status === 'oversized') return { status: 'unavailable', candidates: [], viaAlias: null };
+  if (entry.status === 'indexing') return { status: 'indexing', candidates: [], viaAlias: null };
+  const candidates = filesByAlias(entry, basename);
+  return {
+    status: 'ready',
+    candidates,
+    viaAlias: candidates.length > 0 ? basename : null,
+  };
 }
 
 module.exports = {
@@ -425,4 +624,6 @@ module.exports = {
   fileBelongsToRoot,
   // 4T-0020: Linter-Lookup fuer broken-wiki-link.
   existingWikiTargets,
+  // 4T-0050: Aliases-Aufloesung fuer Wiki-Link-Klick.
+  resolveWikiTargetByAlias,
 };

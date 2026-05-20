@@ -1,6 +1,6 @@
 # 4T-0050 — Aliases-Auflösung in Wiki-Links und Backlinks
 
-**Status**: Offen
+**Status**: Erledigt — 2026-05-20, Test bestanden
 **Epic**: [3E-0010 — Frontmatter, Aliases und Properties](3E-0010-frontmatter-aliases-properties.md)
 **Zielversion**: 0.16.0
 **Setzt voraus**: [4T-0049 — Frontmatter-Erkennung und Render-Ausschluss](4T-0049-frontmatter-erkennung.md)
@@ -109,4 +109,54 @@ Wenn sich der Frontmatter einer Datei ändert (insbesondere `aliases:`), muss de
 
 ## Lösung
 
-(noch leer, wird nach Abschluss der Umsetzung gefüllt)
+Umgesetzt am 2026-05-20, Test bestanden.
+
+### Code-Änderungen
+
+- **[src/main/backlinks.js](../../src/main/backlinks.js)**:
+  - `js-yaml`-Import (dieselbe Library wie in `preload.js`, SAFE-Schema).
+  - `parseFile(filePath)` liefert jetzt `{ hits, aliases }` statt nur `hits`. Frontmatter wird per gleicher Heuristik wie in `extractFrontmatter` (4T-0049) erkannt; `aliases:`-Feld wird normalisiert. Wiki-Link- und Markdown-Link-Scan überspringt Frontmatter-Zeilen, damit YAML-Inhalte nicht als ausgehende Links indexiert werden.
+  - `normalizeAliases(raw)` akzeptiert YAML-Listen (`[a, b]` und mehrzeilige `-`-Form) oder einen einzelnen String. Leere Strings und Nicht-Strings werden gefiltert.
+  - Im `entry` zwei neue Maps: `aliasesPerFile: Map<absPath, string[]>` (Original-Casing) und `aliasMap: Map<aliasLowercase, Set<absPath>>` (inverse, case-insensitive Lookup).
+  - `addToAliasMap`/`removeFromAliasMap`/`filesByAlias` als Helfer; leere Sets werden aus `aliasMap` entfernt, damit `has()` ein verlässlicher Existenz-Check bleibt.
+  - `ensureIndex` und `onWatcherChange` pflegen beide Maps. Bei add/change wird Diff gegen vorherige Aliases gefahren; bei unlink wird sauber aufgeräumt.
+  - `collectBacklinksFor` erkennt Alias-Backlinks: wenn ein Wiki-Link in einer Quelldatei den Basename eines Alias der aktiven Datei trägt (case-insensitive) und kein direkter Datei-Treffer existiert, gilt der Link als Backlink und wird mit `viaAlias: '<alias>'` am Treffer markiert.
+  - `existingWikiTargets` (für den Linter) zählt Alias-Treffer als „existing", damit `[[MV]]` nicht als broken markiert wird, wenn `MV` ein gültiger Alias ist.
+  - Neue Funktion `resolveWikiTargetByAlias(activeFile, basename)`: liefert `{ status, candidates, viaAlias }` für den Renderer-Wiki-Link-Klick-Handler. Bei Mehrdeutigkeit (>1 Kandidat) zeigt der Renderer den Disambiguation-Dialog.
+- **[src/main/main.js](../../src/main/main.js)**: neuer IPC-Handler `wikiLink:resolveByAlias`.
+- **[src/main/preload.js](../../src/main/preload.js)**: neue API-Methode `resolveWikiTargetByAlias(filePath, basename)`.
+- **[src/renderer/renderer.js](../../src/renderer/renderer.js)**:
+  - `aliasModal`-Konstante.
+  - Promise-basierter `showAliasDialog(alias, candidates) → chosenPath | null`. Dynamisch befüllte Kandidaten-Buttons (Dateiname fett, Verzeichnis klein, gedämpft); Auto-Fokus auf den ersten Button.
+  - `resolveAliasDialog` und `cancelAliasDialog`, single-pending-Resolver.
+  - In `handleRenderedClick`: bei nicht-existierender Datei und `class="wikilink"` greift der Alias-Fallback via `tryResolveByAlias(activeFilePath, resolvedPath)`. Eindeutiger Treffer öffnet direkt, mehrdeutiger zeigt den Dialog.
+  - Esc-Handler erweitert: `aliasModal` zählt zu den Overlays mit Vorrang, Cancel-Resolver liefert null.
+  - Event-Listener für Cancel-Button und Backdrop-Klick.
+  - In `renderBacklinks`: pro Treffer mit `hit.viaAlias` wird ein `.backlink-via-alias`-Tag mit lokalisiertem Text (`backlinks.viaAlias`) angehängt.
+- **[src/renderer/index.html](../../src/renderer/index.html)**: neues `#alias-modal`-Skelett vor dem renderer-bundle-Script: Backdrop, Title, Beschreibung (Container, zur Laufzeit befüllt), Kandidaten-Liste (Container), Cancel-Button.
+- **[src/renderer/styles.css](../../src/renderer/styles.css)**: Stil-Familie `.alias-modal-*` analog zu `.about-modal-*`, Kandidaten-Buttons mit Hover/Focus-State, `.alias-candidate-name` und `.alias-candidate-dir`. Zusätzlich `.backlink-via-alias`-Tag (klein, italic, dezent gefärbter Hintergrund) in Light und Dark.
+- **i18n (DE, EN, FR, ES, IT)**: 4 neue Keys je Sprache: `backlinks.viaAlias`, `alias.dialogTitle`, `alias.dialogDescription`, `alias.cancel`. JSON-Anführungszeichen-Konvention beachtet (einfache Quotes oder Unicode-Guillemets, keine ASCII-`"` im Wert).
+
+### Implementierungsdetails
+
+- **Case-Insensitivität bei Aliases**: Lookup über `alias.trim().toLowerCase()` als Schlüssel in `aliasMap`. Anzeigewert im UI (Tag, Dialog-Titel) bleibt im Original-Casing aus dem YAML, damit Nutzer ihre Schreibweise wiederfindet.
+- **Konflikt-Sicherheit Datei vs. Alias**: `collectBacklinksFor` markiert nur dann `viaAlias`, wenn kein direkter Datei-Basename-Treffer existiert. Ein Wiki-Link auf eine existierende Datei wird also nicht zusätzlich als Alias-Backlink doppelt geführt.
+- **Frontmatter-Erkennung in backlinks.js dupliziert (bewusst)**: dieselbe Heuristik wie in `preload.js` (erste Zeile genau `---`, Schluss-Zeile `---` oder `...`). Bei einem späteren Refactoring wäre ein gemeinsames Helfer-Modul sinnvoll; im 4T-0050-Scope bleibt es bei der Duplikation, weil Main- und Preload-Kontext unterschiedliche Module-Auflösung haben.
+- **Promise-Pattern für den Modal-Dialog**: `showAliasDialog` gibt einen Promise zurück, der vom Klick-Handler awaitet wird. Single-Pending-Resolver verhindert, dass ein paralleler Dialog den vorigen Aufrufer hängen lässt; alter Promise wird mit null aufgelöst.
+- **Watcher-Aktualisierung**: `onWatcherChange` ruft `parseFile` neu auf und führt das Alias-Diff: alte Aliases der Datei aus `aliasMap` raus, neue rein. Bei einer Datei, die Aliases verliert (`aliases:` entfernt), wird ihr Eintrag in `aliasesPerFile` gelöscht.
+- **Linter-Integration**: dadurch dass `existingWikiTargets` Alias-Treffer mitberücksichtigt, war im Renderer keine Änderung am `runLint`-Code nötig. Die in 4T-0020 etablierte IPC-Schnittstelle bleibt unverändert; nur die Antwort enthält jetzt zusätzliche „existing"-Werte.
+- **Performance**: `aliasMap`-Lookup ist O(1) pro Wiki-Link-Klick. `existingWikiTargets`-Aufruf im Linter ruft `filesByAlias` zusätzlich zu `resolveWikiLink` auf; bei 2000 Dateien × wenigen Aliases pro Datei ist das weiterhin akzeptabel.
+
+### Smoke-Test (2026-05-20)
+
+Alle neun in der Test-Anleitung definierten Punkte vom Nutzer geprüft und bestätigt:
+
+1. Eindeutiger Alias-Klick öffnet die Ziel-Datei direkt.
+2. Mehrdeutiger Alias-Klick zeigt den Auswahl-Dialog mit zwei Kandidaten; Klick öffnet die gewählte Datei, Esc/Backdrop/Abbrechen schließen ohne Aktion.
+3. Backlinks-Sidebar zeigt `via Alias`-Tag bei Alias-Treffern.
+4. Linter markiert Wiki-Links auf Aliases nicht als broken.
+5. Linter-Regel-Aktivierungslogik aus 4T-0020 unverändert.
+6. Alias-Änderung wird über den Watcher live ins Index übertragen.
+7. Sprachwechsel: Dialog- und Tag-Strings korrekt in allen fünf Sprachen.
+8. Theme-Wechsel: Dialog und Tag bleiben lesbar in Light und Dark.
+9. Dateien ohne Aliases: bisheriges Verhalten unverändert.

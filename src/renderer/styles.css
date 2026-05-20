@@ -1023,6 +1023,106 @@ select {
   min-width: 100px;
 }
 
+/* 4T-0050 (Epic 3E-0010): Alias-Disambiguation-Dialog. Erscheint, wenn ein
+   Wiki-Link auf einen Alias zeigt, den mehrere Dateien fuehren. Stil-Familie
+   wie about-modal, eigener Listen-Container fuer die Kandidaten-Buttons. */
+.alias-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.alias-modal[hidden] { display: none; }
+.alias-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+.alias-modal-content {
+  position: relative;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px 28px 18px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  min-width: 420px;
+  max-width: 640px;
+}
+.alias-modal-content h2 {
+  margin: 0 0 8px;
+  font-size: 1.2em;
+  font-weight: 600;
+}
+.alias-modal-content .alias-description {
+  margin: 0 0 14px;
+  color: var(--fg-muted);
+  font-size: 0.95em;
+  line-height: 1.4;
+}
+.alias-candidates {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.alias-candidates li {
+  margin: 0;
+}
+.alias-candidates button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+.alias-candidates button:hover,
+.alias-candidates button:focus {
+  background: var(--bg-muted);
+  outline: none;
+}
+.alias-candidate-name {
+  font-weight: 600;
+  display: block;
+}
+.alias-candidate-dir {
+  display: block;
+  font-size: 0.85em;
+  color: var(--fg-muted);
+  word-break: break-all;
+}
+.alias-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* 4T-0050: 'via Alias'-Hinweis-Tag in der Backlinks-Sidebar. Klein, dezent,
+   theme-konform; klärt, dass der Backlink über einen Alias zustandekommt. */
+.backlink-via-alias {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(33, 150, 243, 0.12);
+  color: var(--fg-muted);
+  font-size: 0.78em;
+  font-style: italic;
+  white-space: nowrap;
+}
+[data-theme="dark"] .backlink-via-alias {
+  background: rgba(100, 181, 246, 0.18);
+}
+
 /* === Suchleiste ========================================================== */
 .search-bar {
   position: fixed;

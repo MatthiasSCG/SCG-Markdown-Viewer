@@ -956,6 +956,9 @@ const aboutModal = $('#about-modal');
 const settingsModal = $('#settings-modal');
 const aboutVersionEl = $('#about-version');
 const helpModal = $('#help-modal');
+// 4T-0050 (Epic 3E-0010): Alias-Disambiguation-Dialog. Wird gezeigt, wenn ein
+// Wiki-Link auf einen Alias zeigt, den mehrere Dateien fuehren.
+const aliasModal = $('#alias-modal');
 
 function getPaneEls(paneIdx) {
   const root = paneRoots[paneIdx];
@@ -2196,6 +2199,16 @@ function renderBacklinks(paneIdx) {
       snip.className = 'backlinks-hit-snippet';
       snip.textContent = hit.snippet || '';
       hitEl.appendChild(snip);
+      // 4T-0050 (Epic 3E-0010): Wenn der Backlink ueber einen Alias der
+      // aktiven Datei zustande kommt, wird ein dezentes 'via <alias>'-Tag
+      // angehaengt. Macht transparent, dass die Quelldatei nicht den
+      // Datei-Namen verwendet hat, sondern einen Alias.
+      if (hit.viaAlias) {
+        const aliasTag = document.createElement('span');
+        aliasTag.className = 'backlink-via-alias';
+        aliasTag.textContent = t('backlinks.viaAlias').replace('{alias}', hit.viaAlias);
+        hitEl.appendChild(aliasTag);
+      }
       hitEl.title = hit.snippet || '';
       hitEl.addEventListener('click', () => {
         openOrJumpToPath(group.quelldatei, hit.zeile);
@@ -2504,6 +2517,12 @@ function bindUi() {
 
   $('#btn-help-close').addEventListener('click', hideHelp);
   helpModal.querySelector('.help-modal-backdrop').addEventListener('click', hideHelp);
+
+  // 4T-0050: Alias-Disambiguation-Dialog. Cancel-Button und Backdrop-Klick
+  // schliessen mit null (Abbruch). Die Kandidaten-Buttons werden pro
+  // Dialog-Aufruf dynamisch verkabelt; siehe showAliasDialog.
+  $('#btn-alias-cancel').addEventListener('click', cancelAliasDialog);
+  aliasModal.querySelector('.alias-modal-backdrop').addEventListener('click', cancelAliasDialog);
   // 4T-0027: Tab-Wechsel im Hilfe-Modal per Klick auf die Tab-Buttons.
   helpModal.querySelectorAll('.help-tab').forEach((tab) => {
     tab.addEventListener('click', () => switchHelpTab(tab.dataset.helpTab));
@@ -2716,11 +2735,15 @@ function bindUi() {
       const hasOpenOverlay = !contextMenu.hidden
         || !helpModal.hidden
         || !aboutModal.hidden
-        || !settingsModal.hidden;
+        || !settingsModal.hidden
+        || !aliasModal.hidden;
       hideContextMenu();
       hideHelp();
       hideAbout();
       hideSettings();
+      // 4T-0050: Esc bricht den Alias-Dialog ab; Resolver liefert null,
+      // damit der wartende Klick-Handler sauber zuruecksetzt.
+      if (!aliasModal.hidden) cancelAliasDialog();
       if (!hasOpenOverlay && state.focusMode) setFocusMode(false);
     }
     // F1 ist jetzt am Menue-Eintrag "Hilfe" als Accelerator gebunden, kein
@@ -3643,10 +3666,48 @@ async function handleRenderedClick(e, paneIdx) {
   const resolved = await api.resolveLink(baseTab.path, href);
   if (!resolved) return;
   const exists = await api.fileExists(resolved);
-  if (!exists) return;
+  if (!exists) {
+    // 4T-0050 (Epic 3E-0010): Bei Wiki-Links, deren direkter Datei-Pfad
+    // nicht existiert, gegen den Alias-Index pruefen. Eindeutiger Treffer
+    // oeffnet direkt; mehrdeutiger Treffer zeigt den Disambiguation-Dialog.
+    if (a.classList.contains('wikilink') && baseTab.path) {
+      const aliasTarget = await tryResolveByAlias(baseTab.path, resolved);
+      if (aliasTarget) {
+        await openInPane(paneIdx, [aliasTarget]);
+      }
+    }
+    return;
+  }
   const isMd = await api.isMarkdownPath(resolved);
   if (!isMd) return;
   await openInPane(paneIdx, [resolved]);
+}
+
+// 4T-0050: Hilfsfunktion fuer den Wiki-Link-Alias-Fallback. Bekommt den
+// auf den Basispfad aufgeloesten Datei-Pfad (der nicht existiert) und
+// extrahiert daraus den Wiki-Link-Basename. Dann Backend-Lookup im
+// Alias-Index. Bei keinem Treffer liefert die Funktion null (Renderer
+// macht nichts weiter, Linter markiert den Link als broken). Bei einem
+// Treffer den Pfad; bei mehreren den vom Nutzer im Dialog gewaehlten.
+async function tryResolveByAlias(activeFilePath, resolvedPath) {
+  // Wiki-Link-Plugin in preload.js haengt '.md' an, wenn das Ziel keine
+  // Extension hat. Wir muessen den Basename ohne Extension extrahieren,
+  // damit er gegen die Alias-Eintraege gematcht werden kann (Aliases sind
+  // ohne Extension).
+  const basename = api.basename(resolvedPath).replace(/\.(md|markdown|mdown|mkd)$/i, '');
+  if (!basename) return null;
+  let result;
+  try {
+    result = await api.resolveWikiTargetByAlias(activeFilePath, basename);
+  } catch {
+    return null;
+  }
+  if (!result || result.status !== 'ready') return null;
+  const candidates = result.candidates || [];
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+  // Mehrdeutigkeit: Auswahl-Dialog.
+  return await showAliasDialog(result.viaAlias || basename, candidates);
 }
 
 // --- Recent-Files-Menü ------------------------------------------------------
@@ -4115,6 +4176,76 @@ async function showAbout() {
 
 function hideAbout() {
   aboutModal.hidden = true;
+}
+
+// --- Alias-Modal (4T-0050) --------------------------------------------------
+// Promise-basiertes Modal. Aufrufer ruft showAliasDialog(alias, candidates)
+// und wartet auf den ausgewaehlten Pfad oder null (Abbruch durch Esc,
+// Backdrop oder Cancel-Button). Nur ein Dialog gleichzeitig aktiv;
+// pendingAliasResolver speichert den Promise-Resolver fuer den aktuellen
+// Aufruf.
+let pendingAliasResolver = null;
+
+function showAliasDialog(alias, candidates) {
+  return new Promise((resolve) => {
+    // Falls ein vorheriger Dialog noch offen war: alten Promise mit null
+    // abschliessen, damit Aufrufer nicht haengen.
+    if (pendingAliasResolver) {
+      const prev = pendingAliasResolver;
+      pendingAliasResolver = null;
+      prev(null);
+    }
+    pendingAliasResolver = resolve;
+
+    const desc = aliasModal.querySelector('#alias-description');
+    const list = aliasModal.querySelector('#alias-candidates');
+    // Beschreibung lokalisieren: 'Mehrere Dateien fuehren den Alias "<alias>".'
+    const tmpl = t('alias.dialogDescription') || 'Mehrere Dateien führen den Alias "{alias}".';
+    desc.textContent = tmpl.replace('{alias}', alias);
+
+    // Kandidaten-Liste aufbauen. Buttons enthalten den Datei-Namen (fett)
+    // und das Verzeichnis darunter (klein, gedaempft).
+    list.innerHTML = '';
+    for (const fullPath of candidates) {
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      const name = api.basename(fullPath);
+      const dir = api.dirname(fullPath);
+      const nameEl = document.createElement('span');
+      nameEl.className = 'alias-candidate-name';
+      nameEl.textContent = name;
+      const dirEl = document.createElement('span');
+      dirEl.className = 'alias-candidate-dir';
+      dirEl.textContent = dir;
+      btn.appendChild(nameEl);
+      btn.appendChild(dirEl);
+      btn.addEventListener('click', () => resolveAliasDialog(fullPath));
+      li.appendChild(btn);
+      list.appendChild(li);
+    }
+
+    aliasModal.hidden = false;
+    // Fokus auf den ersten Kandidaten-Button setzen, damit Pfeil-Navigation
+    // direkt funktioniert.
+    setTimeout(() => {
+      const firstBtn = list.querySelector('button');
+      if (firstBtn) firstBtn.focus();
+    }, 0);
+  });
+}
+
+function resolveAliasDialog(chosenPath) {
+  aliasModal.hidden = true;
+  if (pendingAliasResolver) {
+    const r = pendingAliasResolver;
+    pendingAliasResolver = null;
+    r(chosenPath);
+  }
+}
+
+function cancelAliasDialog() {
+  resolveAliasDialog(null);
 }
 
 // --- Hilfe-Modal ------------------------------------------------------------
