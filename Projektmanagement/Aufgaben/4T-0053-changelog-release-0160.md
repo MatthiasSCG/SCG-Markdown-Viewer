@@ -1,6 +1,6 @@
 # 4T-0053 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.16.0
 
-**Status**: Offen
+**Status**: Erledigt — 2026-05-20, in v0.16.0 ausgeliefert
 **Epic**: [3E-0010 — Frontmatter, Aliases und Properties](3E-0010-frontmatter-aliases-properties.md)
 **Zielversion**: 0.16.0
 
@@ -91,4 +91,27 @@ Gemäß [CLAUDE.md, Abschnitt „Release-Prozess"](../../CLAUDE.md#release-proze
 
 ## Lösung
 
-(noch leer, wird nach Abschluss der Umsetzung gefüllt)
+Umgesetzt am 2026-05-20, Release [v0.16.0](https://github.com/MatthiasSCG/SCG-Markdown/releases/tag/v0.16.0) veröffentlicht.
+
+### Doku-Änderungen
+
+- **[CHANGELOG.md](../../CHANGELOG.md)**: Neuer Block `## [0.16.0] - 2026-05-20 — Frontmatter, Aliases und Properties` mit Verweis auf Epic [3E-0010](3E-0010-frontmatter-aliases-properties.md). Vier Bullets in „Neu" (Frontmatter, Aliases, Properties-Sidebar, Hilfe-Dialog), drei in „Geändert" (Versions-Bump, Dependencies, Backlinks-Index, Linter), drei in „Behoben" (Race in Properties-Render, Auto-Save-Inkonsistenz, fehlendes Menü-Häkchen), Aufzählung der ~30 neuen i18n-Keys.
+- **[README.md](../../README.md)**:
+  - Status-Sektion neu auf 0.16.0 mit Beschreibung des Etappenziels (erstes von sieben Sub-Epics der Obsidian-Parity-Roadmap). Aufsetzend-auf-Kette um 0.15.0-Schritt ergänzt.
+  - Neue Sektion „Frontmatter und Properties" nach „Links" und vor „Sprachen" mit Beschreibung der drei Funktionsbereiche (Frontmatter-Erkennung, Aliases, Properties-Sidebar inkl. Live-Save-Verhalten und Auto-Save-Kopplung).
+  - Links-Tabelle um Zeile `[[Alias]]` (Wiki-Link über `aliases:`-Frontmatter) erweitert.
+  - Tastenkürzel-Tabelle um Zeile `Strg + ;` (Properties-Sidebar umschalten) erweitert.
+- **`dist/release-notes-0.16.0.md`** (gitignored): Release-Notes nach Template, mit Download-Tabelle, vier Hauptsektionen (Frontmatter, Aliases, Properties-Sidebar, Hilfe-Dialog), „Verbessert"-Block für Backlinks-Index-Änderung und die drei Robustheits-Fixes, System-Anforderungen, SmartScreen-Hinweis und Migrations-Hinweis zu bestehenden Frontmatter-Dateien.
+
+### Release
+
+- Commit `4T-0053: Doku-Stand fuer 0.16.0 (Epic 3E-0010 abgeschlossen)` mit Doku-Änderungen, Status-Updates für 4T-0053 und Epic 3E-0010 sowie Hash-Nachtrag `d369cdd` für 4T-0052.
+- `npm run build` mit Setup-EXE, Portable-EXE, `latest.yml` und Setup-Blockmap; `postbuild`-Hook verschiebt die vier Dateien in `releases/`.
+- Tag `v0.16.0` auf dem Commit, auf GitHub gepushed.
+- GitHub-Release [v0.16.0](https://github.com/MatthiasSCG/SCG-Markdown/releases/tag/v0.16.0) als `--latest` markiert mit vier Assets: Setup-EXE, Portable-EXE, `latest.yml` und Setup-Blockmap.
+
+### Status-Updates
+
+- 4T-0049 bis 4T-0052: Status bereits auf `Erledigt` mit `gepushed (Commit ...)`-Notation.
+- 4T-0053 (dieser Task): Status auf `Erledigt — 2026-05-20, in v0.16.0 ausgeliefert`.
+- Epic [3E-0010](3E-0010-frontmatter-aliases-properties.md): Status auf `Erledigt — 2026-05-20, in v0.16.0 ausgeliefert`, Frontmatter um `Release`-Link erweitert.

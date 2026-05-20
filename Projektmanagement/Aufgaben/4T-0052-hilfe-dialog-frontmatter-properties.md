@@ -1,6 +1,6 @@
 # 4T-0052 — Hilfe-Dialog um Frontmatter, Aliases und Properties erweitern
 
-**Status**: Erledigt — 2026-05-20, Test bestanden
+**Status**: Erledigt — 2026-05-20, gepushed (Commit `d369cdd`)
 **Epic**: [3E-0010 — Frontmatter, Aliases und Properties](3E-0010-frontmatter-aliases-properties.md)
 **Zielversion**: 0.16.0
 **Setzt voraus**: [4T-0049](4T-0049-frontmatter-erkennung.md), [4T-0050](4T-0050-aliases-aufloesung.md), [4T-0051](4T-0051-properties-editor.md)

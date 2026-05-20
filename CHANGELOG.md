@@ -5,6 +5,38 @@ Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 Versionierung an [Semantic Versioning](https://semver.org/lang/de/).
 
+## [0.16.0] - 2026-05-20 — Frontmatter, Aliases und Properties
+
+Feature-Release. Erstes Etappenziel aus dem Meta-Plan „Obsidian-Parity-Roadmap" (sieben Sub-Epics, 0.16.0 bis 1.0.0). Epic [3E-0010](Projektmanagement/Aufgaben/3E-0010-frontmatter-aliases-properties.md) umgesetzt in den Tasks [4T-0049](Projektmanagement/Aufgaben/4T-0049-frontmatter-erkennung.md) (Frontmatter-Erkennung), [4T-0050](Projektmanagement/Aufgaben/4T-0050-aliases-aufloesung.md) (Aliases-Auflösung), [4T-0051](Projektmanagement/Aufgaben/4T-0051-properties-editor.md) (Properties-Sidebar), [4T-0052](Projektmanagement/Aufgaben/4T-0052-hilfe-dialog-frontmatter-properties.md) (Hilfe-Dialog) und Abschluss-Sammeltask [4T-0053](Projektmanagement/Aufgaben/4T-0053-changelog-release-0160.md).
+
+### Neu
+
+- **YAML-Frontmatter-Erkennung** ([4T-0049](Projektmanagement/Aufgaben/4T-0049-frontmatter-erkennung.md)): Der `---`-Block am Datei-Anfang wird als Metadaten erkannt und nicht mehr als horizontale Trennlinie gerendert. Im Source-Pane ist der Block dezent bläulich unterlegt. Sonderfälle (keine Frontmatter, unvollständiger Block, ungültiges YAML, `---` mitten im Dokument) verhalten sich robust ohne Crash. Der Markdown-Linter aus 4T-0020 prüft Frontmatter-Zeilen nicht mehr auf Markdown-Regeln.
+- **Aliases-Auflösung in Wiki-Links und Backlinks** ([4T-0050](Projektmanagement/Aufgaben/4T-0050-aliases-aufloesung.md)): `aliases:`-Einträge im Frontmatter machen eine Datei unter mehreren Namen per `[[Alias]]` verlinkbar. Case-insensitiver Lookup über eine inverse Alias-Map. Backlinks-Sidebar findet Quellen auch über Aliases und kennzeichnet Treffer mit einem dezenten „via Alias"-Tag. Bei mehrdeutigen Aliases (mehrere Dateien führen denselben Alias) erscheint ein Disambiguation-Dialog mit Datei-Name und Verzeichnis zur Auswahl. Der Markdown-Linter zählt Alias-Treffer als gültige Wiki-Links.
+- **Properties-Sidebar** ([4T-0051](Projektmanagement/Aufgaben/4T-0051-properties-editor.md)): Dritte Sidebar-Sektion neben Inhaltsverzeichnis und Backlinks. Live-editierbare Frontmatter-Felder mit Typ-Inferenz (Text, Liste, Datum, Zahl, Wahr/Falsch, Mehrzeilig). Verschachtelte YAML-Strukturen werden read-only mit JSON-Vorschau angezeigt. Round-Trip-Schreiben über die `yaml`-Library (Eemeli): unveränderte Felder bleiben byte-genau, Kommentare und Schlüsselreihenfolge erhalten. Live-Save folgt dem globalen Auto-Save-Setting: bei Auto-Save aus wird der Tab dirty markiert und mit Strg+S manuell gespeichert; bei Auto-Save an läuft der 2-Sekunden-Timer wie bei Editor-Änderungen. Toggle über Menü `Ansicht → Properties`, Statusbar-Icon oder Hotkey `Strg+;`. Multistring-Pillen mit Enter/Komma-Hinzufügen und Backspace-Entfernen. Persistenz pro Spalte. Konzept-Iteration: ursprünglich als modaler Dialog geplant, im Test-Feedback auf Sidebar-Sektion umgestellt.
+- **Hilfe-Dialog erweitert** ([4T-0052](Projektmanagement/Aufgaben/4T-0052-hilfe-dialog-frontmatter-properties.md)): Drei neue Funktions-Einträge (Frontmatter, Properties, Aliases) und ein neuer Tastenkürzel-Eintrag für `Strg+;`. In allen fünf Sprachen.
+
+### Geändert
+
+- **Versions-Bump** 0.15.0 → 0.16.0 ([package.json](package.json)).
+- **Neue Dependencies**: `js-yaml@^4.1.1` für das Lesen, `yaml@^2.9.0` (Eemeli) für Round-Trip-Schreiben. `js-yaml` war transitiv schon vorhanden, jetzt direkt gepflegt.
+- **Backlinks-Index** ([src/main/backlinks.js](src/main/backlinks.js)): `parseFile` liefert jetzt `{ hits, aliases }`. Wiki- und Markdown-Link-Scan überspringt Frontmatter-Zeilen, damit YAML-Inhalte nicht als ausgehende Links indexiert werden. Neue `aliasesPerFile`-Map und inverse `aliasMap` pro Wurzel; Watcher pflegt beide bei add/change/unlink.
+- **Markdown-Linter aus 4T-0020**: drei Regel-Pfade (bareUrl, emptyLink, brokenWikiLink) überspringen Frontmatter-Zeilen. Wiki-Links auf gültige Aliases werden nicht mehr als broken markiert.
+
+### Behoben
+
+- **Race in der Properties-Sidebar-Render-Pipeline** (4T-0051): bei mehrfachen parallelen Triggern (Initial-Load, Tab-Wechsel, Toggle, View-Mode-Wechsel, Auto-Reload) wurden Properties doppelt bis vierfach gerendert. Ursache war ein `await` zwischen Container-leeren und Feld-Anhängen. Fix: `renderProperties` synchron, weil `api.getFrontmatter` im Preload als sync exposed ist.
+- **Auto-Save-Inkonsistenz in der Properties-Sidebar** (4T-0051): Property-Änderung schrieb sofort auf Disk, auch wenn Auto-Save global ausgeschaltet war. Fix: Save-Pfad nutzt jetzt `scheduleAutoSave()` analog zum Editor.
+- **Fehlendes Menü-Häkchen für Properties** (4T-0051): `getMenuState` in [src/main/main.js](src/main/main.js) reichte `propertiesVisible` nicht durch. Fix: Feld in die Liste der durchgereichten Menü-State-Felder ergänzt.
+
+### i18n
+
+- ~30 neue JSON-Keys über die fünf Sprachen (DE, EN, FR, ES, IT):
+  - Alias-Disambiguation-Dialog: `alias.dialogTitle`, `alias.dialogDescription`, `alias.cancel`.
+  - Backlinks: `backlinks.viaAlias`.
+  - Properties-Sidebar: `menu.view.properties`, `properties.title`, `properties.toggle`, `properties.toggleTitle`, `properties.empty`, `properties.parseError`, `properties.writeError`, `properties.addField`, `properties.deleteField`, `properties.readonlyHint`, `properties.multistringPlaceholder`, sieben Typ-Labels (`properties.type.string` etc.).
+  - Hilfe-Dialog: `help.feature.frontmatter`, `help.feature.properties`, `help.feature.aliases`, `help.shortcut.toggleProperties`.
+
 ## [0.15.0] - 2026-05-19 — SCG Table: Sortierung, Status-Hervorhebung und Spalten-Default
 
 Feature-Release. Schließt das SCG-Table-Funktionspaket ab mit drei häufig genutzten Erweiterungen aus dem MediaWiki-Umfeld. Umgesetzt als Epic [3E-0009](Projektmanagement/Aufgaben/3E-0009-scg-table-sortierung-status.md) in den Tasks [4T-0044](Projektmanagement/Aufgaben/4T-0044-scg-table-status-hervorhebung.md) (Status-Hervorhebung), [4T-0045](Projektmanagement/Aufgaben/4T-0045-scg-table-spalten-default.md) (Spalten-Default), [4T-0046](Projektmanagement/Aufgaben/4T-0046-scg-table-sortierbar.md) (Sortierbare Tabellen), [4T-0047](Projektmanagement/Aufgaben/4T-0047-scg-table-hilfe-tab-stufe-4.md) (Hilfe-Tab) und Abschluss-Sammeltask [4T-0048](Projektmanagement/Aufgaben/4T-0048-changelog-release-0150.md).

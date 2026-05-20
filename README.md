@@ -143,7 +143,49 @@ Pfad des aktuellen Dokuments aufgelöst und als Base64-Data-URI eingebettet.
 | `#anker`                    | im Dokument scrollen                   |
 | `relative/datei.md`         | in neuem Tab öffnen                    |
 | `[[Datei]]` (Wiki-Link)     | `Datei.md` in neuem Tab öffnen         |
+| `[[Alias]]` (Wiki-Link)     | über Frontmatter-`aliases:` aufgelöst (siehe Frontmatter und Properties); bei mehrdeutigem Alias erscheint ein Auswahl-Dialog |
 | Andere relative Dateien     | werden ignoriert                       |
+
+### Frontmatter und Properties
+
+YAML-Frontmatter am Datei-Anfang (Block zwischen zwei `---`-Zeilen) wird
+als Metadaten erkannt:
+
+- Im **Render-Pane** wird der Block ausgeklammert; keine horizontale Linie,
+  keine YAML-Zeilen im gerenderten Text.
+- Im **Source-Pane** ist der Block dezent bläulich unterlegt.
+- Der **Markdown-Linter** prüft Frontmatter-Zeilen nicht auf
+  Markdown-Regeln (eine bare URL als Wert ist kein Verstoß).
+
+Das Frontmatter-Feld **`aliases:`** macht eine Datei unter mehreren Namen
+verlinkbar:
+
+- `[[Alias]]` löst auf die Datei mit dem entsprechenden Alias auf
+  (case-insensitive).
+- Die **Backlinks-Sidebar** findet Quellen über alle Aliases und
+  kennzeichnet Treffer mit einem dezenten „via Alias"-Tag.
+- Bei **mehrdeutigen Aliases** (mehrere Dateien führen denselben Alias)
+  erscheint ein Auswahl-Dialog mit Datei-Name und Verzeichnis.
+
+Die **Properties-Sidebar** ist eine eigene Sektion neben Inhaltsverzeichnis
+und Backlinks:
+
+- Toggle über `Ansicht → Properties`, das Statusbar-Icon (zwischen
+  Inhalts- und Backlinks-Icon) oder `Strg + ;`.
+- Pro Top-Level-Feld eine kompakte Zeile mit **Typ-Inferenz**: Text,
+  Liste, Datum, Zahl, Wahr/Falsch, Mehrzeilig. Verschachtelte Strukturen
+  werden read-only mit JSON-Vorschau angezeigt.
+- **Live-Edit** mit Debounce (500 ms). Beim Speichern wird das YAML
+  **Round-Trip-fähig** zurückgeschrieben: Kommentare, Schlüsselreihenfolge
+  und Stil unveränderter Felder bleiben erhalten.
+- Das tatsächliche Schreiben auf die Datei folgt dem **globalen
+  Auto-Save-Schalter** (Datei → Automatisch speichern): bei Auto-Save aus
+  wird der Tab dirty markiert und mit `Strg+S` manuell gespeichert, bei
+  Auto-Save an läuft der 2-Sekunden-Timer wie bei Editor-Änderungen.
+- Felder hinzufügen über `+ Eigenschaft hinzufügen`, löschen per
+  `×`-Button bei Hover. Bei bekannten Schlüsselnamen (z.B. `tags`,
+  `aliases`, `date`, `draft`) wird der Typ automatisch vorgeschlagen.
+- Sichtbarkeit pro Spalte persistent.
 
 ### Sprachen
 
@@ -363,6 +405,7 @@ sie in den Versions-Archiv-Ordner `releases/`:
 | `Strg + Umschalt + F`          | Fokus-Modus umschalten                          |
 | `Strg + Umschalt + O`          | Inhaltsverzeichnis-Sidebar umschalten           |
 | `Strg + Umschalt + B`          | Backlinks-Sidebar umschalten                    |
+| `Strg + ;`                     | Properties-Sidebar umschalten                   |
 | `Strg + Umschalt + [` / `Strg + Umschalt + ]` | Region am Cursor ein- / ausklappen |
 | `Tab` / `Umschalt + Tab`       | Listenelement eine Ebene ein- / ausrücken       |
 | `Strg + F`                     | Suche öffnen                                    |
@@ -384,27 +427,30 @@ die Multi-Resolution-`icon.ico` (16/24/32/48/64/128/256 px) und
 
 ## Status
 
-Version `0.15.0` — SCG-Tabellen abgerundet mit drei häufig genutzten
-Erweiterungen: **Sortierung** (`{|+sortable` macht Tabellen
-anklickbar-sortierbar mit drei Zuständen aufsteigend/absteigend/
-reset, numerischer und Locale-basierter Heuristik), **Status-
-Hervorhebung** (semantische Klassen `error`/`warn`/`ok`/`info`/
-`neutral` über Punkt-Notation, pro Zelle oder ganze Zeile, in Light-
-und Dark-Theme abgestimmt), **Spalten-Default-Ausrichtung**
-(`{|+cols="left right right"` setzt eine Default-Ausrichtung pro
-Spalte; einzelne Zellen können sie überschreiben). Damit ist das
-SCG-Table-Funktionspaket vollständig.
+Version `0.16.0` — Erstes Etappenziel aus dem Meta-Plan
+„Obsidian-Parity-Roadmap" (sieben Sub-Epics, 0.16.0 bis 1.0.0):
+**Frontmatter, Aliases und Properties**. YAML-Frontmatter am
+Datei-Anfang (`---`-Block) wird als Metadaten erkannt und nicht
+mehr als Trennlinie gerendert. `aliases:`-Einträge machen Dateien
+unter mehreren Namen per `[[Alias]]` verlinkbar; Backlinks finden
+sie über alle Aliases und kennzeichnen Treffer mit „via Alias".
+Eine neue **Properties-Sidebar** (parallel zu Inhaltsverzeichnis
+und Backlinks) zeigt die Frontmatter-Felder live editierbar mit
+Typ-Inferenz (Text, Liste, Datum, Zahl, Wahr/Falsch, Mehrzeilig);
+Round-Trip-Schreiben erhält Kommentare und Stil. Speicherverhalten
+folgt dem globalen Auto-Save-Schalter.
 
-Aufsetzend auf Verschachtelung und HTML-Export aus 0.14.0, Spans und
-Ausrichtung aus 0.13.0, SCG Table aus 0.12.0 (mehrzeilige Block-Zellen
-mit geschachtelten Listen, Code-Blöcken etc.), Theme-Wahl, Statusbar-
-Icons und Update-Erkennung aus 0.11.0, Render-Lift aus 0.10.0
-(Syntax-Highlighting, KaTeX, Mermaid), Editor-UX und -Komfort aus
-0.9.0 (Listen-Indent, Zoom, Schriftart, Fokus-Modus, Markdown-Linter),
-Strukturnavigation aus 0.8.0 (Folding, Inhaltsverzeichnis, Backlinks)
-und Multi-Window-Bedienung aus 0.7.0. Funktional vollständig für den
-aktuellen Funktionsumfang, inklusive Windows-Build (Installer +
-Portable).
+Aufsetzend auf SCG-Tabellen-Vollausbau aus 0.15.0 (Sortierung,
+Status-Hervorhebung, Spalten-Default), Verschachtelung und
+HTML-Export aus 0.14.0, Spans und Ausrichtung aus 0.13.0, SCG Table
+aus 0.12.0 (mehrzeilige Block-Zellen mit geschachtelten Listen,
+Code-Blöcken etc.), Theme-Wahl, Statusbar-Icons und Update-Erkennung
+aus 0.11.0, Render-Lift aus 0.10.0 (Syntax-Highlighting, KaTeX,
+Mermaid), Editor-UX und -Komfort aus 0.9.0 (Listen-Indent, Zoom,
+Schriftart, Fokus-Modus, Markdown-Linter), Strukturnavigation aus
+0.8.0 (Folding, Inhaltsverzeichnis, Backlinks) und Multi-Window-
+Bedienung aus 0.7.0. Funktional vollständig für den aktuellen
+Funktionsumfang, inklusive Windows-Build (Installer + Portable).
 
 ## Lizenz
 

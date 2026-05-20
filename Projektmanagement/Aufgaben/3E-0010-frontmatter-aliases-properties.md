@@ -1,10 +1,11 @@
 # 3E-0010 — Frontmatter, Aliases und Properties
 
-**Status**: Offen
+**Status**: Erledigt — 2026-05-20, in v0.16.0 ausgeliefert
 **Zielversion**: 0.16.0
 **Vorgängerversion**: 0.15.0
 **Reihenfolge im Meta-Plan**: Epic 1 von 6 (B → C → D → E → A → F)
 **Quelle**: Lückenanalyse gegen Obsidian-Standard-Editor (Gespräch vom 2026-05-20), Punkte 7, 11, 18
+**Release**: [v0.16.0](https://github.com/MatthiasSCG/SCG-Markdown/releases/tag/v0.16.0)
 
 ## Ziel
 
@@ -44,8 +45,8 @@ Die drei Punkte hängen zusammen: Frontmatter ist die Grundlage, Aliases sind ei
 - [x] [4T-0049 — Frontmatter-Erkennung und Render-Ausschluss](4T-0049-frontmatter-erkennung.md) — erledigt 2026-05-20, Commit `9d9508c`, gepushed
 - [x] [4T-0050 — Aliases-Auflösung in Wiki-Links und Backlinks](4T-0050-aliases-aufloesung.md) — erledigt 2026-05-20, Commit `4c52b72`, gepushed
 - [x] [4T-0051 — Properties-Editor für Frontmatter-Felder](4T-0051-properties-editor.md) — erledigt 2026-05-20, Commit `903448b`, gepushed; als Sidebar-Sektion statt Modal umgesetzt
-- [x] [4T-0052 — Hilfe-Dialog um Frontmatter, Aliases und Properties erweitern](4T-0052-hilfe-dialog-frontmatter-properties.md) — erledigt 2026-05-20
-- [ ] [4T-0053 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.16.0](4T-0053-changelog-release-0160.md)
+- [x] [4T-0052 — Hilfe-Dialog um Frontmatter, Aliases und Properties erweitern](4T-0052-hilfe-dialog-frontmatter-properties.md) — erledigt 2026-05-20, Commit `d369cdd`, gepushed
+- [x] [4T-0053 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.16.0](4T-0053-changelog-release-0160.md) — erledigt 2026-05-20
 
 ## Architekturentscheidungen
 
