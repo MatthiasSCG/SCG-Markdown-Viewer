@@ -974,6 +974,15 @@ const state = {
     saveTimers: [null, null],
     originalDataByPane: [{}, {}],
   },
+  // 4T-0056: Tag-Sidebar-Sektion pro Spalte. visibleByPane wie Outline.
+  // filterByPane haelt den aktuell aktivierten Filter-Tag (Klick auf Tag
+  // setzt ihn, Klick auf Back-Button loescht ihn). queryByPane haelt die
+  // Filter-Eingabe (Substring-Match).
+  tags: {
+    visibleByPane: [false, false],
+    filterByPane: [null, null],
+    queryByPane: ['', ''],
+  },
   // 4T-0019: Fokus-Modus und Typewriter-Scroll. Toggle wirkt nur auf das
   // aktive Fenster; persistierter Wert ist global (settings: focusMode /
   // typewriterScroll). Beim Start eines Fensters wird der gespeicherte
@@ -1141,6 +1150,13 @@ function getPaneEls(paneIdx) {
     propertiesEmpty: root.querySelector('.sidebar-properties .properties-empty'),
     propertiesParseError: root.querySelector('.sidebar-properties .properties-parse-error'),
     propertiesAddBtn: root.querySelector('.sidebar-properties .properties-add-btn'),
+    // 4T-0056: Tag-Sektion in der Sidebar. Pro Spalte eine Instanz mit
+    // Filter-Eingabe, Tag-Baum und Datei-Liste.
+    tagsSection: root.querySelector('.sidebar-tags'),
+    tagsFilter: root.querySelector('.sidebar-tags .tags-filter'),
+    tagsStatus: root.querySelector('.sidebar-tags .tags-status'),
+    tagsTree: root.querySelector('.sidebar-tags .tags-tree'),
+    tagsFiles: root.querySelector('.sidebar-tags .tags-files'),
   };
 }
 
@@ -1803,6 +1819,12 @@ function syncEditorForPane(paneIdx) {
   if (state.properties && state.properties.visibleByPane[paneIdx]) {
     renderProperties(paneIdx);
   }
+  // 4T-0056: Tag-Sektion ebenfalls aktualisieren. Filter (filterByPane) und
+  // Suchquery (queryByPane) bleiben pro Pane erhalten — der Tag-Index der
+  // Wurzel ist gleich, nur die aktive Datei wechselt.
+  if (state.tags && state.tags.visibleByPane[paneIdx]) {
+    renderTags(paneIdx);
+  }
 }
 
 // 4T-0013: Read-/Write-API fuer Heading-Folding zur Verwendung durch das
@@ -2197,7 +2219,9 @@ function applySidebarVisibility(paneIdx) {
   const backlinksVisible = !!state.backlinks.visibleByPane[paneIdx];
   // 4T-0051: Properties-Sektion zaehlt mit zur Sidebar-Sichtbarkeit.
   const propertiesVisible = !!(state.properties && state.properties.visibleByPane[paneIdx]);
-  const anyVisible = outlineVisible || backlinksVisible || propertiesVisible;
+  // 4T-0056: Tag-Sektion ebenfalls in der Gesamtbetrachtung.
+  const tagsVisible = !!(state.tags && state.tags.visibleByPane[paneIdx]);
+  const anyVisible = outlineVisible || backlinksVisible || propertiesVisible || tagsVisible;
   els.sidebar.hidden = !anyVisible;
   if (els.sidebarSplitter) els.sidebarSplitter.hidden = !anyVisible;
   if (anyVisible) {
@@ -2600,6 +2624,8 @@ async function init() {
   await loadBacklinksSettings();
   // 4T-0051: Properties-Sichtbarkeit pro Spalte aus den Settings laden.
   await loadPropertiesSettings();
+  // 4T-0056: Tag-Sichtbarkeit pro Spalte aus den Settings laden.
+  await loadTagsSettings();
   // 4T-0018: Schriftart und -groesse fuer Editor und Render-Pane aus den
   // Settings laden und als CSS-Variablen auf :root setzen, bevor die Panes
   // gerendert werden — damit greifen die Werte direkt beim ersten Paint.
@@ -2806,6 +2832,25 @@ function bindUi() {
   if (typeof api.onMenuToggleProperties === 'function') {
     api.onMenuToggleProperties(() => togglePropertiesPanel(state.activePaneIndex));
   }
+  // 4T-0056: Statusbar-Toggle fuer Tags-Panel der aktiven Spalte.
+  const btnTags = $('#btn-tags');
+  if (btnTags) {
+    btnTags.addEventListener('click', () => toggleTagsPanel(state.activePaneIndex));
+  }
+  // 4T-0056: Filter-Input pro Pane mit input-Event verkabeln.
+  for (let p = 0; p < state.panes.length; p++) {
+    const elsP = getPaneEls(p);
+    if (elsP && elsP.tagsFilter) {
+      elsP.tagsFilter.addEventListener('input', () => {
+        state.tags.queryByPane[p] = elsP.tagsFilter.value;
+        renderTags(p);
+      });
+    }
+  }
+  // 4T-0056: Menue-Trigger 'Ansicht -> Tags' toggelt das Panel.
+  if (typeof api.onMenuToggleTags === 'function') {
+    api.onMenuToggleTags(() => toggleTagsPanel(state.activePaneIndex));
+  }
   // 4T-0014 + 4T-0015: Tastenkuerzel Strg+Umschalt+O (Outline) und
   // Strg+Umschalt+B (Backlinks) toggeln das jeweilige Panel.
   document.addEventListener('keydown', (e) => {
@@ -2820,6 +2865,10 @@ function bindUi() {
         // 4T-0019: Strg+Umschalt+F toggelt den Fokus-Modus des aktiven Fensters.
         e.preventDefault();
         toggleFocusMode();
+      } else if (e.key === 'T' || e.key === 't') {
+        // 4T-0056: Strg+Umschalt+T toggelt das Tag-Panel.
+        e.preventDefault();
+        toggleTagsPanel(state.activePaneIndex);
       }
     }
   });
@@ -3340,6 +3389,8 @@ function reportMenuStateNow() {
     backlinksVisible: !!state.backlinks.visibleByPane[state.activePaneIndex],
     // 4T-0051: Haekchen-Stand fuer Properties-Toggle im Ansicht-Menue.
     propertiesVisible: !!(state.properties && state.properties.visibleByPane[state.activePaneIndex]),
+    // 4T-0056: Haekchen-Stand fuer Tags-Toggle im Ansicht-Menue.
+    tagsVisible: !!(state.tags && state.tags.visibleByPane[state.activePaneIndex]),
     // 4T-0019: Haekchen-Stand fuer Fokus-Modus und Typewriter-Scroll im
     // Ansicht-Menue (beide pro Fenster wirksam, global persistiert).
     focusMode: !!state.focusMode,
@@ -3789,6 +3840,8 @@ function applyAllLayouts() {
     // 4T-0051: Properties-Sektion analog. applyPropertiesVisibility ruft
     // bei sichtbarer Sektion intern renderProperties auf.
     applyPropertiesVisibility(i);
+    // 4T-0056: Tag-Sektion analog.
+    applyTagsVisibility(i);
   }
 }
 
@@ -3834,6 +3887,10 @@ async function reloadFile(filePath) {
         if (state.properties && state.properties.visibleByPane[p]) {
           renderProperties(p);
         }
+        // 4T-0056: Tag-Sektion ebenfalls aktualisieren.
+        if (state.tags && state.tags.visibleByPane[p]) {
+          renderTags(p);
+        }
       }
       renderTabbar(p);
       if (p === state.activePaneIndex && idx === state.panes[p].activeIndex) {
@@ -3866,6 +3923,22 @@ async function handleRenderedClick(e, paneIdx) {
 
   if (/^https?:\/\//i.test(href)) {
     api.openExternal(href);
+    return;
+  }
+  // 4T-0056: Klick auf einen Tag-Link (#tag:<name>) aktiviert den Tag in
+  // der Tag-Sidebar (Sektion einblenden falls noetig, Filter setzen).
+  if (href.startsWith('#tag:')) {
+    const tagName = decodeURIComponent(href.slice(5));
+    if (!state.tags.visibleByPane[paneIdx]) {
+      state.tags.visibleByPane[paneIdx] = true;
+      applyTagsVisibility(paneIdx);
+      persistTagsSettings();
+      if (paneIdx === state.activePaneIndex && typeof reportMenuStateNow === 'function') {
+        reportMenuStateNow();
+      }
+    }
+    state.tags.filterByPane[paneIdx] = tagName;
+    renderTags(paneIdx);
     return;
   }
   if (href.startsWith('#')) {
@@ -5016,6 +5089,209 @@ async function loadPropertiesSettings() {
   const v1 = await api.getSetting('properties.visibleColumn1');
   state.properties.visibleByPane[0] = !!v0;
   state.properties.visibleByPane[1] = !!v1;
+}
+
+// --- Tag-Sidebar (4T-0056, Epic 3E-0011) ------------------------------------
+// Vierte Sidebar-Sektion zwischen Properties und Backlinks. Zeigt alle
+// Tags im Backlinks-Suchraum mit Haeufigkeits-Counts in hierarchischer
+// Anzeige (Slash-getrennte Hierarchie). Filter-Eingabe macht Substring-
+// Match. Klick auf einen Tag wechselt die Anzeige auf die Datei-Liste
+// fuer diesen Tag; Back-Button geht zur Tag-Liste zurueck.
+function applyTagsVisibility(paneIdx) {
+  const els = getPaneEls(paneIdx);
+  if (!els || !els.tagsSection) return;
+  const visible = !!state.tags.visibleByPane[paneIdx];
+  els.tagsSection.hidden = !visible;
+  applySidebarVisibility(paneIdx);
+  if (visible) renderTags(paneIdx);
+  updateTagsToggleButton();
+}
+
+function updateTagsToggleButton() {
+  const btn = document.getElementById('btn-tags');
+  if (!btn) return;
+  const visible = !!state.tags.visibleByPane[state.activePaneIndex];
+  btn.classList.toggle('active', visible);
+  btn.setAttribute('aria-pressed', visible ? 'true' : 'false');
+}
+
+async function toggleTagsPanel(paneIdx) {
+  if (paneIdx < 0 || paneIdx >= state.panes.length) return;
+  const next = !state.tags.visibleByPane[paneIdx];
+  state.tags.visibleByPane[paneIdx] = next;
+  applyTagsVisibility(paneIdx);
+  await persistTagsSettings();
+  if (paneIdx === state.activePaneIndex && typeof reportMenuStateNow === 'function') {
+    reportMenuStateNow();
+  }
+}
+
+async function persistTagsSettings() {
+  await api.setSetting('tags.visibleColumn0', !!state.tags.visibleByPane[0]);
+  await api.setSetting('tags.visibleColumn1', !!state.tags.visibleByPane[1]);
+}
+
+async function loadTagsSettings() {
+  const v0 = await api.getSetting('tags.visibleColumn0');
+  const v1 = await api.getSetting('tags.visibleColumn1');
+  state.tags.visibleByPane[0] = !!v0;
+  state.tags.visibleByPane[1] = !!v1;
+}
+
+// 4T-0056: Render-Token pro Pane verhindert Race bei mehrfachen Triggern.
+// Zwischen innerHTML='' und appendChild-Schleife liegt ein await; ohne
+// Token-Check wuerden parallele renderTags-Aufrufe die Tags doppelt bis
+// vierfach in den Container appenden (gleiches Phaenomen wie der
+// Properties-Race in 4T-0051).
+const tagsRenderToken = [0, 0];
+
+async function renderTags(paneIdx) {
+  const els = getPaneEls(paneIdx);
+  if (!els || !els.tagsSection) return;
+  const myToken = ++tagsRenderToken[paneIdx];
+  const pane = state.panes[paneIdx];
+  const tab = pane && pane.activeIndex >= 0 ? pane.tabs[pane.activeIndex] : null;
+  const filePath = tab && tab.path ? tab.path : null;
+
+  els.tagsTree.innerHTML = '';
+  els.tagsFiles.hidden = true;
+  els.tagsFiles.innerHTML = '';
+  els.tagsStatus.hidden = true;
+  els.tagsStatus.textContent = '';
+
+  if (!filePath) {
+    els.tagsStatus.hidden = false;
+    els.tagsStatus.textContent = t('tags.unavailable') || 'Tags erst nach dem Speichern verfügbar';
+    return;
+  }
+  const filterTag = state.tags.filterByPane[paneIdx];
+  let payload;
+  try {
+    payload = await api.requestTags(filePath, filterTag);
+  } catch {
+    payload = { status: 'unavailable' };
+  }
+  // Token-Check nach dem await: wenn zwischenzeitlich ein neuer Aufruf
+  // gestartet wurde, verwerfen wir das Ergebnis dieses Aufrufs.
+  if (myToken !== tagsRenderToken[paneIdx]) return;
+  // Defensiv: Container nochmals leeren, falls ein paralleler Aufruf
+  // doch noch Items angehaengt hat.
+  els.tagsTree.innerHTML = '';
+  els.tagsFiles.innerHTML = '';
+  els.tagsFiles.hidden = true;
+  els.tagsStatus.hidden = true;
+  els.tagsStatus.textContent = '';
+
+  if (!payload || payload.status === 'unavailable') {
+    els.tagsStatus.hidden = false;
+    els.tagsStatus.textContent = t('tags.unavailable') || 'Tags erst nach dem Speichern verfügbar';
+    return;
+  }
+  if (payload.status === 'indexing') {
+    els.tagsStatus.hidden = false;
+    els.tagsStatus.textContent = t('tags.indexing') || 'Indexiere…';
+    return;
+  }
+  if (payload.status === 'oversized') {
+    els.tagsStatus.hidden = false;
+    const meta = payload.meta || {};
+    const files = meta.fileCount || 0;
+    const mb = meta.byteSize ? Math.round(meta.byteSize / (1024 * 1024)) : 0;
+    const tmpl = t('tags.oversized') || 'Suchraum zu groß, Tags deaktiviert ({files} Dateien / {mb} MB)';
+    els.tagsStatus.textContent = tmpl.replace('{files}', String(files)).replace('{mb}', String(mb));
+    return;
+  }
+  if (filterTag && payload.files) {
+    renderTagsFilesView(paneIdx, els, filterTag, payload.files);
+  } else {
+    renderTagsTreeView(paneIdx, els, payload.tags || []);
+  }
+}
+
+function renderTagsTreeView(paneIdx, els, tags) {
+  if (!tags || tags.length === 0) {
+    els.tagsStatus.hidden = false;
+    els.tagsStatus.textContent = t('tags.empty') || 'Keine Tags im aktuellen Suchpfad';
+    return;
+  }
+  const query = (state.tags.queryByPane[paneIdx] || '').trim().toLowerCase();
+  const filtered = query
+    ? tags.filter((entry) => entry.tag.toLowerCase().includes(query))
+    : tags;
+  if (filtered.length === 0) {
+    els.tagsStatus.hidden = false;
+    els.tagsStatus.textContent = t('tags.noMatch') || 'Keine Treffer für diesen Filter';
+    return;
+  }
+  for (const entry of filtered) {
+    const item = document.createElement('div');
+    item.className = 'tags-tree-item';
+    // 4T-0056: Tags werden flach mit ihrem vollen Slash-Pfad angezeigt
+    // (z.B. '#projekt/markdown-viewer'). Eine echte Baum-Struktur mit
+    // ableitbaren Eltern-Knoten (Parent-Counts, Prefix-Filter) ist eine
+    // Folge-Erweiterung und kommt in einer spaeteren Iteration.
+    const name = document.createElement('span');
+    name.className = 'tags-tree-name';
+    name.textContent = '#' + entry.tag;
+    const count = document.createElement('span');
+    count.className = 'tags-tree-count';
+    count.textContent = String(entry.count);
+    item.appendChild(name);
+    item.appendChild(count);
+    item.title = entry.tag;
+    item.addEventListener('click', () => {
+      state.tags.filterByPane[paneIdx] = entry.tag;
+      renderTags(paneIdx);
+    });
+    els.tagsTree.appendChild(item);
+  }
+}
+
+function renderTagsFilesView(paneIdx, els, filterTag, files) {
+  els.tagsFiles.hidden = false;
+  // Header mit aktivem Tag und Back-Button.
+  const header = document.createElement('div');
+  header.className = 'tags-files-header';
+  const label = document.createElement('span');
+  label.className = 'tags-files-header-tag';
+  label.textContent = '#' + filterTag;
+  header.appendChild(label);
+  const back = document.createElement('button');
+  back.type = 'button';
+  back.className = 'tags-files-back';
+  back.textContent = t('tags.back') || '← zurück';
+  back.addEventListener('click', () => {
+    state.tags.filterByPane[paneIdx] = null;
+    renderTags(paneIdx);
+  });
+  header.appendChild(back);
+  els.tagsFiles.appendChild(header);
+  // Datei-Liste.
+  const list = document.createElement('div');
+  list.className = 'tags-files-list';
+  if (!files || files.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'tags-status';
+    empty.textContent = t('tags.noFiles') || 'Keine Dateien mit diesem Tag';
+    list.appendChild(empty);
+  } else {
+    for (const filePath of files) {
+      const item = document.createElement('div');
+      item.className = 'tags-files-item';
+      const name = document.createElement('span');
+      name.className = 'tags-files-item-name';
+      name.textContent = api.basename(filePath);
+      item.appendChild(name);
+      const dir = document.createElement('div');
+      dir.className = 'tags-files-item-dir';
+      dir.textContent = api.dirname(filePath);
+      item.appendChild(dir);
+      item.title = filePath;
+      item.addEventListener('click', () => openInPane(paneIdx, [filePath]));
+      list.appendChild(item);
+    }
+  }
+  els.tagsFiles.appendChild(list);
 }
 
 // --- Hilfe-Modal ------------------------------------------------------------

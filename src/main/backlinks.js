@@ -56,6 +56,11 @@ const BLOCK_ANCHOR_RE = /\s+\^([\p{L}\p{N}_-]+)\s*$/u;
 // 4T-0054: Fenced-Code-Block-Marker fuer Wiki-Link-/Heading-Tracking.
 const FENCE_RE = /^\s{0,3}(```+|~~~+)/;
 
+// 4T-0056: Inline-Tags `#tag` im Body. Gleiches Pattern wie tagsPlugin in
+// preload.js. Negativer Look-behind verhindert Treffer mitten in Woertern
+// (z.B. 'foo#bar') und nach `##` (Markdown-Heading-Doppelhash).
+const TAG_RE = /(?<![\p{L}\p{N}_#])#([\p{L}\p{N}_/-]+)/gu;
+
 // Relative Markdown-Links: [Text](pfad.md) oder (pfad.md#anker). Kein http:,
 // kein https:, kein mailto:, kein data:.
 const MD_LINK_RE = /\[[^\]\n]*\]\(([^)\s#?]+\.(?:md|markdown|mdown|mkd))(?:#([^)\s]+))?\)/gi;
@@ -136,7 +141,7 @@ function parseFile(filePath) {
   try {
     content = fs.readFileSync(filePath, 'utf8');
   } catch {
-    return { hits: [], aliases: [], headings: [], blockIds: [] };
+    return { hits: [], aliases: [], headings: [], blockIds: [], tags: [] };
   }
   const dir = path.dirname(filePath);
   const lines = content.split(/\r?\n/);
@@ -148,6 +153,7 @@ function parseFile(filePath) {
   // Frontmatter erkannt).
   let fmBodyStartLine = 0;
   let aliases = [];
+  const tagsSet = new Set(); // Sammelt Inline- und Frontmatter-Tags (case-preserving)
   if (lines.length >= 2 && lines[0].trimEnd() === '---') {
     for (let i = 1; i < lines.length; i++) {
       if (FRONTMATTER_END_LINE.test(lines[i])) {
@@ -158,9 +164,20 @@ function parseFile(filePath) {
           const parsed = yaml.load(yamlText, { schema: yaml.JSON_SCHEMA });
           if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
             aliases = normalizeAliases(parsed.aliases);
+            // 4T-0056: Frontmatter-Tags akzeptieren YAML-Liste, einzelnen
+            // String oder mehrzeilige Liste. Normalisierungs-Funktion wird
+            // mit Aliases geteilt.
+            const fmTags = normalizeAliases(parsed.tags);
+            for (const t of fmTags) {
+              // Inline-Tags duerfen kein '/' am Anfang/Ende haben; gleicher
+              // Filter fuer Frontmatter-Tags zur Konsistenz.
+              if (t && !t.startsWith('/') && !t.endsWith('/')) {
+                tagsSet.add(t);
+              }
+            }
           }
         } catch {
-          // Parse-Fehler: keine Aliases, Body trotzdem ab Schluss-Zeile.
+          // Parse-Fehler: keine Aliases/Tags, Body trotzdem ab Schluss-Zeile.
           aliases = [];
         }
         break;
@@ -209,6 +226,19 @@ function parseFile(filePath) {
     const blockMatch = line.match(BLOCK_ANCHOR_RE);
     if (blockMatch) {
       blockIds.push(blockMatch[1]);
+    }
+
+    // 4T-0056: Inline-Tags `#tag` sammeln. Code-Bloecke sind durch das
+    // inFence-Flag schon ausgeschlossen. Ein Tag mitten in einem Inline-
+    // Code (`#tag`) wuerde theoretisch falsch gezaehlt; im Praxis-Workflow
+    // selten und ohne grossen Schaden.
+    TAG_RE.lastIndex = 0;
+    let tagMatch;
+    while ((tagMatch = TAG_RE.exec(line)) !== null) {
+      const tag = tagMatch[1];
+      if (!tag.startsWith('/') && !tag.endsWith('/')) {
+        tagsSet.add(tag);
+      }
     }
 
     // Wiki-Links
@@ -261,7 +291,7 @@ function parseFile(filePath) {
       });
     }
   }
-  return { hits: out, aliases, headings, blockIds };
+  return { hits: out, aliases, headings, blockIds, tags: [...tagsSet] };
 }
 
 // 4T-0050: Normalisiert das aliases-Feld eines Frontmatter-Objekts zu einer
@@ -332,6 +362,13 @@ function ensureIndex(rootPath) {
     // im Linter. Sets fuer O(1)-Lookup.
     //   anchorsPerFile: Map<absPath, { headings: Set<slug>, blockIds: Set<id> }>
     anchorsPerFile: new Map(),
+    // 4T-0056: Tags pro Datei (Inline + Frontmatter) plus inverse Map fuer
+    // O(1)-Lookup beim Filtern. tagsPerFile speichert Original-Casing,
+    // tagMap-Schluessel ist Lowercase fuer case-insensitive Filter.
+    //   tagsPerFile: Map<absPath, string[]>
+    //   tagMap:      Map<tagLower, Set<absPath>>
+    tagsPerFile: new Map(),
+    tagMap: new Map(),
     fileCount: 0,
     byteSize: 0,
     watcher: null,
@@ -365,6 +402,11 @@ function ensureIndex(rootPath) {
         headings: new Set(parsed.headings),
         blockIds: new Set(parsed.blockIds),
       });
+    }
+    // 4T-0056: Tags pro Datei speichern und in die inverse Map eintragen.
+    if (parsed.tags && parsed.tags.length > 0) {
+      entry.tagsPerFile.set(f, parsed.tags);
+      addToTagMap(entry, f, parsed.tags);
     }
   }
   entry.status = 'ready';
@@ -413,6 +455,12 @@ function onWatcherChange(entry, filePath, kind) {
       }
       // 4T-0054: Anker-Map ebenfalls aufraeumen.
       entry.anchorsPerFile.delete(filePath);
+      // 4T-0056: Tags der entfallenen Datei aus den Maps austragen.
+      const prevTags = entry.tagsPerFile.get(filePath);
+      if (prevTags) {
+        removeFromTagMap(entry, filePath, prevTags);
+        entry.tagsPerFile.delete(filePath);
+      }
       // byteSize nur grob; wir laufen nicht jedesmal Vollscan, akzeptabel.
       scheduleInvalidate(entry);
     }
@@ -444,6 +492,15 @@ function onWatcherChange(entry, filePath, kind) {
     });
   } else {
     entry.anchorsPerFile.delete(filePath);
+  }
+  // 4T-0056: Tags aktualisieren. Diff-Logik analog zu Aliases.
+  const prevTags = entry.tagsPerFile.get(filePath) || [];
+  removeFromTagMap(entry, filePath, prevTags);
+  if (parsed.tags && parsed.tags.length > 0) {
+    entry.tagsPerFile.set(filePath, parsed.tags);
+    addToTagMap(entry, filePath, parsed.tags);
+  } else {
+    entry.tagsPerFile.delete(filePath);
   }
   scheduleInvalidate(entry);
 }
@@ -483,6 +540,99 @@ function filesByAlias(entry, alias) {
   const set = entry.aliasMap.get(String(alias).trim().toLowerCase());
   if (!set) return [];
   return [...set];
+}
+
+// 4T-0056: Helfer fuer die inverse Tag-Map. Schluessel ist Tag-Lowercase
+// (case-insensitive Lookup), Werte sind Sets von Datei-Pfaden. Identisches
+// Pattern zur Alias-Map.
+function addToTagMap(entry, filePath, tags) {
+  for (const t of tags) {
+    const key = String(t || '').trim().toLowerCase();
+    if (!key) continue;
+    let set = entry.tagMap.get(key);
+    if (!set) {
+      set = new Set();
+      entry.tagMap.set(key, set);
+    }
+    set.add(filePath);
+  }
+}
+
+function removeFromTagMap(entry, filePath, tags) {
+  for (const t of tags) {
+    const key = String(t || '').trim().toLowerCase();
+    if (!key) continue;
+    const set = entry.tagMap.get(key);
+    if (!set) continue;
+    set.delete(filePath);
+    if (set.size === 0) entry.tagMap.delete(key);
+  }
+}
+
+// 4T-0056: Liefert alle Tags der Wurzel sortiert nach Haeufigkeit
+// (absteigend), bei Gleichstand alphabetisch. Tag-Casing: das erste
+// gesehene Casing wird beibehalten (deterministisch durch Iteration der
+// tagMap-Schluessel-Reihenfolge).
+function getAllTagsWithCounts(entry) {
+  if (!entry || !entry.tagMap) return [];
+  const out = [];
+  for (const [keyLower, set] of entry.tagMap) {
+    let displayTag = keyLower;
+    // Original-Casing aus tagsPerFile-Map suchen (erstes Vorkommen).
+    for (const filePath of set) {
+      const fileTags = entry.tagsPerFile.get(filePath) || [];
+      const found = fileTags.find((t) => String(t).toLowerCase() === keyLower);
+      if (found) { displayTag = found; break; }
+    }
+    out.push({ tag: displayTag, count: set.size });
+  }
+  out.sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return a.tag.localeCompare(b.tag);
+  });
+  return out;
+}
+
+// 4T-0056: Liefert alle Dateien im Index, die den gegebenen Tag fuehren.
+// Case-insensitive Lookup. Pfade alphabetisch sortiert fuer deterministische
+// Anzeige in der Sidebar.
+function filesForTag(entry, tag) {
+  if (!tag) return [];
+  const set = entry.tagMap.get(String(tag).trim().toLowerCase());
+  if (!set) return [];
+  return [...set].sort((a, b) => a.localeCompare(b));
+}
+
+// 4T-0056: High-level-API fuer Renderer. Liefert Tag-Liste mit Counts
+// und ggf. Datei-Liste fuer einen ausgewaehlten Filter-Tag. Pattern
+// analog zu backlinksFor: kein ensureIndex-Aufruf, nutzt nur vorhandenen
+// Index.
+function tagsFor(filePath, filterTag) {
+  if (!filePath) return { status: 'unavailable' };
+  const root = rootFor(filePath);
+  if (!root) return { status: 'unavailable' };
+  const entry = indexes.get(root);
+  if (!entry) return { status: 'unavailable' };
+  if (entry.status === 'oversized') {
+    return {
+      status: 'oversized',
+      meta: { wurzel: root, fileCount: entry.fileCount, byteSize: entry.byteSize },
+    };
+  }
+  if (entry.status === 'indexing') {
+    return { status: 'indexing', meta: { wurzel: root } };
+  }
+  const tags = getAllTagsWithCounts(entry);
+  const result = {
+    status: 'ready',
+    meta: { wurzel: root, fileCount: entry.fileCount },
+    tags,
+  };
+  if (filterTag) {
+    result.filterTag = filterTag;
+    result.files = filesForTag(entry, filterTag);
+  }
+  return result;
 }
 
 function scheduleInvalidate(entry) {
@@ -854,4 +1004,6 @@ module.exports = {
   resolveWikiTargetByAlias,
   // 4T-0055: Anker-Snippet-Extraktion fuer Wiki-Embeds.
   extractEmbedSnippet,
+  // 4T-0056: Tag-System.
+  tagsFor,
 };

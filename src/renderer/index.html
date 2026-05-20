@@ -41,6 +41,20 @@
                 <button type="button" class="properties-add-btn" data-i18n="properties.addField">+ Eigenschaft hinzufügen</button>
               </div>
             </section>
+            <!-- 4T-0056 (Epic 3E-0011): Tag-Sektion. Hierarchische Tag-Liste
+                 mit Haeufigkeits-Counts, Filter-Eingabe, Klick filtert auf
+                 Dateien mit diesem Tag. Pro Spalte eine Instanz. -->
+            <section class="sidebar-section sidebar-tags" hidden>
+              <header class="sidebar-section-header">
+                <h2 class="sidebar-section-title" data-i18n="tags.title">Tags</h2>
+              </header>
+              <div class="sidebar-section-body">
+                <input type="text" class="tags-filter" data-i18n-placeholder="tags.filterPlaceholder" placeholder="Filter…" />
+                <div class="tags-status" hidden></div>
+                <div class="tags-tree"></div>
+                <div class="tags-files" hidden></div>
+              </div>
+            </section>
             <section class="sidebar-section sidebar-backlinks" hidden>
               <header class="sidebar-section-header">
                 <h2 class="sidebar-section-title" data-i18n="backlinks.title">Backlinks</h2>
@@ -90,6 +104,20 @@
                 <button type="button" class="properties-add-btn" data-i18n="properties.addField">+ Eigenschaft hinzufügen</button>
               </div>
             </section>
+            <!-- 4T-0056 (Epic 3E-0011): Tag-Sektion. Hierarchische Tag-Liste
+                 mit Haeufigkeits-Counts, Filter-Eingabe, Klick filtert auf
+                 Dateien mit diesem Tag. Pro Spalte eine Instanz. -->
+            <section class="sidebar-section sidebar-tags" hidden>
+              <header class="sidebar-section-header">
+                <h2 class="sidebar-section-title" data-i18n="tags.title">Tags</h2>
+              </header>
+              <div class="sidebar-section-body">
+                <input type="text" class="tags-filter" data-i18n-placeholder="tags.filterPlaceholder" placeholder="Filter…" />
+                <div class="tags-status" hidden></div>
+                <div class="tags-tree"></div>
+                <div class="tags-files" hidden></div>
+              </div>
+            </section>
             <section class="sidebar-section sidebar-backlinks" hidden>
               <header class="sidebar-section-header">
                 <h2 class="sidebar-section-title" data-i18n="backlinks.title">Backlinks</h2>
@@ -132,6 +160,13 @@
               <path d="M9 5H4.5A2.5 2.5 0 0 0 2 7.5v9A2.5 2.5 0 0 0 4.5 19H9"/>
               <path d="M15 5h4.5A2.5 2.5 0 0 1 22 7.5v9a2.5 2.5 0 0 1-2.5 2.5H15"/>
               <path d="M9 5v14"/><path d="M15 5v14"/>
+            </svg>
+          </button>
+          <!-- 4T-0056: Tags-Sidebar-Toggle. Lucide-Icon 'tag' (Schleifchen-Form). -->
+          <button id="btn-tags" class="btn-toggle btn-icon" data-i18n-title="tags.toggleTitle" data-i18n-aria-label="tags.toggle" title="" aria-label="Tags">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/>
+              <circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>
             </svg>
           </button>
           <button id="btn-backlinks" class="btn-toggle btn-icon" data-i18n-title="backlinks.toggleTitle" data-i18n-aria-label="backlinks.toggle" title="" aria-label="Backlinks">

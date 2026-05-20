@@ -494,6 +494,53 @@ function wikiEmbedsPlugin(mdInstance) {
 }
 md.use(wikiEmbedsPlugin);
 
+// 4T-0056 (Epic 3E-0011): Tag-Inline-Rule. `#tag` im Fliesstext wird zu
+// einem klickbaren <a class="tag-link" href="#tag:<name>">-Element. Tag-
+// Zeichen sind \p{L}\p{N}_- plus '/' fuer Hierarchien (z.B. #projekt/x).
+// Vor '#' muss Anfang der Zeile oder ein nicht-Wort-Zeichen stehen, sonst
+// wird '#' als Teil eines Wortes ignoriert (z.B. 'foo#bar' ist kein Tag).
+// Heading-Marker am Zeilenanfang ('# Heading') sind kein Tag, weil dort
+// der Block-Tokenizer das '#' schon konsumiert, bevor der Inline-Tokenizer
+// laeuft. Code-Bloecke (Inline und Fenced) sind ebenfalls aussen vor —
+// markdown-it laesst Inline-Rules darin nicht laufen.
+function tagsPlugin(mdInstance) {
+  function tokenize(state, silent) {
+    const start = state.pos;
+    if (state.src.charCodeAt(start) !== 0x23 /* # */) return false;
+    // Vorzeichen-Check: Anfang oder nicht-alphanumerisch (und kein '#').
+    if (start > 0) {
+      const prevCh = state.src.charAt(start - 1);
+      if (/[\p{L}\p{N}_#]/u.test(prevCh)) return false;
+    }
+    // Tag-Zeichen einlesen.
+    let pos = start + 1;
+    const max = state.posMax;
+    while (pos < max) {
+      const ch = state.src.charAt(pos);
+      if (!/[\p{L}\p{N}_/-]/u.test(ch)) break;
+      pos++;
+    }
+    const tagText = state.src.slice(start + 1, pos);
+    if (!tagText) return false;
+    // Hierarchie-Trenner '/' darf nicht am Anfang oder Ende stehen.
+    if (tagText.startsWith('/') || tagText.endsWith('/')) return false;
+
+    if (!silent) {
+      const open = state.push('link_open', 'a', 1);
+      open.attrSet('href', '#tag:' + tagText);
+      open.attrSet('class', 'tag-link');
+      const text = state.push('text', '', 0);
+      text.content = '#' + tagText;
+      state.push('link_close', 'a', -1);
+    }
+
+    state.pos = pos;
+    return true;
+  }
+  mdInstance.inline.ruler.before('link', 'tag', tokenize);
+}
+md.use(tagsPlugin);
+
 // 4T-0054 (Epic 3E-0011): Block-Anker-Syntax `^block-id` am Zeilenende.
 // Hängt id-Attribut an das umschließende Block-Open-Token (paragraph_open,
 // blockquote_open, list_item_open, td_open, etc.) und entfernt das Marker-
@@ -576,6 +623,10 @@ mdPortable.use(blockAnchorsPlugin);
 // Span-Elemente). Akzeptable Einschraenkung in Stufe 1 — Bilder sind
 // der haeufigste Embed-Typ und funktionieren vollstaendig portable.
 mdPortable.use(wikiEmbedsPlugin);
+// 4T-0056: Tag-Inline-Rule auch im portablen Export — die Anker-href
+// `#tag:<name>` funktioniert im portablen Output zwar nicht als Filter,
+// aber der sichtbare Text `#tag` bleibt erhalten.
+mdPortable.use(tagsPlugin);
 
 // 4T-0034: scg-table — MediaWiki-aehnliche Tabellen-Syntax als Fenced-Code-
 // Block mit Sprach-Tag 'scg-table'. Stufe 1 des Epics 3E-0006: Basis-Tabelle
@@ -1222,6 +1273,10 @@ contextBridge.exposeInMainWorld('api', {
   // Antwort: { ok, path, displayPath, content } oder { ok: false, error }.
   readEmbedFile: (basePath, embedPath, anchor) =>
     ipcRenderer.invoke('embed:read', { basePath, embedPath, anchor }),
+  // 4T-0056: Tag-System. Liefert Tag-Liste der Wurzel (sortiert nach
+  // Haeufigkeit) und optional Datei-Liste fuer einen Filter-Tag.
+  requestTags: (filePath, filterTag) =>
+    ipcRenderer.invoke('tags:request', { filePath, filterTag: filterTag || null }),
   onBacklinksInvalidated: (cb) => ipcRenderer.on('backlinks:invalidated', (_e, payload) => cb(payload)),
 
   // Multi-Window
@@ -1275,6 +1330,8 @@ contextBridge.exposeInMainWorld('api', {
   onMenuOpenSettings: (cb) => ipcRenderer.on('menu:openSettings', () => cb()),
   // 4T-0051: Properties-Sidebar-Sektion ueber Menue-Eintrag Ansicht -> Properties.
   onMenuToggleProperties: (cb) => ipcRenderer.on('menu:toggleProperties', () => cb()),
+  // 4T-0056: Tag-Sidebar-Sektion ueber Menue-Eintrag Ansicht -> Tags.
+  onMenuToggleTags: (cb) => ipcRenderer.on('menu:toggleTags', () => cb()),
   // 4T-0018: Multi-Window-Broadcast bei appearance.*-Aenderung.
   onAppearanceChanged: (cb) => ipcRenderer.on('appearance:changed', (_e, payload) => cb(payload)),
   onMenuToggleRestoreSession: (cb) => ipcRenderer.on('menu:toggleRestoreSession', () => cb()),

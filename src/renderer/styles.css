@@ -1755,6 +1755,131 @@ body.focus-mode .splitter.sidebar-splitter {
   border-color: var(--border-strong);
 }
 
+/* === Tag-System (4T-0056, Epic 3E-0011) ================================= */
+/* Inline-Tag-Pillen im Render-Pane (per #tag-Markup erzeugt). */
+.markdown-body .tag-link {
+  display: inline-block;
+  padding: 1px 6px;
+  background: rgba(33, 150, 243, 0.12);
+  color: var(--syntax-link);
+  border-radius: 3px;
+  font-size: 0.92em;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.markdown-body .tag-link:hover {
+  background: rgba(33, 150, 243, 0.2);
+  text-decoration: none;
+}
+[data-theme="dark"] .markdown-body .tag-link {
+  background: rgba(100, 181, 246, 0.16);
+}
+[data-theme="dark"] .markdown-body .tag-link:hover {
+  background: rgba(100, 181, 246, 0.28);
+}
+
+/* Tag-Sidebar-Sektion. */
+.tags-filter {
+  width: calc(100% - 24px);
+  margin: 8px 12px 6px;
+  background: var(--bg-alt);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 12px;
+  box-sizing: border-box;
+}
+.tags-filter:focus {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+.tags-status {
+  padding: 8px 12px;
+  color: var(--fg-muted);
+  font-size: 0.85em;
+  font-style: italic;
+}
+.tags-tree {
+  padding: 4px 6px 8px;
+}
+.tags-tree-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.tags-tree-item:hover {
+  background: var(--bg-alt);
+}
+.tags-tree-name {
+  flex: 1;
+  min-width: 0;
+  color: var(--fg);
+  font-family: var(--editor-font-family, monospace);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tags-tree-count {
+  color: var(--fg-muted);
+  font-size: 0.9em;
+}
+
+.tags-files {
+  padding: 0 0 8px;
+  border-top: 1px solid var(--border);
+}
+.tags-files-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--bg-muted);
+  font-size: 0.85em;
+}
+.tags-files-header-tag {
+  font-weight: 600;
+  font-family: var(--editor-font-family, monospace);
+  color: var(--syntax-link);
+}
+.tags-files-back {
+  background: transparent;
+  border: 0;
+  color: var(--fg-muted);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+.tags-files-back:hover {
+  background: var(--bg-alt);
+  color: var(--fg);
+}
+.tags-files-list {
+  padding: 4px 6px 0;
+}
+.tags-files-item {
+  padding: 3px 8px;
+  cursor: pointer;
+  font-size: 12px;
+  border-radius: 3px;
+}
+.tags-files-item:hover {
+  background: var(--bg-alt);
+}
+.tags-files-item-name {
+  font-weight: 500;
+}
+.tags-files-item-dir {
+  color: var(--fg-muted);
+  font-size: 0.85em;
+}
+
 /* === Wiki-Embeds (4T-0055, Epic 3E-0011) ================================= */
 /* Bilder: kommen schon als <img> aus dem preload (mit data-URI). Hier nur
    Basis-Styling fuer Inline-Bilder. */

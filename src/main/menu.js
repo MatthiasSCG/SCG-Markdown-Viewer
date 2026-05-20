@@ -217,6 +217,15 @@ function buildMenu(win, state, actions) {
           click: send('menu:toggleProperties'),
         },
         {
+          // 4T-0056 (Epic 3E-0011): Tag-Sidebar-Sektion toggeln. Pattern
+          // wie Outline/Backlinks/Properties.
+          label: t('menu.view.tags'),
+          type: 'checkbox',
+          checked: !!(state && state.tagsVisible),
+          accelerator: 'CmdOrCtrl+Shift+T',
+          click: send('menu:toggleTags'),
+        },
+        {
           label: t('menu.view.foldGutter'),
           type: 'checkbox',
           checked: !!(state && state.foldGutter),

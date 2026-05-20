@@ -404,6 +404,8 @@ function getMenuState(id) {
     backlinksVisible: !!base.backlinksVisible,
     // 4T-0051: Haekchen-Stand fuer das Properties-Toggle im Ansicht-Menue.
     propertiesVisible: !!base.propertiesVisible,
+    // 4T-0056: Haekchen-Stand fuer das Tags-Toggle im Ansicht-Menue.
+    tagsVisible: !!base.tagsVisible,
     // 4T-0019: Fokus-Modus und Typewriter-Scroll. Werte pro Fenster, aus
     // dem Renderer-Report uebernommen; persistierter Stand kommt nur beim
     // ersten Fenster-Start aus dem Store, danach fuehrt der Renderer.
@@ -1087,6 +1089,16 @@ function registerIpc() {
     const root = backlinks.rootForActiveFile(filePath);
     if (root) backlinks.releaseRoot(root);
     return { ok: true };
+  });
+
+  // 4T-0056 (Epic 3E-0011): Tag-System. Liefert die Tag-Liste der Wurzel
+  // (mit Counts) und optional die Datei-Liste fuer einen Filter-Tag.
+  // Aehnlich backlinks:request, aber ohne Refcount/Soft-Timer-Mechanik:
+  // Tags sind ein Read-only-View und triggern keinen Index-Aufbau.
+  ipcMain.handle('tags:request', (_event, params) => {
+    const filePath = params && params.filePath;
+    const filterTag = params && params.filterTag;
+    return backlinks.tagsFor(filePath, filterTag);
   });
 
   // 4T-0020: Linter-Lookup fuer broken-wiki-link. Batch-Endpunkt: pro Lint-

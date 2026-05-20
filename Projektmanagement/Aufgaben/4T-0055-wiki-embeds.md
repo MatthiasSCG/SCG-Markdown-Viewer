@@ -1,6 +1,6 @@
 # 4T-0055 — Wiki-Embeds `![[…]]`
 
-**Status**: Erledigt — 2026-05-20, Test bestanden
+**Status**: Erledigt — 2026-05-20, gepushed (Commit `b1f6ad7`)
 **Epic**: [3E-0011 — Wiki-Link-Ausbau und Tag-System](3E-0011-wiki-link-ausbau-und-tag-system.md)
 **Zielversion**: 0.17.0
 **Setzt voraus**: [4T-0054 — Wiki-Link-Parser für Heading- und Block-Anker](4T-0054-wiki-link-heading-block-anker.md)

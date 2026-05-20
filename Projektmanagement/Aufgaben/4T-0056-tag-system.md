@@ -1,6 +1,6 @@
 # 4T-0056 — Tag-System: Parser, Index und Sidebar
 
-**Status**: Offen
+**Status**: Erledigt — 2026-05-20, Test bestanden
 **Epic**: [3E-0011 — Wiki-Link-Ausbau und Tag-System](3E-0011-wiki-link-ausbau-und-tag-system.md)
 **Zielversion**: 0.17.0
 
@@ -89,4 +89,53 @@ Pflege im Tag-Index analog zu Aliases:
 
 ## Lösung
 
-(noch leer, wird nach Abschluss der Umsetzung gefüllt)
+Umgesetzt am 2026-05-20, Test bestanden.
+
+### Code-Änderungen
+
+- **[src/main/preload.js](../../src/main/preload.js)**:
+  - Neues `tagsPlugin` als markdown-it Inline-Rule erkennt `#tag` mit Hierarchie-Slashes. Erzeugt `<a class="tag-link" href="#tag:<name>">#<name></a>`. Negativer Look-behind `(?<![\p{L}\p{N}_#])` verhindert Treffer mitten in Wörtern und nach Doppelhash.
+  - Plugin wird in `md` und `mdPortable` registriert (im portablen Export bleiben Tag-Pillen als Text sichtbar, ohne Filter-Funktion).
+  - Neue API-Methoden `requestTags` (Tag-Liste mit optionalem Filter-Tag) und `onMenuToggleTags` (Menü-Trigger).
+- **[src/main/backlinks.js](../../src/main/backlinks.js)**:
+  - `parseFile` sammelt zusätzlich Inline-Tags aus dem Body (per `TAG_RE`-Regex) und Frontmatter-`tags:` aus dem YAML-Block. Normalisierungs-Funktion `normalizeAliases` wird wiederverwendet.
+  - Neue Maps `tagsPerFile` (Original-Casing) und inverse `tagMap` (case-insensitive Lookup) im Index.
+  - Helper `addToTagMap`/`removeFromTagMap`/`getAllTagsWithCounts`/`filesForTag` analog zur Alias-Logik.
+  - `ensureIndex` und `onWatcherChange` pflegen beide Maps mit Diff-Logik bei add/change/unlink.
+  - Neue exportierte Funktion `tagsFor(filePath, filterTag)` für den IPC-Handler. Liefert Tag-Liste sortiert nach Häufigkeit (absteigend) und bei Gleichstand alphabetisch; optional die Datei-Liste für einen Filter-Tag.
+- **[src/main/main.js](../../src/main/main.js)**: neuer IPC-Handler `tags:request`; `getMenuState` reicht `tagsVisible` durch.
+- **[src/main/menu.js](../../src/main/menu.js)**: neuer Menüpunkt `Ansicht → Tags` als Checkbox mit Accelerator `CmdOrCtrl+Shift+T`.
+- **[src/renderer/index.html](../../src/renderer/index.html)**: neue Sidebar-Sektion `.sidebar-tags` zwischen Properties und Backlinks pro Pane mit Filter-Input, Status-Element, Tree-Container und Files-Container. Neuer Statusbar-Button `#btn-tags` mit Lucide-Tag-Icon zwischen Properties- und Backlinks-Icon.
+- **[src/renderer/renderer.js](../../src/renderer/renderer.js)**:
+  - `state.tags = { visibleByPane, filterByPane, queryByPane }`.
+  - `getPaneEls` um `tagsSection`, `tagsFilter`, `tagsStatus`, `tagsTree`, `tagsFiles` erweitert.
+  - `applySidebarVisibility` zählt Tag-Sektion zur Sichtbarkeit.
+  - Komplette Tag-Sidebar-Logik: `applyTagsVisibility`, `toggleTagsPanel`, `persistTagsSettings`, `loadTagsSettings`, `updateTagsToggleButton`, `renderTags` (Token-basierte Race-Abwehr), `renderTagsTreeView` (flache Anzeige mit voller Slash-Pfad-Darstellung), `renderTagsFilesView` (Datei-Liste mit Header und Back-Button).
+  - Event-Listener: Statusbar-Button-Click, Filter-Input pro Pane (mit `state.tags.queryByPane`-Update), Menü-Trigger, Hotkey `Strg+Umschalt+T` in der bestehenden Sidebar-Toggle-Keydown-Logik.
+  - Tab-Wechsel und externer Reload rufen `renderTags` auf, wenn die Sektion sichtbar ist.
+  - `applyAllLayouts` ruft `applyTagsVisibility` für beide Panes.
+  - `loadTagsSettings` beim App-Start.
+  - `reportMenuStateNow` reicht `tagsVisible` durch.
+  - `handleRenderedClick` erkennt `href="#tag:<name>"` und aktiviert die Tag-Sidebar mit dem entsprechenden Filter (Sektion wird eingeblendet, falls noch nicht sichtbar; Menü-Häkchen wird über `reportMenuStateNow` synchronisiert).
+- **[src/renderer/styles.css](../../src/renderer/styles.css)**: `.tag-link` für Inline-Tag-Pillen im Render-Pane (dezent blau, theme-konform). `.tags-*`-Stilfamilie für die Sidebar: Filter-Input, flache Tree-Items mit Hover-Hervorhebung, Datei-Liste mit Header und Back-Button.
+- **i18n (DE/EN/FR/ES/IT)**: 12 neue Keys je Sprache (`menu.view.tags`, `tags.title`, `tags.toggle`, `tags.toggleTitle`, `tags.filterPlaceholder`, `tags.empty`, `tags.noMatch`, `tags.unavailable`, `tags.indexing`, `tags.oversized`, `tags.back`, `tags.noFiles`).
+
+### Implementierungsdetails
+
+- **Token-basierte Race-Abwehr in `renderTags`**: identisches Problem wie der Properties-Race in 4T-0051, hier aber unvermeidbar async, weil `api.requestTags` ein IPC-Call ist. Lösung: pro Pane ein Counter `tagsRenderToken[paneIdx]`, beim Start eines Aufrufs inkrementiert. Nach dem `await` wird verglichen: wenn der Counter nicht mehr stimmt, ist ein neuerer Aufruf gestartet — der alte verwirft sein Ergebnis. Defensiv wird der Container nach dem await nochmals geleert, falls ein paralleler Aufruf doch noch Items angehängt hat.
+- **Flache Anzeige statt Hierarchie-Indent**: ursprünglich war eine pseudo-hierarchische Anzeige geplant, die aus der Slash-Anzahl im Tag-Namen ein Indent ableitet (`#a/b` → `padding-left: 14px`). Beim Test fiel auf, dass das ohne echte Parent-Knoten verwirrt — Tags mit Slash sahen aus wie eingerückt „unter etwas", obwohl der vermeintliche Parent nicht existiert. Entscheidung: flache Anzeige mit vollem Slash-Pfad. Eine echte Baum-Struktur mit ableitbaren Parent-Knoten, Parent-Counts und Prefix-Filter wäre konzeptionell mehr Aufwand (Backend muss Prefix-Lookup unterstützen, Parent-Counts müssen dedupliziert berechnet werden) und kommt in einer späteren Iteration.
+- **Negativer Look-behind bei TAG_RE**: `(?<![\p{L}\p{N}_#])` verhindert `foo#bar`-Treffer mitten im Wort und `##tag` aus Markdown-Doppelhash. Code-Block-Tracking aus 4T-0054 (über `inFence`-Flag) wird wiederverwendet — Tags in Fenced-Code werden nicht indiziert.
+- **`#` als Heading vs. Tag**: `# Heading` am Zeilenanfang wird vom Block-Tokenizer als Heading konsumiert, bevor die Inline-Rule läuft. Daher kein Konflikt zwischen Heading-Marker und Tag.
+- **Frontmatter-Tags-Integration**: das Frontmatter-Feld `tags:` wird mit der gleichen Normalisierungs-Funktion (`normalizeAliases`) durch Liste, einzelnen String oder mehrzeilige Form akzeptiert. Tags aus Frontmatter und Inline-Tags landen im gleichen Set pro Datei.
+- **Klick auf Tag-Pille im Render-Pane**: Klick-Handler erkennt `href="#tag:<name>"`-Pattern als spezielle Behandlung vor dem allgemeinen `#`-Anker-Pfad. Bei nicht-sichtbarer Tag-Sektion wird sie eingeblendet plus Filter gesetzt; sonst nur Filter aktualisiert.
+
+### Bugfix-Iteration während des Tasks
+
+Nach erster Test-Iteration fielen zwei Bugs auf, die im selben Build behoben wurden:
+
+1. **Pseudo-Indent für Tags mit Slashes**: aus der Slash-Anzahl wurde `padding-left` abgeleitet, ohne dass Parent-Knoten existieren. Fix: Indent komplett raus, flache Anzeige.
+2. **Tags drei- bis vierfach beim Tab-Wechsel**: klassischer Async-Race, wie bei 4T-0051. Fix: Token-basierte Validierung pro Pane plus Defensiv-Reset nach dem `await`.
+
+### Smoke-Test (2026-05-20)
+
+16 Test-Punkte vom Nutzer verifiziert: Tag-Pillen im Render-Pane, drei Toggle-Wege, Tag-Liste mit Häufigkeit, Filter-Input, Klick-Filter, Datei-Liste, Back-Button, Klick auf Tag-Pille, Frontmatter-Integration, Persistenz, Tab-Wechsel, Live-Update über Watcher, Sprachwechsel, Theme-Wechsel, Heading-/Wort-Ausschluss, Code-Block-Ausschluss. Plus die beiden Folge-Fixes (Indent, Race). Alle Punkte bestanden.
