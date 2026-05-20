@@ -1,6 +1,6 @@
 # 4T-0051 — Properties-Editor für Frontmatter-Felder
 
-**Status**: Offen
+**Status**: Erledigt — 2026-05-20, Test bestanden. Umbau von Modal auf Sidebar-Sektion und drei Folge-Fixes (Race, Auto-Save-Alignment, Menü-Häkchen) inbegriffen.
 **Epic**: [3E-0010 — Frontmatter, Aliases und Properties](3E-0010-frontmatter-aliases-properties.md)
 **Zielversion**: 0.16.0
 **Setzt voraus**: [4T-0049 — Frontmatter-Erkennung und Render-Ausschluss](4T-0049-frontmatter-erkennung.md)
@@ -117,4 +117,53 @@ Disabled, wenn die aktive Datei keinen Frontmatter hat. Klick öffnet den Dialog
 
 ## Lösung
 
-(noch leer, wird nach Abschluss der Umsetzung gefüllt)
+Umgesetzt am 2026-05-20, Test bestanden.
+
+### Konzept-Iteration während des Tasks
+
+Erste Umsetzung folgte dem ursprünglich gewählten **Variante A** (modaler Dialog, Aufruf über `Datei → Properties bearbeiten…` mit `Strg+;`). Nach Sicht-Prüfung wurde auf eine **dritte Variante C** umgestellt: **Sidebar-Sektion** parallel zu Inhaltsverzeichnis und Backlinks, permanent ein-/ausblendbar, mit Live-Edit. Die Modal-Komponente wurde komplett entfernt; die Geschäftslogik (Typ-Inferenz, Wert-Konvertierung, Field-Render, Round-Trip-Schreiben) wurde wiederverwendet. Vorbild für das Layout war ein Logseq-Block-Properties-Screenshot, den der Nutzer im Test-Feedback geliefert hat.
+
+Zusätzlich kamen drei Folge-Fixes nach dem Umbau:
+
+1. **Race in `renderProperties`**: Funktion war `async` mit `await api.getFrontmatter(...)`. Bei mehreren parallelen Triggern (Initial-Load, Tab-Wechsel, Toggle, View-Mode-Wechsel, Auto-Reload) wurden Felder doppelt bis vierfach gerendert, weil zwischen `innerHTML = ''` und der `appendChild`-Schleife ein anderer Aufruf reinpasste. Fix: sync gemacht (api.getFrontmatter ist im Preload als sync exposed, kein await nötig).
+2. **Live-Save unabhängig vom Auto-Save-Setting**: Property-Änderung schrieb sofort auf Disk, auch wenn der globale Auto-Save-Schalter aus war. Inkonsistent mit dem App-Modell. Fix: `savePropertiesFromPane` aktualisiert nur noch `tab.content`, setzt `tab.dirty` und ruft `scheduleAutoSave()` — identisches Modell wie eine Editor-Änderung.
+3. **Fehlendes Häkchen im Ansicht-Menü**: `getMenuState` in `main.js` filterte `propertiesVisible` heraus. Fix: Feld in der Liste der durchgereichten Felder ergänzt.
+
+Zusätzlich wurde der Typ `Nur lesen` aus dem User-wählbaren Dropdown ausgeblendet (er ist ein interner Fallback-Marker für verschachtelte YAML-Strukturen und führte den Nutzer in eine Sackgasse, wenn er ihn manuell wählte).
+
+### Code-Änderungen
+
+- **[src/main/preload.js](../../src/main/preload.js)**:
+  - Neue Dependency-Imports: `yaml` (Eemeli) für Round-Trip-Schreiben zusätzlich zu `js-yaml` für das Lesen.
+  - Neue Funktion `writeFrontmatter(originalText, newData)`: Diff-basierter Schreibvorgang. Sonderfälle abgedeckt: keine Felder mit/ohne bestehenden Frontmatter, bestehender Frontmatter mit neuen Daten (echte Diffs), defekter/leerer Frontmatter (Neuanlage). Unveränderte Felder bleiben byte-genau erhalten (Kommentare, Stil, Schlüsselreihenfolge).
+  - Neue API-Methoden `writeFrontmatter` und `onMenuToggleProperties`. `onMenuOpenProperties` (für das ursprüngliche Modal) entfällt.
+- **[src/main/menu.js](../../src/main/menu.js)**: `Datei → Properties bearbeiten…` entfernt; `Ansicht → Properties` als Checkbox-Menüpunkt mit Accelerator `CmdOrCtrl+;` hinzugefügt (analog Outline/Backlinks).
+- **[src/main/main.js](../../src/main/main.js)**: `getMenuState` reicht `propertiesVisible` durch, damit das Menü-Häkchen den aktuellen Sichtbarkeits-Stand spiegelt.
+- **[src/renderer/index.html](../../src/renderer/index.html)**: Modal entfernt. Pro Pane eine `<section class="sidebar-section sidebar-properties">` zwischen Outline und Backlinks. Statusbar-Icon `#btn-properties` mit Lucide-`book-open`-Stil zwischen Outline- und Backlinks-Icons.
+- **[src/renderer/styles.css](../../src/renderer/styles.css)**: Modal-Stilfamilie raus. Neue `.properties-*`-Stile für die Sidebar: kompaktes Zwei-Zeilen-Layout pro Feld (Head mit Key/Typ/Delete, Value-Editor darunter), Hover-Lösch-Button, Pillen-Liste, Date-Picker, Readonly-Vorschau, Theme-konform.
+- **[src/renderer/renderer.js](../../src/renderer/renderer.js)**:
+  - `state.properties = { visibleByPane, saveTimers, originalDataByPane }`.
+  - `getPaneEls` um `propertiesSection`, `propertiesFields`, `propertiesEmpty`, `propertiesParseError`, `propertiesAddBtn` erweitert.
+  - `renderProperties(paneIdx)` (sync), `savePropertiesFromPane(paneIdx)` (Diff, Auto-Save-aligned), `scheduleSavePropertiesFromPane` (500 ms Debounce), `applyPropertiesVisibility`, `togglePropertiesPanel`, `persistPropertiesSettings`, `loadPropertiesSettings`, `updatePropertiesToggleButton`.
+  - `buildPropertyFieldDom` für Sidebar-Layout mit Head- und Value-Zeile, Live-Save-Hooks (input/change-Listener) plus explizite Save-Trigger bei Pill-Add/Remove und Field-Delete.
+  - `renderValueEditor`, `appendMultistringPill`, `onTypeChange` und `extractFieldValue` an Sidebar-Pattern angepasst (paneIdx-aware).
+  - `addPropertiesField(paneIdx)` pro Spalte; Empty-Hint wird beim ersten Feld ausgeblendet.
+  - `applySidebarVisibility` um Properties-Sektion erweitert.
+  - `reportMenuStateNow` reicht `propertiesVisible` an Main weiter.
+  - Tab-Wechsel und externe Datei-Änderung (Auto-Reload) rendern die Properties-Sektion neu, sofern sichtbar.
+  - `readonly`-Typ im Dropdown nur sichtbar, wenn der aktuelle Feld-Typ bereits readonly ist (Dropdown ist dann disabled).
+- **i18n (DE/EN/FR/ES/IT)**: Modal-Strings (`menu.file.properties`, `properties.emptyHint`, `properties.cancel`, `properties.apply`, `properties.ok`) entfernt. Neu: `menu.view.properties`, `properties.toggle`, `properties.toggleTitle`, `properties.empty`. `properties.title` auf knapp „Properties" verkürzt, `properties.addField` als `+ Eigenschaft hinzufügen`-Stil. JSON-Anführungszeichen-Konvention beachtet.
+- **[package.json](../../package.json)**: neue Dependency `yaml@^2.9.0`.
+
+### Implementierungsdetails
+
+- **Sync-Rendering**: `renderProperties` ist bewusst synchron, weil `api.getFrontmatter` via contextBridge synchron exposed ist. Async wäre semantisch falsch und öffnete ein Race-Fenster zwischen Container-leeren und Feld-Anhängen.
+- **Live-Save-Pipeline = Editor-Save-Pipeline**: `savePropertiesFromPane` macht keinen direkten Disk-Write, sondern aktualisiert `tab.content`, setzt `tab.dirty` neu und ruft `scheduleAutoSave()`. Das gleiche Modell wie der CodeMirror-Update-Listener verwendet. Damit hängt das tatsächliche Schreiben am globalen Auto-Save-Schalter.
+- **Diff-basiertes Schreiben**: `writeFrontmatter` lädt mit `yaml.parseDocument` ein bearbeitbares Document, vergleicht jedes neue Feld per `JSON.stringify(oldValue) !== JSON.stringify(newValue)` und setzt nur bei tatsächlicher Änderung neu. Unveränderte Felder bleiben byte-genau, was Kommentare und Stil erhält. Felder, die aus newData fehlen, werden mit `doc.delete(key)` entfernt.
+- **Empty-Hint und Add-Field**: Bei einer Datei ohne Frontmatter zeigt die Sektion nur den `properties.empty`-Hinweis und den `+ Eigenschaft hinzufügen`-Button. Klick legt das erste Feld an; bei erster Eingabe wird automatisch ein neuer Frontmatter-Block am Datei-Anfang erzeugt (Round-Trip-Pfad in `writeFrontmatter`).
+- **Sektion-Reihenfolge**: Inhaltsverzeichnis → Properties → Backlinks. Datei-Metadaten oben, Verlinkung unten — passt zur Datei-Reihenfolge (Frontmatter steht am Datei-Anfang).
+- **`readonly`-Filter**: Im Code-Pfad bleibt der Typ `readonly` als Marker für verschachtelte YAML-Strukturen erhalten. Nur die UI verbirgt ihn im Dropdown, wenn ein Feld nicht bereits readonly ist — User-Sackgasse verhindert.
+
+### Smoke-Test (2026-05-20)
+
+Alle 13 Test-Punkte vom Nutzer verifiziert (Sidebar-Toggle über drei Wege, Position, Persistenz, Typ-Anzeige, Live-Save, Multistring-Pillen, Feld-Delete, Feld-Add, Empty-State, Tab-Wechsel, externer Stand, Theme, Sprache). Drei nachträglich entdeckte Punkte gefixt (Race, Auto-Save, Menü-Häkchen) und vom Nutzer freigegeben. Final-Check: `readonly` aus Dropdown ausgeblendet, vom Nutzer geprüft.

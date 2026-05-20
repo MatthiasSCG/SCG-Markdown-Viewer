@@ -207,6 +207,16 @@ function buildMenu(win, state, actions) {
           click: send('menu:toggleBacklinks'),
         },
         {
+          // 4T-0051 (Epic 3E-0010): Properties-Sidebar-Sektion toggeln.
+          // Pattern wie Outline und Backlinks: pro Spalte sichtbar/versteckt,
+          // persistent. Accelerator analog zum frueheren Modal-Hotkey.
+          label: t('menu.view.properties'),
+          type: 'checkbox',
+          checked: !!(state && state.propertiesVisible),
+          accelerator: 'CmdOrCtrl+;',
+          click: send('menu:toggleProperties'),
+        },
+        {
           label: t('menu.view.foldGutter'),
           type: 'checkbox',
           checked: !!(state && state.foldGutter),

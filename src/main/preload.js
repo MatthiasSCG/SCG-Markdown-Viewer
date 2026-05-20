@@ -12,8 +12,14 @@ const markdownItAnchor = require('markdown-it-anchor');
 const markdownItKatex = require('@vscode/markdown-it-katex').default;
 // 4T-0049 (Epic 3E-0010): js-yaml fuer YAML-Frontmatter-Parsing. SAFE_SCHEMA
 // erlaubt nur Standard-YAML-Typen, kein eval/Code-Ausfuehrung. Wir nutzen es
-// hier nur zum Lesen; Round-Trip-Schreiben kommt erst in 4T-0051 hinzu.
+// hier nur zum Lesen; Round-Trip-Schreiben passiert ueber die yaml-Library
+// (siehe unten), die Kommentare und Schluesselreihenfolge erhaelt.
 const yaml = require('js-yaml');
+// 4T-0051 (Epic 3E-0010): yaml-Library (Eemeli) mit Document-API fuer
+// Round-Trip-faehiges Schreiben. parseDocument liefert ein Dokument-Objekt,
+// dessen set/delete-Operationen Stil und Kommentare der nicht angefassten
+// Felder erhalten. Nur geaenderte Felder werden im Output neu serialisiert.
+const yamlDoc = require('yaml');
 
 // 4T-0023: highlight.js als Core-Bundle plus kuratierte Sprachliste. Damit
 // landet nur das benoetigte Set im Bundle, nicht das gesamte Default-Bundle
@@ -134,6 +140,97 @@ function extractFrontmatter(text) {
     parseError = err && err.message ? String(err.message) : 'YAML parse error';
   }
   return { raw, data, body, parseError, endOffset };
+}
+
+// 4T-0051 (Epic 3E-0010): Schreibt eine modifizierte Frontmatter-Map
+// zurueck in den Dokument-Text. Round-Trip-faehig ueber die yaml-Library:
+// Kommentare und Schluesselreihenfolge bestehender Felder bleiben erhalten,
+// nur tatsaechlich geaenderte Felder werden neu serialisiert.
+//
+// Parameter:
+//   originalText - aktueller Datei-Inhalt (Frontmatter + Body, oder nur Body)
+//   newData      - Plain-JS-Objekt mit der Ziel-Map. null/undefined wird zu {}
+//
+// Rueckgabe:
+//   { ok: true,  text: string }                 bei Erfolg
+//   { ok: false, error: string, text: null }    bei Fehler
+//
+// Sonderfaelle:
+//   - originalText ohne Frontmatter und newData leer:
+//       Text bleibt unveraendert.
+//   - originalText mit Frontmatter und newData leer:
+//       Frontmatter-Block wird komplett entfernt; Body bleibt erhalten.
+//   - originalText ohne Frontmatter und newData mit Feldern:
+//       Neuer Frontmatter-Block wird am Anfang eingefuegt.
+//   - originalText mit Frontmatter und newData mit Feldern:
+//       Diff wird auf das bestehende Document angewendet (set/delete pro Key).
+function writeFrontmatter(originalText, newData) {
+  try {
+    const source = String(originalText || '');
+    const fm = extractFrontmatter(source);
+    const safeData = (newData && typeof newData === 'object' && !Array.isArray(newData))
+      ? newData
+      : {};
+    const newKeys = Object.keys(safeData);
+
+    // Sonderfall 1: kein Frontmatter und nichts hinzuzufuegen.
+    if (newKeys.length === 0 && fm.raw === null) {
+      return { ok: true, text: source };
+    }
+    // Sonderfall 2: Frontmatter komplett entfernen.
+    if (newKeys.length === 0 && fm.raw !== null) {
+      const stripped = (fm.body || '').replace(/^\r?\n+/, '');
+      return { ok: true, text: stripped };
+    }
+
+    let doc;
+    let buildFresh = false;
+    if (fm.raw === null || fm.parseError) {
+      // Kein Frontmatter da oder vorhandener Block defekt: neu erzeugen.
+      buildFresh = true;
+    } else {
+      // Bestehendes Document parsen, fuer Round-Trip-Treue.
+      const yamlText = fm.raw
+        .replace(/^---\r?\n/, '')
+        .replace(/\r?\n(---|\.\.\.)\s*\r?\n?$/, '');
+      doc = yamlDoc.parseDocument(yamlText);
+      // contents kann leer oder kein Mapping sein; in beiden Faellen
+      // bauen wir das Dokument frisch auf.
+      if (!doc.contents || !doc.contents.items) buildFresh = true;
+    }
+
+    if (buildFresh) {
+      doc = new yamlDoc.Document();
+      doc.contents = doc.createNode(safeData);
+    } else {
+      const currentJs = doc.toJS() || {};
+      // Schritt 1: vorhandene Keys, die in newData nicht mehr sind, loeschen.
+      for (const key of Object.keys(currentJs)) {
+        if (!Object.prototype.hasOwnProperty.call(safeData, key)) {
+          doc.delete(key);
+        }
+      }
+      // Schritt 2: nur tatsaechlich geaenderte/neue Felder neu setzen.
+      // Identische Werte bleiben unberuehrt — damit erhaelt yaml.toString()
+      // Kommentare und Stilangaben des Original-Knotens.
+      for (const key of newKeys) {
+        const newValue = safeData[key];
+        const currentValue = currentJs[key];
+        if (JSON.stringify(currentValue) !== JSON.stringify(newValue)) {
+          doc.set(key, newValue);
+        }
+      }
+    }
+
+    const yamlSerialized = doc.toString().trimEnd();
+    const newFrontmatter = `---\n${yamlSerialized}\n---\n`;
+    const bodyClean = (fm.body || '').replace(/^\r?\n+/, '');
+    const separator = bodyClean ? '\n' : '';
+    return { ok: true, text: newFrontmatter + separator + bodyClean };
+  } catch (err) {
+    const msg = err && err.message ? String(err.message) : 'YAML write error';
+    return { ok: false, error: msg, text: null };
+  }
 }
 
 // markdown-it mit GFM-naher Konfiguration.
@@ -876,6 +973,10 @@ contextBridge.exposeInMainWorld('api', {
   // (Aliases) und 4T-0051 (Properties-Editor) genutzt. Liefert
   // { raw, data, body, parseError, endOffset } analog extractFrontmatter.
   getFrontmatter: (text) => extractFrontmatter(text),
+  // 4T-0051: Round-Trip-Schreiben von Frontmatter-Feldern. Liefert den
+  // neuen Datei-Text zurueck (Renderer ruft danach api.saveFile auf).
+  // Erhaltung von Kommentaren und Stil fuer nicht-geaenderte Felder.
+  writeFrontmatter: (text, newData) => writeFrontmatter(text, newData),
   // 4T-0014: Slug-Berechnung im Renderer-Modul verfuegbar machen,
   // damit das Outline-Panel im Render-Modus den passenden DOM-Anker findet.
   slugifyHeading: (text) => githubLikeSlug(String(text || '')),
@@ -952,6 +1053,8 @@ contextBridge.exposeInMainWorld('api', {
   onMenuOpenAbout: (cb) => ipcRenderer.on('menu:openAbout', () => cb()),
   // 4T-0018: Settings-Dialog ueber Menue-Eintrag Datei -> Einstellungen.
   onMenuOpenSettings: (cb) => ipcRenderer.on('menu:openSettings', () => cb()),
+  // 4T-0051: Properties-Sidebar-Sektion ueber Menue-Eintrag Ansicht -> Properties.
+  onMenuToggleProperties: (cb) => ipcRenderer.on('menu:toggleProperties', () => cb()),
   // 4T-0018: Multi-Window-Broadcast bei appearance.*-Aenderung.
   onAppearanceChanged: (cb) => ipcRenderer.on('appearance:changed', (_e, payload) => cb(payload)),
   onMenuToggleRestoreSession: (cb) => ipcRenderer.on('menu:toggleRestoreSession', () => cb()),

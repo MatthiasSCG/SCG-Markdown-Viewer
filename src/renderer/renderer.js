@@ -820,6 +820,16 @@ const state = {
     currentFileByPane: [null, null],
     lastResultsByPane: [null, null],
   },
+  // 4T-0051: Properties-Sidebar-Sektion pro Spalte. visibleByPane wie
+  // Outline und Backlinks. saveTimers haelt pro Pane den Debounce-Timer,
+  // damit Live-Edits nicht jeden Tastendruck zu IPC umsetzen. originalData-
+  // ByPane spiegelt die zuletzt geparste Frontmatter-Map; readonly-Felder
+  // werden bei jedem Save daraus uebernommen.
+  properties: {
+    visibleByPane: [false, false],
+    saveTimers: [null, null],
+    originalDataByPane: [{}, {}],
+  },
   // 4T-0019: Fokus-Modus und Typewriter-Scroll. Toggle wirkt nur auf das
   // aktive Fenster; persistierter Wert ist global (settings: focusMode /
   // typewriterScroll). Beim Start eines Fensters wird der gespeicherte
@@ -981,6 +991,12 @@ function getPaneEls(paneIdx) {
     backlinksStatus: root.querySelector('.backlinks-status'),
     backlinksResults: root.querySelector('.backlinks-results'),
     backlinksInfo: root.querySelector('.sidebar-backlinks .sidebar-section-info'),
+    // 4T-0051: Properties-Sektion in der Sidebar. Pro Spalte eine Instanz.
+    propertiesSection: root.querySelector('.sidebar-properties'),
+    propertiesFields: root.querySelector('.sidebar-properties .properties-fields'),
+    propertiesEmpty: root.querySelector('.sidebar-properties .properties-empty'),
+    propertiesParseError: root.querySelector('.sidebar-properties .properties-parse-error'),
+    propertiesAddBtn: root.querySelector('.sidebar-properties .properties-add-btn'),
   };
 }
 
@@ -1624,6 +1640,10 @@ function syncEditorForPane(paneIdx) {
   if (state.backlinks && state.backlinks.visibleByPane[paneIdx]) {
     activateBacklinksFor(paneIdx, tab && tab.path ? tab.path : null);
   }
+  // 4T-0051: Bei Tab-Wechsel Properties-Sektion neu rendern, falls sichtbar.
+  if (state.properties && state.properties.visibleByPane[paneIdx]) {
+    renderProperties(paneIdx);
+  }
 }
 
 // 4T-0013: Read-/Write-API fuer Heading-Folding zur Verwendung durch das
@@ -2013,7 +2033,9 @@ function applySidebarVisibility(paneIdx) {
   if (!els || !els.sidebar) return;
   const outlineVisible = !!state.outline.visibleByPane[paneIdx];
   const backlinksVisible = !!state.backlinks.visibleByPane[paneIdx];
-  const anyVisible = outlineVisible || backlinksVisible;
+  // 4T-0051: Properties-Sektion zaehlt mit zur Sidebar-Sichtbarkeit.
+  const propertiesVisible = !!(state.properties && state.properties.visibleByPane[paneIdx]);
+  const anyVisible = outlineVisible || backlinksVisible || propertiesVisible;
   els.sidebar.hidden = !anyVisible;
   if (els.sidebarSplitter) els.sidebarSplitter.hidden = !anyVisible;
   if (anyVisible) {
@@ -2414,6 +2436,8 @@ async function init() {
   await loadOutlineSettings();
   // 4T-0015: Backlinks-Sichtbarkeit pro Spalte aus den Settings laden.
   await loadBacklinksSettings();
+  // 4T-0051: Properties-Sichtbarkeit pro Spalte aus den Settings laden.
+  await loadPropertiesSettings();
   // 4T-0018: Schriftart und -groesse fuer Editor und Render-Pane aus den
   // Settings laden und als CSS-Variablen auf :root setzen, bevor die Panes
   // gerendert werden — damit greifen die Werte direkt beim ersten Paint.
@@ -2523,6 +2547,7 @@ function bindUi() {
   // Dialog-Aufruf dynamisch verkabelt; siehe showAliasDialog.
   $('#btn-alias-cancel').addEventListener('click', cancelAliasDialog);
   aliasModal.querySelector('.alias-modal-backdrop').addEventListener('click', cancelAliasDialog);
+
   // 4T-0027: Tab-Wechsel im Hilfe-Modal per Klick auf die Tab-Buttons.
   helpModal.querySelectorAll('.help-tab').forEach((tab) => {
     tab.addEventListener('click', () => switchHelpTab(tab.dataset.helpTab));
@@ -2601,6 +2626,23 @@ function bindUi() {
   const btnBacklinks = $('#btn-backlinks');
   if (btnBacklinks) {
     btnBacklinks.addEventListener('click', () => toggleBacklinksPanel(state.activePaneIndex));
+  }
+  // 4T-0051: Statusbar-Toggle fuer Properties-Panel der aktiven Spalte.
+  const btnProperties = $('#btn-properties');
+  if (btnProperties) {
+    btnProperties.addEventListener('click', () => togglePropertiesPanel(state.activePaneIndex));
+  }
+  // 4T-0051: Add-Field-Buttons pro Pane verkabeln (Sidebar-Sektion).
+  for (let p = 0; p < state.panes.length; p++) {
+    const elsP = getPaneEls(p);
+    if (elsP && elsP.propertiesAddBtn) {
+      elsP.propertiesAddBtn.addEventListener('click', () => addPropertiesField(p));
+    }
+  }
+  // 4T-0051: Menue-Trigger 'Ansicht -> Properties' toggelt das Panel der
+  // aktiven Spalte. Pattern wie Outline/Backlinks.
+  if (typeof api.onMenuToggleProperties === 'function') {
+    api.onMenuToggleProperties(() => togglePropertiesPanel(state.activePaneIndex));
   }
   // 4T-0014 + 4T-0015: Tastenkuerzel Strg+Umschalt+O (Outline) und
   // Strg+Umschalt+B (Backlinks) toggeln das jeweilige Panel.
@@ -3134,6 +3176,8 @@ function reportMenuStateNow() {
     outlineVisible: !!state.outline.visibleByPane[state.activePaneIndex],
     // 4T-0015: Haekchen-Stand fuer das Backlinks-Toggle im Ansicht-Menue.
     backlinksVisible: !!state.backlinks.visibleByPane[state.activePaneIndex],
+    // 4T-0051: Haekchen-Stand fuer Properties-Toggle im Ansicht-Menue.
+    propertiesVisible: !!(state.properties && state.properties.visibleByPane[state.activePaneIndex]),
     // 4T-0019: Haekchen-Stand fuer Fokus-Modus und Typewriter-Scroll im
     // Ansicht-Menue (beide pro Fenster wirksam, global persistiert).
     focusMode: !!state.focusMode,
@@ -3578,6 +3622,9 @@ function applyAllLayouts() {
   for (let i = 0; i < state.panes.length; i++) {
     applyOutlineVisibility(i);
     applyBacklinksVisibility(i);
+    // 4T-0051: Properties-Sektion analog. applyPropertiesVisibility ruft
+    // bei sichtbarer Sektion intern renderProperties auf.
+    applyPropertiesVisibility(i);
   }
 }
 
@@ -3617,7 +3664,13 @@ async function reloadFile(filePath) {
       tab.originalContent = data.content;
       tab.dirty = false;
       tab.missing = false;
-      if (idx === state.panes[p].activeIndex) renderPaneContent(p);
+      if (idx === state.panes[p].activeIndex) {
+        renderPaneContent(p);
+        // 4T-0051: Properties-Sektion nach externer Aenderung neu rendern.
+        if (state.properties && state.properties.visibleByPane[p]) {
+          renderProperties(p);
+        }
+      }
       renderTabbar(p);
       if (p === state.activePaneIndex && idx === state.panes[p].activeIndex) {
         updateWindowTitle();
@@ -4246,6 +4299,527 @@ function resolveAliasDialog(chosenPath) {
 
 function cancelAliasDialog() {
   resolveAliasDialog(null);
+}
+
+// --- Properties-Sidebar (4T-0051) -------------------------------------------
+// Live-editierbare Sidebar-Sektion fuer YAML-Frontmatter-Felder (Sektion
+// neben Outline und Backlinks). Pro Spalte eine eigene Instanz; Sichtbar-
+// keit pro Spalte persistent. Typ-Inferenz aus dem aktuellen Wert, Round-
+// Trip-Schreiben via writeFrontmatter in preload.js (erhaelt Kommentare
+// und Stil nicht-geaenderter Felder). Felder leben direkt im DOM der
+// jeweiligen Sektion; bei Field-Change laeuft Debounce-Save (500 ms).
+//
+// State:
+//   state.properties = {
+//     visibleByPane: { 0: false, 1: false },
+//     saveTimers:    { 0: null,  1: null },
+//     originalDataByPane: { 0: {}, 1: {} },  // fuer readonly-Felder-Lookup
+//   }
+
+const PROPERTY_TYPES = ['string', 'multistring', 'number', 'boolean', 'date', 'multiline', 'readonly'];
+
+// Heuristik fuer Standard-Feldnamen: schlaegt einen Typ vor, wenn ein neu
+// hinzugefuegtes Feld diesen Namen bekommt. Wirkt nur, solange der Nutzer
+// keinen Typ explizit gewaehlt hat.
+const FIELD_TYPE_HINTS = {
+  title: 'string',
+  description: 'string',
+  author: 'string',
+  tags: 'multistring',
+  aliases: 'multistring',
+  date: 'date',
+  created: 'date',
+  modified: 'date',
+  due: 'date',
+  draft: 'boolean',
+  published: 'boolean',
+};
+
+function inferType(value) {
+  if (value === null || value === undefined) return 'string';
+  if (typeof value === 'boolean') return 'boolean';
+  if (typeof value === 'number') return 'number';
+  if (typeof value === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return 'date';
+    if (value.includes('\n')) return 'multiline';
+    return 'string';
+  }
+  if (Array.isArray(value)) {
+    if (value.every((item) => typeof item === 'string')) return 'multistring';
+    return 'readonly';
+  }
+  if (typeof value === 'object') return 'readonly';
+  return 'string';
+}
+
+// Konvertiert einen Wert von einem Typ in einen anderen, so robust wie
+// moeglich. Bei nicht erfolgreicher Konvertierung wird ein typgerechter
+// Default zurueckgegeben (leer string, leeres Array, 0, false, '').
+function coerceValue(value, fromType, toType) {
+  if (fromType === toType) return value;
+  if (toType === 'string') {
+    if (Array.isArray(value)) return value.join(', ');
+    if (value === null || value === undefined) return '';
+    return String(value);
+  }
+  if (toType === 'multistring') {
+    if (Array.isArray(value)) return value.map((v) => String(v));
+    if (typeof value === 'string') {
+      return value.split(/[\n,]+/).map((s) => s.trim()).filter((s) => s);
+    }
+    return [];
+  }
+  if (toType === 'number') {
+    const n = parseFloat(value);
+    return Number.isFinite(n) ? n : 0;
+  }
+  if (toType === 'boolean') {
+    if (typeof value === 'string') return value.toLowerCase() === 'true';
+    return !!value;
+  }
+  if (toType === 'date') {
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+    return '';
+  }
+  if (toType === 'multiline') {
+    if (Array.isArray(value)) return value.join('\n');
+    return String(value || '');
+  }
+  return value;
+}
+
+// Liefert einen typgerechten Default-Wert fuer ein neu angelegtes Feld.
+function defaultValueForType(type) {
+  if (type === 'multistring') return [];
+  if (type === 'number') return 0;
+  if (type === 'boolean') return false;
+  if (type === 'date') return '';
+  if (type === 'multiline') return '';
+  if (type === 'readonly') return null;
+  return '';
+}
+
+// 4T-0051: Rendert die Properties-Sidebar-Sektion fuer eine Spalte neu.
+// Wird gerufen bei Toggle-on, Tab-Wechsel, View-Mode-Wechsel und externer
+// Datei-Aenderung. Bewusst synchron: api.getFrontmatter ist im Preload als
+// sync-Funktion exposed. Wuerde renderProperties async sein, oeffnet ein
+// 'await' zwischen Container-leeren und appendChild ein Race-Fenster, in
+// dem ein paralleler Aufruf nochmals appendet — Folge: doppelte/dreifache
+// Property-Listen je nach Zahl der parallelen Trigger.
+function renderProperties(paneIdx) {
+  const els = getPaneEls(paneIdx);
+  if (!els || !els.propertiesSection) return;
+  const pane = state.panes[paneIdx];
+  const tab = pane && pane.activeIndex >= 0 ? pane.tabs[pane.activeIndex] : null;
+
+  els.propertiesFields.innerHTML = '';
+  els.propertiesParseError.hidden = true;
+  els.propertiesParseError.textContent = '';
+  els.propertiesEmpty.hidden = true;
+
+  if (!tab) {
+    els.propertiesEmpty.hidden = false;
+    state.properties.originalDataByPane[paneIdx] = {};
+    return;
+  }
+
+  let fm;
+  try {
+    fm = api.getFrontmatter(tab.content || '');
+  } catch {
+    fm = { raw: null, data: null, body: tab.content || '', parseError: null, endOffset: 0 };
+  }
+
+  if (fm.parseError) {
+    els.propertiesParseError.hidden = false;
+    els.propertiesParseError.textContent =
+      (t('properties.parseError') || 'YAML-Parse-Fehler: {error}').replace('{error}', fm.parseError);
+  }
+
+  const data = fm.data || {};
+  state.properties.originalDataByPane[paneIdx] = data;
+
+  const keys = Object.keys(data);
+  if (keys.length === 0 && !fm.parseError) {
+    els.propertiesEmpty.hidden = false;
+  }
+  for (const key of keys) {
+    const value = data[key];
+    const fieldEl = buildPropertyFieldDom(paneIdx, key, value, inferType(value));
+    els.propertiesFields.appendChild(fieldEl);
+  }
+}
+
+// 4T-0051: Liest die Felder aus der Sidebar-Sektion einer Spalte und baut
+// ein Plain-Objekt fuer writeFrontmatter. Read-only-Felder behalten ihren
+// Original-Wert aus state.properties.originalDataByPane.
+function readPropertiesFromPane(paneIdx) {
+  const els = getPaneEls(paneIdx);
+  const out = {};
+  if (!els || !els.propertiesFields) return out;
+  const originalData = state.properties.originalDataByPane[paneIdx] || {};
+  const fieldEls = els.propertiesFields.querySelectorAll('.properties-field');
+  for (const fieldEl of fieldEls) {
+    const keyInput = fieldEl.querySelector('.properties-field-key');
+    const typeSelect = fieldEl.querySelector('.properties-field-type');
+    const key = (keyInput && keyInput.value || '').trim();
+    if (!key) continue;
+    const type = typeSelect ? typeSelect.value : 'string';
+    if (type === 'readonly') {
+      const originalKey = fieldEl.dataset.originalKey;
+      if (originalKey && originalKey in originalData) {
+        out[key] = originalData[originalKey];
+      }
+      continue;
+    }
+    out[key] = extractFieldValue(fieldEl, type);
+  }
+  return out;
+}
+
+// 4T-0051: Plant einen Speichervorgang fuer die Properties-Sektion einer
+// Spalte. Debounce-Wert 500 ms: schnell genug, dass Live-Feedback im
+// Render-Pane folgt, langsam genug, dass jeder Tastendruck nicht zu einer
+// IPC-Roundtrip wird.
+function scheduleSavePropertiesFromPane(paneIdx) {
+  const timers = state.properties.saveTimers;
+  if (timers[paneIdx]) clearTimeout(timers[paneIdx]);
+  timers[paneIdx] = setTimeout(() => {
+    timers[paneIdx] = null;
+    savePropertiesFromPane(paneIdx);
+  }, 500);
+}
+
+function savePropertiesFromPane(paneIdx) {
+  const pane = state.panes[paneIdx];
+  if (!pane || pane.activeIndex < 0) return;
+  const tab = pane.tabs[pane.activeIndex];
+  if (!tab) return;
+  const els = getPaneEls(paneIdx);
+  if (!els || !els.propertiesSection) return;
+  const newData = readPropertiesFromPane(paneIdx);
+  const result = api.writeFrontmatter(tab.content || '', newData);
+  if (!result || !result.ok) {
+    els.propertiesParseError.hidden = false;
+    const msg = (result && result.error) ? result.error : 'unknown';
+    els.propertiesParseError.textContent =
+      (t('properties.writeError') || 'Konnte Frontmatter nicht schreiben: {error}').replace('{error}', msg);
+    return;
+  }
+  const newText = result.text;
+  if (newText === tab.content) return; // no-op (Property-Eingabe ohne echte Aenderung)
+  // 4T-0051: Properties-Aenderung verhaelt sich wie eine Editor-Aenderung.
+  // tab.content wird aktualisiert, dirty-State neu berechnet, Auto-Save-
+  // Timer nur dann geplant, wenn Auto-Save eingeschaltet ist. Wenn Auto-
+  // Save aus ist, bleibt der Tab dirty und der Nutzer muss explizit per
+  // Strg+S speichern — gleiches Modell wie beim CodeMirror-Editor.
+  tab.content = newText;
+  const wasDirty = tab.dirty;
+  tab.dirty = tab.content !== tab.originalContent;
+  els.propertiesParseError.hidden = true;
+  // Snapshot in originalDataByPane aktualisieren, damit readonly-Felder
+  // beim naechsten Save aus den aktuellen Daten gelesen werden.
+  state.properties.originalDataByPane[paneIdx] = newData;
+  // Editor und Render-Pane synchron halten. renderProperties NICHT
+  // aufrufen, damit der Sidebar-Fokus erhalten bleibt.
+  syncEditorForPane(paneIdx);
+  const elsRefresh = getPaneEls(paneIdx);
+  if (elsRefresh.renderedHtml) {
+    elsRefresh.renderedHtml.innerHTML = api.renderMarkdown(tab.content, tab.path);
+    applyMermaidIfPresent(elsRefresh.renderedHtml);
+    enhanceScgTableSorting(elsRefresh.renderedHtml);
+  }
+  if (wasDirty !== tab.dirty) {
+    renderTabbar(paneIdx);
+    if (paneIdx === state.activePaneIndex) updateWindowTitle();
+  }
+  // Auto-Save-Trigger: hat genau die gleiche Wirkung wie nach einer
+  // Editor-Aenderung. scheduleAutoSave ist no-op, wenn Auto-Save aus ist.
+  scheduleAutoSave();
+}
+
+function extractFieldValue(fieldEl, type) {
+  const valueEl = fieldEl.querySelector('.properties-field-value');
+  if (!valueEl) return defaultValueForType(type);
+  if (type === 'string' || type === 'date') {
+    const input = valueEl.querySelector('input');
+    return input ? input.value : '';
+  }
+  if (type === 'multiline') {
+    const ta = valueEl.querySelector('textarea');
+    return ta ? ta.value : '';
+  }
+  if (type === 'number') {
+    const input = valueEl.querySelector('input');
+    if (!input) return 0;
+    const n = parseFloat(input.value);
+    return Number.isFinite(n) ? n : 0;
+  }
+  if (type === 'boolean') {
+    const cb = valueEl.querySelector('input[type=checkbox]');
+    return cb ? !!cb.checked : false;
+  }
+  if (type === 'multistring') {
+    const container = valueEl.querySelector('.properties-field-multistring');
+    if (!container) return [];
+    const pills = container.querySelectorAll('.properties-field-multistring-pill');
+    return Array.from(pills).map((p) => p.dataset.value).filter((v) => v != null && v !== '');
+  }
+  return defaultValueForType(type);
+}
+
+// 4T-0051: Baut die DOM-Komponente fuer ein Property-Feld in der Sidebar-
+// Sektion. Layout zweizeilig: Head (Key | Type | Delete) ueber Value.
+// Hooks fuer Live-Save: jedes input/change-Event triggert Debounce-Save.
+function buildPropertyFieldDom(paneIdx, key, value, type) {
+  const wrap = document.createElement('div');
+  wrap.className = 'properties-field';
+  if (type === 'readonly') wrap.classList.add('is-readonly');
+  wrap.dataset.originalKey = key;
+  wrap.dataset.currentType = type;
+  wrap.dataset.paneIdx = String(paneIdx);
+
+  // Head-Zeile: Key, Type, Delete
+  const head = document.createElement('div');
+  head.className = 'properties-field-head';
+
+  const keyInput = document.createElement('input');
+  keyInput.type = 'text';
+  keyInput.className = 'properties-field-key';
+  keyInput.value = key;
+  keyInput.spellcheck = false;
+  if (type === 'readonly') keyInput.disabled = true;
+  head.appendChild(keyInput);
+
+  const typeSelect = document.createElement('select');
+  typeSelect.className = 'properties-field-type';
+  for (const tname of PROPERTY_TYPES) {
+    // 4T-0051: 'readonly' ist ein interner Fallback-Typ fuer verschachtelte
+    // YAML-Strukturen (Objekte, Arrays mit Objekten). Im Dropdown nur
+    // sichtbar, wenn das Feld ohnehin bereits readonly ist — dann ist der
+    // Dropdown disabled, also keine Aktion. Bei nicht-readonly-Feldern
+    // verbergen, damit der Nutzer ihn nicht versehentlich waehlt und sich
+    // selbst in eine Sackgasse manoevriert.
+    if (tname === 'readonly' && type !== 'readonly') continue;
+    const opt = document.createElement('option');
+    opt.value = tname;
+    opt.textContent = t('properties.type.' + tname) || tname;
+    typeSelect.appendChild(opt);
+  }
+  typeSelect.value = type;
+  if (type === 'readonly') typeSelect.disabled = true;
+  typeSelect.addEventListener('change', () => onTypeChange(wrap, typeSelect.value));
+  head.appendChild(typeSelect);
+
+  const delBtn = document.createElement('button');
+  delBtn.type = 'button';
+  delBtn.className = 'properties-field-delete';
+  delBtn.textContent = '×';
+  delBtn.title = t('properties.deleteField') || 'Feld entfernen';
+  delBtn.addEventListener('click', () => {
+    wrap.remove();
+    scheduleSavePropertiesFromPane(paneIdx);
+  });
+  head.appendChild(delBtn);
+
+  wrap.appendChild(head);
+
+  // Value-Zeile.
+  const valueWrap = document.createElement('div');
+  valueWrap.className = 'properties-field-value';
+  wrap.appendChild(valueWrap);
+  renderValueEditor(valueWrap, type, value, paneIdx);
+
+  // Live-Save-Hook: jede Eingabe in Key/Wert triggert Debounce-Save.
+  wrap.addEventListener('input', () => scheduleSavePropertiesFromPane(paneIdx));
+  wrap.addEventListener('change', () => scheduleSavePropertiesFromPane(paneIdx));
+
+  return wrap;
+}
+
+function renderValueEditor(container, type, value, paneIdx) {
+  container.innerHTML = '';
+  if (type === 'readonly') {
+    const el = document.createElement('div');
+    el.className = 'properties-field-readonly-value';
+    let preview;
+    try { preview = JSON.stringify(value); } catch { preview = String(value); }
+    if (preview && preview.length > 80) preview = preview.slice(0, 77) + '…';
+    el.textContent = (t('properties.readonlyHint') || 'Nicht editierbar') + ': ' + preview;
+    container.appendChild(el);
+    return;
+  }
+  if (type === 'string' || type === 'date') {
+    const input = document.createElement('input');
+    input.type = type === 'date' ? 'date' : 'text';
+    input.className = 'properties-field-value-input';
+    input.value = typeof value === 'string' ? value : (value == null ? '' : String(value));
+    container.appendChild(input);
+    return;
+  }
+  if (type === 'multiline') {
+    const ta = document.createElement('textarea');
+    ta.className = 'properties-field-value-textarea';
+    ta.value = typeof value === 'string' ? value : (value == null ? '' : String(value));
+    container.appendChild(ta);
+    return;
+  }
+  if (type === 'number') {
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.className = 'properties-field-value-input';
+    input.value = typeof value === 'number' ? String(value) : (value == null ? '' : String(value));
+    container.appendChild(input);
+    return;
+  }
+  if (type === 'boolean') {
+    const wrap = document.createElement('div');
+    wrap.className = 'properties-field-bool';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = !!value;
+    wrap.appendChild(cb);
+    container.appendChild(wrap);
+    return;
+  }
+  if (type === 'multistring') {
+    const list = document.createElement('div');
+    list.className = 'properties-field-multistring';
+    const arr = Array.isArray(value) ? value : (value ? [String(value)] : []);
+    for (const v of arr) {
+      appendMultistringPill(list, String(v), undefined, paneIdx);
+    }
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'properties-field-multistring-input';
+    input.placeholder = t('properties.multistringPlaceholder') || 'Eintrag und Enter';
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        const v = input.value.trim();
+        if (v) {
+          appendMultistringPill(list, v, input, paneIdx);
+          input.value = '';
+          scheduleSavePropertiesFromPane(paneIdx);
+        }
+      } else if (e.key === 'Backspace' && input.value === '') {
+        const pills = list.querySelectorAll('.properties-field-multistring-pill');
+        if (pills.length > 0) {
+          pills[pills.length - 1].remove();
+          scheduleSavePropertiesFromPane(paneIdx);
+        }
+      }
+    });
+    list.appendChild(input);
+    container.appendChild(list);
+    return;
+  }
+}
+
+function appendMultistringPill(list, value, beforeInputEl, paneIdx) {
+  const pill = document.createElement('span');
+  pill.className = 'properties-field-multistring-pill';
+  pill.dataset.value = value;
+  pill.textContent = value;
+  const rm = document.createElement('button');
+  rm.type = 'button';
+  rm.className = 'properties-field-multistring-pill-remove';
+  rm.textContent = '×';
+  rm.addEventListener('click', () => {
+    pill.remove();
+    if (paneIdx != null) scheduleSavePropertiesFromPane(paneIdx);
+  });
+  pill.appendChild(rm);
+  if (beforeInputEl) list.insertBefore(pill, beforeInputEl);
+  else list.appendChild(pill);
+}
+
+function onTypeChange(wrap, newType) {
+  const valueWrap = wrap.querySelector('.properties-field-value');
+  if (!valueWrap) return;
+  const typeSelect = wrap.querySelector('.properties-field-type');
+  const oldType = wrap.dataset.currentType || inferType(extractFieldValue(wrap, typeSelect.value));
+  const current = extractFieldValue(wrap, oldType);
+  const coerced = coerceValue(current, oldType, newType);
+  const paneIdx = parseInt(wrap.dataset.paneIdx || '0', 10);
+  renderValueEditor(valueWrap, newType, coerced, paneIdx);
+  wrap.dataset.currentType = newType;
+}
+
+// 4T-0051: Fuegt der Sidebar-Sektion einer Pane ein neues, leeres Feld
+// hinzu. Default-Typ 'string'; wenn der Nutzer den Key auf einen bekannten
+// Standard-Namen setzt, wird der Typ aus FIELD_TYPE_HINTS uebernommen.
+function addPropertiesField(paneIdx) {
+  const els = getPaneEls(paneIdx);
+  if (!els || !els.propertiesFields) return;
+  const container = els.propertiesFields;
+  let i = 1;
+  const existingKeys = new Set();
+  container.querySelectorAll('.properties-field-key').forEach((inp) => existingKeys.add(inp.value.trim()));
+  let key = '';
+  while (true) {
+    const candidate = `field${i}`;
+    if (!existingKeys.has(candidate)) { key = candidate; break; }
+    i++;
+  }
+  const fieldEl = buildPropertyFieldDom(paneIdx, key, '', 'string');
+  const keyInput = fieldEl.querySelector('.properties-field-key');
+  const typeSelect = fieldEl.querySelector('.properties-field-type');
+  keyInput.addEventListener('change', () => {
+    const k = keyInput.value.trim().toLowerCase();
+    if (FIELD_TYPE_HINTS[k] && typeSelect.value === 'string') {
+      typeSelect.value = FIELD_TYPE_HINTS[k];
+      onTypeChange(fieldEl, FIELD_TYPE_HINTS[k]);
+    }
+  });
+  // Empty-Hint und Empty-State entfernen, falls noch da.
+  if (els.propertiesEmpty) els.propertiesEmpty.hidden = true;
+  container.appendChild(fieldEl);
+  setTimeout(() => keyInput.focus(), 0);
+}
+
+// --- Properties-Sidebar: Sichtbarkeit, Toggle, Persistenz -------------------
+function applyPropertiesVisibility(paneIdx) {
+  const els = getPaneEls(paneIdx);
+  if (!els || !els.propertiesSection) return;
+  const visible = !!state.properties.visibleByPane[paneIdx];
+  els.propertiesSection.hidden = !visible;
+  applySidebarVisibility(paneIdx);
+  if (visible) {
+    renderProperties(paneIdx);
+  }
+  updatePropertiesToggleButton();
+}
+
+function updatePropertiesToggleButton() {
+  const btn = document.getElementById('btn-properties');
+  if (!btn) return;
+  const visible = !!state.properties.visibleByPane[state.activePaneIndex];
+  btn.classList.toggle('active', visible);
+  btn.setAttribute('aria-pressed', visible ? 'true' : 'false');
+}
+
+async function togglePropertiesPanel(paneIdx) {
+  if (paneIdx < 0 || paneIdx >= state.panes.length) return;
+  const next = !state.properties.visibleByPane[paneIdx];
+  state.properties.visibleByPane[paneIdx] = next;
+  applyPropertiesVisibility(paneIdx);
+  await persistPropertiesSettings();
+  if (paneIdx === state.activePaneIndex && typeof reportMenuStateNow === 'function') {
+    reportMenuStateNow();
+  }
+}
+
+async function persistPropertiesSettings() {
+  await api.setSetting('properties.visibleColumn0', !!state.properties.visibleByPane[0]);
+  await api.setSetting('properties.visibleColumn1', !!state.properties.visibleByPane[1]);
+}
+
+async function loadPropertiesSettings() {
+  const v0 = await api.getSetting('properties.visibleColumn0');
+  const v1 = await api.getSetting('properties.visibleColumn1');
+  state.properties.visibleByPane[0] = !!v0;
+  state.properties.visibleByPane[1] = !!v1;
 }
 
 // --- Hilfe-Modal ------------------------------------------------------------

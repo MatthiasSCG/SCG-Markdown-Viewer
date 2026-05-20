@@ -27,6 +27,20 @@
                 <div class="outline-empty" hidden data-i18n="outline.empty">Keine Überschriften in diesem Dokument</div>
               </div>
             </section>
+            <!-- 4T-0051 (Epic 3E-0010): Properties-Sektion mit live-editierbaren
+                 Frontmatter-Feldern. Pro Spalte eine Instanz, persistent
+                 ein-/ausblendbar wie Outline und Backlinks. -->
+            <section class="sidebar-section sidebar-properties" hidden>
+              <header class="sidebar-section-header">
+                <h2 class="sidebar-section-title" data-i18n="properties.title">Properties</h2>
+              </header>
+              <div class="sidebar-section-body">
+                <div class="properties-empty" hidden data-i18n="properties.empty">Keine Properties in diesem Dokument</div>
+                <div class="properties-parse-error" hidden></div>
+                <div class="properties-fields"></div>
+                <button type="button" class="properties-add-btn" data-i18n="properties.addField">+ Eigenschaft hinzufügen</button>
+              </div>
+            </section>
             <section class="sidebar-section sidebar-backlinks" hidden>
               <header class="sidebar-section-header">
                 <h2 class="sidebar-section-title" data-i18n="backlinks.title">Backlinks</h2>
@@ -60,6 +74,20 @@
               <div class="sidebar-section-body">
                 <ul class="outline-tree" role="tree"></ul>
                 <div class="outline-empty" hidden data-i18n="outline.empty">Keine Überschriften in diesem Dokument</div>
+              </div>
+            </section>
+            <!-- 4T-0051 (Epic 3E-0010): Properties-Sektion mit live-editierbaren
+                 Frontmatter-Feldern. Pro Spalte eine Instanz, persistent
+                 ein-/ausblendbar wie Outline und Backlinks. -->
+            <section class="sidebar-section sidebar-properties" hidden>
+              <header class="sidebar-section-header">
+                <h2 class="sidebar-section-title" data-i18n="properties.title">Properties</h2>
+              </header>
+              <div class="sidebar-section-body">
+                <div class="properties-empty" hidden data-i18n="properties.empty">Keine Properties in diesem Dokument</div>
+                <div class="properties-parse-error" hidden></div>
+                <div class="properties-fields"></div>
+                <button type="button" class="properties-add-btn" data-i18n="properties.addField">+ Eigenschaft hinzufügen</button>
               </div>
             </section>
             <section class="sidebar-section sidebar-backlinks" hidden>
@@ -96,6 +124,14 @@
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M8 5h13"/><path d="M13 12h8"/><path d="M13 19h8"/>
               <path d="M3 10a2 2 0 0 0 2 2h3"/><path d="M3 5v12a2 2 0 0 0 2 2h3"/>
+            </svg>
+          </button>
+          <!-- 4T-0051: Properties-Sidebar-Toggle. Lucide-Icon 'tags'. -->
+          <button id="btn-properties" class="btn-toggle btn-icon" data-i18n-title="properties.toggleTitle" data-i18n-aria-label="properties.toggle" title="" aria-label="Properties">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 5H4.5A2.5 2.5 0 0 0 2 7.5v9A2.5 2.5 0 0 0 4.5 19H9"/>
+              <path d="M15 5h4.5A2.5 2.5 0 0 1 22 7.5v9a2.5 2.5 0 0 1-2.5 2.5H15"/>
+              <path d="M9 5v14"/><path d="M15 5v14"/>
             </svg>
           </button>
           <button id="btn-backlinks" class="btn-toggle btn-icon" data-i18n-title="backlinks.toggleTitle" data-i18n-aria-label="backlinks.toggle" title="" aria-label="Backlinks">
