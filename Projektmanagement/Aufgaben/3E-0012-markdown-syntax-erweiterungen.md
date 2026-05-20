@@ -33,6 +33,7 @@ Konzeptionell trivial im Sinne von „drei markdown-it-Plugins plus CSS", aber f
   - Klassisch: `[^1]` im Text, `[^1]: Definition` am Datei-Ende.
   - Inline: `^[Inline-Fußnote]` ohne separate Definition.
   - Im Render-Pane: Fußnoten-Block am Ende mit Backlinks, hochgestellte Zahlen im Fließtext.
+- **Block-Embed-Erweiterung** (Nachzieher aus [4T-0055](4T-0055-wiki-embeds.md), Epic 3E-0011): `![[Datei#^id]]` extrahiert in 3E-0011 nur die eine Zeile mit dem Block-Marker. Hier auf vollständige Block-Strukturen erweitern (mehrzeilige Listen-Items mit Sub-Inhalt, Code-Blöcke, Tabellenzeilen mit umliegenden Zellen, Blockquotes mit mehreren Zeilen). Implementierung über den markdown-it-AST statt der aktuellen Zeilen-Heuristik in `extractEmbedSnippet`. Thematisch passend, weil Block-Anker `^id` schon in 4T-0054 als Markdown-Syntax eingeführt wurde — die Erweiterung verfeinert eine bereits etablierte Syntax.
 - **Editor-Highlighting** für die drei Syntaxen im Source-Pane, damit sie im Quellcode visuell erkennbar sind.
 - **Linter-Erweiterung** (optional, je nach Aufwand): unbekannte Callout-Typen werden als bare URL markiert oder als „unbekannter Callout-Typ" angezeigt.
 - **Hilfe-Dialog**: drei neue Feature-Einträge in der Gruppe „Bearbeitung", Hilfe-Markdown bei Bedarf um Beispiele erweitert.
@@ -53,7 +54,8 @@ Werden zu Beginn der Epic-Umsetzung als 4T-Dateien angelegt. Vorgesehene Tasks:
 1. **Callouts** — Parser, Renderer, CSS für die 10 Typen, klappbare Varianten.
 2. **Highlight** `==Text==` — markdown-it-Plugin (Eigenimplementierung oder existierendes Plugin), CSS.
 3. **Footnotes** — `markdown-it-footnote` einbinden, CSS für Fußnoten-Block.
-4. **Hilfe-Dialog erweitern und Abschluss-Sammeltask** — Funktions-Einträge, Hilfe-Markdown-Beispiele, CHANGELOG, README, Release.
+4. **Block-Embed-Erweiterung** (Nachzieher aus 4T-0055) — `extractEmbedSnippet` in [src/main/backlinks.js](../../src/main/backlinks.js) auf AST-basierte Block-Range-Erkennung umstellen; mehrzeilige Listen-Items, Code-Blöcke, Tabellenzeilen, mehrzeilige Blockquotes vollständig einbetten.
+5. **Hilfe-Dialog erweitern und Abschluss-Sammeltask** — Funktions-Einträge, Hilfe-Markdown-Beispiele, CHANGELOG, README, Release.
 
 Möglicherweise lassen sich Highlight und Footnotes in einem gemeinsamen Task abhandeln, weil beide klein sind. Entscheidung beim Epic-Start.
 

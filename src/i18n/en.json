@@ -269,5 +269,7 @@
   "linter.brokenWikiLink.short": "Wiki link target not found",
   "linter.brokenWikiLink.tooltip": "Target '{target}' not found in search scope (file folder and 2 sub-folder levels).",
   "linter.brokenWikiAnchor.short": "Anchor in wiki link target not found",
-  "linter.brokenWikiAnchor.tooltip": "Target file in '{target}' exists, but the heading or block anchor was not found there."
+  "linter.brokenWikiAnchor.tooltip": "Target file in '{target}' exists, but the heading or block anchor was not found there.",
+  "embed.notFound": "Embed file not found: {path}",
+  "embed.depthExceeded": "Embed depth exceeded"
 }

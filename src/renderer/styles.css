@@ -1755,6 +1755,99 @@ body.focus-mode .splitter.sidebar-splitter {
   border-color: var(--border-strong);
 }
 
+/* === Wiki-Embeds (4T-0055, Epic 3E-0011) ================================= */
+/* Bilder: kommen schon als <img> aus dem preload (mit data-URI). Hier nur
+   Basis-Styling fuer Inline-Bilder. */
+.markdown-body .wiki-embed.wiki-embed-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 8px 0;
+}
+/* PDF, Markdown und Other: Span-Platzhalter werden im Renderer per
+   applyWikiEmbedsIfPresent zu echtem DOM expandiert. Bis zur Expansion
+   bleiben sie unsichtbar; nach Expansion display: block. */
+.markdown-body .wiki-embed.wiki-embed-pdf,
+.markdown-body .wiki-embed.wiki-embed-md,
+.markdown-body .wiki-embed.wiki-embed-other,
+.markdown-body .wiki-embed.wiki-embed-broken,
+.markdown-body .wiki-embed.wiki-embed-depth-exceeded {
+  display: block;
+  margin: 12px 0;
+}
+.markdown-body .wiki-embed.wiki-embed-pdf embed {
+  display: block;
+}
+.markdown-body .wiki-embed.wiki-embed-md {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+}
+.markdown-body .wiki-embed-md-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--bg-muted);
+  border-bottom: 1px solid var(--border);
+  border-radius: 4px 4px 0 0;
+  font-size: 0.85em;
+}
+.markdown-body .wiki-embed-md-header-link {
+  font-weight: 600;
+  color: var(--syntax-link);
+  text-decoration: none;
+}
+.markdown-body .wiki-embed-md-header-link:hover {
+  text-decoration: underline;
+}
+.markdown-body .wiki-embed-md-anchor {
+  color: var(--fg-muted);
+  font-family: var(--editor-font-family, monospace);
+  font-size: 0.9em;
+}
+.markdown-body .wiki-embed-md-body {
+  padding: 8px 14px 4px;
+}
+.markdown-body .wiki-embed-md-body > :first-child {
+  margin-top: 0;
+}
+.markdown-body .wiki-embed-md-body > :last-child {
+  margin-bottom: 0;
+}
+.markdown-body .wiki-embed-other-link {
+  display: inline-block;
+  padding: 6px 10px;
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--fg);
+  text-decoration: none;
+  font-family: var(--editor-font-family, monospace);
+  font-size: 0.9em;
+}
+.markdown-body .wiki-embed-other-link::before {
+  content: '📎 ';
+}
+.markdown-body .wiki-embed-other-link:hover {
+  background: var(--bg-alt);
+}
+.markdown-body .wiki-embed-broken,
+.markdown-body .wiki-embed-depth-exceeded {
+  padding: 6px 12px;
+  background: rgba(220, 53, 69, 0.08);
+  border: 1px solid rgba(220, 53, 69, 0.25);
+  border-radius: 4px;
+  color: var(--fg-muted);
+  font-size: 0.9em;
+  font-style: italic;
+}
+[data-theme="dark"] .markdown-body .wiki-embed-broken,
+[data-theme="dark"] .markdown-body .wiki-embed-depth-exceeded {
+  background: rgba(255, 118, 118, 0.08);
+  border-color: rgba(255, 118, 118, 0.25);
+}
+
 /* === Scrollbars (dezent) ================================================ */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }

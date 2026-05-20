@@ -713,6 +713,150 @@ function cleanupMermaidLeftovers() {
   }
 }
 
+// 4T-0055 (Epic 3E-0011): Wiki-Embeds expandieren.
+// Scannt den Container nach <span class="wiki-embed-*">-Platzhaltern aus
+// dem markdown-it-Renderer und baut das echte DOM-Element pro Embed-Typ:
+//   pdf  -> <embed type="application/pdf" src="file://...">
+//   md   -> Header (Datei-Name als Klick-Link) plus rekursiver Render
+//   other -> Klick-Link mit Datei-Pfad
+// Bilder werden bereits im preload direkt als <img> ausgegeben (mit
+// data-URI dank resolveImagesForBase) und brauchen hier keine Expansion.
+// Recursion-Limit fuer Markdown-Embeds: 2 Ebenen tief; tiefer kommt ein
+// dezenter Hinweis-Block.
+const WIKI_EMBED_MAX_DEPTH = 2;
+
+async function applyWikiEmbedsIfPresent(container, basePath, depth = 0) {
+  if (!container || !basePath) return;
+  // 'wiki-embed-image' ueberspringen: schon als <img> im preload erzeugt.
+  // 'wiki-embed-processed' markiert bereits verarbeitete Platzhalter,
+  // damit ein erneuter Aufruf nicht doppelt expandiert (z.B. nach Re-
+  // Render im selben Pane).
+  const embeds = container.querySelectorAll(
+    '.wiki-embed:not(.wiki-embed-image):not(.wiki-embed-processed)',
+  );
+  if (embeds.length === 0) return;
+  for (const span of embeds) {
+    span.classList.add('wiki-embed-processed');
+    const kind = span.dataset.embedKind || 'other';
+    const embedPath = span.dataset.embedPath || '';
+    const anchor = span.dataset.embedAnchor || '';
+    const widthAttr = span.dataset.embedWidth || '';
+    if (kind === 'pdf') {
+      await renderPdfEmbed(span, basePath, embedPath, widthAttr);
+    } else if (kind === 'md') {
+      await renderMarkdownEmbed(span, basePath, embedPath, anchor, depth);
+    } else {
+      await renderOtherEmbed(span, basePath, embedPath);
+    }
+  }
+}
+
+async function renderPdfEmbed(span, basePath, embedPath, widthAttr) {
+  let resolved;
+  try {
+    resolved = await api.resolveLink(basePath, embedPath);
+  } catch {
+    resolved = null;
+  }
+  if (!resolved) {
+    renderBrokenEmbed(span, embedPath, null);
+    return;
+  }
+  const exists = await api.fileExists(resolved);
+  if (!exists) {
+    renderBrokenEmbed(span, embedPath, null);
+    return;
+  }
+  span.innerHTML = '';
+  const widthCss = widthAttr ? `${widthAttr}px` : '100%';
+  const obj = document.createElement('embed');
+  obj.type = 'application/pdf';
+  // file://-URL mit Path-Conversion fuer Windows (Backslashes -> Slashes).
+  obj.src = 'file:///' + resolved.replace(/\\/g, '/');
+  obj.style.width = widthCss;
+  obj.style.height = '600px';
+  obj.style.border = '1px solid var(--border)';
+  obj.style.borderRadius = '4px';
+  span.appendChild(obj);
+}
+
+async function renderMarkdownEmbed(span, basePath, embedPath, anchor, depth) {
+  if (depth >= WIKI_EMBED_MAX_DEPTH) {
+    span.classList.add('wiki-embed-depth-exceeded');
+    span.textContent = (t('embed.depthExceeded') || 'Embed-Tiefe überschritten') + ': ' + embedPath;
+    return;
+  }
+  let result;
+  try {
+    result = await api.readEmbedFile(basePath, embedPath, anchor || null);
+  } catch (err) {
+    result = { ok: false, error: err && err.message ? err.message : String(err) };
+  }
+  if (!result || !result.ok) {
+    renderBrokenEmbed(span, embedPath, result && result.error);
+    return;
+  }
+  span.innerHTML = '';
+  const header = document.createElement('div');
+  header.className = 'wiki-embed-md-header';
+  const link = document.createElement('a');
+  link.className = 'wiki-embed-md-header-link';
+  link.href = '#';
+  link.textContent = result.displayPath || embedPath;
+  link.addEventListener('click', (e) => {
+    e.preventDefault();
+    // Datei in der aktuellen Pane oeffnen.
+    openInPane(state.activePaneIndex, [result.path]);
+  });
+  header.appendChild(link);
+  if (anchor) {
+    const anchorTag = document.createElement('span');
+    anchorTag.className = 'wiki-embed-md-anchor';
+    anchorTag.textContent = '#' + anchor;
+    header.appendChild(anchorTag);
+  }
+  span.appendChild(header);
+  const body = document.createElement('div');
+  body.className = 'wiki-embed-md-body markdown-body';
+  body.innerHTML = api.renderMarkdown(result.content || '', result.path);
+  span.appendChild(body);
+  // Rekursive Verarbeitung: Mermaid, scg-table-Sortierung und weitere
+  // Wiki-Embeds im eingebetteten Inhalt. Tiefenzaehler wird inkrementiert.
+  applyMermaidIfPresent(body);
+  enhanceScgTableSorting(body);
+  await applyWikiEmbedsIfPresent(body, result.path, depth + 1);
+}
+
+async function renderOtherEmbed(span, basePath, embedPath) {
+  let resolved;
+  try {
+    resolved = await api.resolveLink(basePath, embedPath);
+  } catch {
+    resolved = null;
+  }
+  span.innerHTML = '';
+  const link = document.createElement('a');
+  link.className = 'wiki-embed-other-link';
+  link.href = embedPath;
+  link.textContent = embedPath;
+  if (resolved) {
+    link.title = resolved;
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      api.openExternal('file:///' + resolved.replace(/\\/g, '/'));
+    });
+  }
+  span.appendChild(link);
+}
+
+function renderBrokenEmbed(span, embedPath, errorMsg) {
+  span.classList.add('wiki-embed-broken');
+  span.innerHTML = '';
+  const tmpl = t('embed.notFound') || 'Embed nicht gefunden';
+  const text = tmpl.replace('{path}', embedPath);
+  span.textContent = errorMsg ? `${text} (${errorMsg})` : text;
+}
+
 async function rerenderAllMermaidBlocks() {
   const blocks = document.querySelectorAll('.mermaid-block');
   if (blocks.length === 0) return;
@@ -1728,6 +1872,9 @@ function renderPreviewForPane(paneIdx) {
   applyMermaidIfPresent(els.renderedHtml);
   // 4T-0046: Click-Handler und Sort-Indikatoren auf .scg-table.sortable.
   enhanceScgTableSorting(els.renderedHtml);
+  // 4T-0055: Wiki-Embeds (PDF, Markdown, Other) expandieren. Bild-Embeds
+  // sind schon direkt als <img> ausgegeben und brauchen hier nichts.
+  if (tab.path) applyWikiEmbedsIfPresent(els.renderedHtml, tab.path);
   // 4T-0014: Aktive Outline-Sektion neu ermitteln, weil DOM-Heading-Knoten
   // im Render-Pane jetzt frische BoundingClientRects haben.
   if (state.outline && state.outline.visibleByPane[paneIdx]) {
@@ -3590,6 +3737,8 @@ function renderPaneContent(paneIdx) {
   applyMermaidIfPresent(els.renderedHtml);
   // 4T-0046: Click-Handler und Sort-Indikatoren auf .scg-table.sortable.
   enhanceScgTableSorting(els.renderedHtml);
+  // 4T-0055: Wiki-Embeds expandieren (PDF, Markdown, Other).
+  if (tab.path) applyWikiEmbedsIfPresent(els.renderedHtml, tab.path);
 
   // View-Mode-Klassen auf dem .content-Element setzen.
   els.content.classList.remove('view-source', 'view-split', 'view-rendered');
@@ -4573,6 +4722,8 @@ function savePropertiesFromPane(paneIdx) {
     elsRefresh.renderedHtml.innerHTML = api.renderMarkdown(tab.content, tab.path);
     applyMermaidIfPresent(elsRefresh.renderedHtml);
     enhanceScgTableSorting(elsRefresh.renderedHtml);
+    // 4T-0055: Wiki-Embeds expandieren (PDF, Markdown, Other).
+    if (tab.path) applyWikiEmbedsIfPresent(elsRefresh.renderedHtml, tab.path);
   }
   if (wasDirty !== tab.dirty) {
     renderTabbar(paneIdx);

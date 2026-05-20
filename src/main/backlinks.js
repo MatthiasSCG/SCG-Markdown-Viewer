@@ -766,6 +766,82 @@ function resolveWikiTargetByAlias(activeFile, basename) {
   };
 }
 
+// 4T-0055 (Epic 3E-0011): Schneidet aus dem Datei-Inhalt einen Anker-
+// Snippet heraus. Wird vom embed:read-IPC-Handler genutzt fuer Markdown-
+// Embeds mit Anker (![[Datei#Heading]] / ![[Datei#^id]]).
+//
+// Bei Heading-Anker: von der Heading-Zeile bis zur naechsten Heading mit
+// gleichem oder hoeherem Rang (oder Datei-Ende). Heading-Zeile selbst ist
+// Teil des Snippets. Fenced-Code-Bloecke werden uebersprungen, damit
+// Markdown-Beispiele im Code nicht versehentlich als Heading gefunden
+// werden.
+//
+// Bei Block-Anker (anchor.startsWith('^')): die Zeile mit dem Block-Marker
+// wird zurueckgegeben (ohne den `^id`-Marker selbst). Mehrzeilige Block-
+// Konstrukte (Listen-Items mit Sub-Inhalt) werden nicht extrahiert; das
+// waere eine spaetere Erweiterung.
+//
+// Liefert null, wenn der Anker nicht gefunden wurde.
+function extractEmbedSnippet(content, anchor) {
+  if (!anchor) return content;
+  const lines = String(content || '').split(/\r?\n/);
+
+  if (anchor.startsWith('^')) {
+    const id = anchor.slice(1);
+    const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const re = new RegExp(`\\s+\\^${escapedId}\\s*$`, 'u');
+    for (let i = 0; i < lines.length; i++) {
+      if (re.test(lines[i])) {
+        return lines[i].replace(re, '');
+      }
+    }
+    return null;
+  }
+
+  const wantedSlug = githubLikeSlug(anchor);
+  let startLine = -1;
+  let headingLevel = 0;
+  let inFence = false;
+  let fenceChar = null;
+  for (let i = 0; i < lines.length; i++) {
+    const fenceMatch = lines[i].match(FENCE_RE);
+    if (fenceMatch) {
+      const ch = fenceMatch[1].charAt(0);
+      if (!inFence) { inFence = true; fenceChar = ch; }
+      else if (ch === fenceChar) { inFence = false; fenceChar = null; }
+      continue;
+    }
+    if (inFence) continue;
+    const m = lines[i].match(HEADING_RE);
+    if (m && githubLikeSlug(m[1]) === wantedSlug) {
+      startLine = i;
+      headingLevel = (lines[i].match(/^(#{1,6})/) || ['', ''])[1].length;
+      break;
+    }
+  }
+  if (startLine < 0) return null;
+
+  let endLine = lines.length;
+  inFence = false;
+  fenceChar = null;
+  for (let i = startLine + 1; i < lines.length; i++) {
+    const fenceMatch = lines[i].match(FENCE_RE);
+    if (fenceMatch) {
+      const ch = fenceMatch[1].charAt(0);
+      if (!inFence) { inFence = true; fenceChar = ch; }
+      else if (ch === fenceChar) { inFence = false; fenceChar = null; }
+      continue;
+    }
+    if (inFence) continue;
+    const m = lines[i].match(/^(#{1,6})\s+/);
+    if (m && m[1].length <= headingLevel) {
+      endLine = i;
+      break;
+    }
+  }
+  return lines.slice(startLine, endLine).join('\n');
+}
+
 module.exports = {
   attachBroadcast,
   backlinksFor,
@@ -776,4 +852,6 @@ module.exports = {
   existingWikiTargets,
   // 4T-0050: Aliases-Aufloesung fuer Wiki-Link-Klick.
   resolveWikiTargetByAlias,
+  // 4T-0055: Anker-Snippet-Extraktion fuer Wiki-Embeds.
+  extractEmbedSnippet,
 };

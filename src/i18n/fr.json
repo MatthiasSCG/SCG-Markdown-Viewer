@@ -269,5 +269,7 @@
   "linter.brokenWikiLink.short": "Cible de lien wiki introuvable",
   "linter.brokenWikiLink.tooltip": "Cible « {target} » introuvable dans la portée de recherche (dossier du fichier et 2 niveaux de sous-dossiers).",
   "linter.brokenWikiAnchor.short": "Ancre dans la cible du lien wiki introuvable",
-  "linter.brokenWikiAnchor.tooltip": "Le fichier cible de « {target} » existe, mais l'ancre de titre ou de bloc n'y a pas été trouvée."
+  "linter.brokenWikiAnchor.tooltip": "Le fichier cible de « {target} » existe, mais l'ancre de titre ou de bloc n'y a pas été trouvée.",
+  "embed.notFound": "Fichier embarqué introuvable : {path}",
+  "embed.depthExceeded": "Profondeur d'imbrication dépassée"
 }

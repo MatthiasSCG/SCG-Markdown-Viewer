@@ -269,5 +269,7 @@
   "linter.brokenWikiLink.short": "Wiki-Link-Ziel nicht gefunden",
   "linter.brokenWikiLink.tooltip": "Ziel '{target}' im Suchraum (Datei-Ordner und 2 Unterordner-Ebenen) nicht gefunden.",
   "linter.brokenWikiAnchor.short": "Anker im Wiki-Link-Ziel nicht gefunden",
-  "linter.brokenWikiAnchor.tooltip": "Ziel-Datei in '{target}' existiert, aber Heading- oder Block-Anker wurde dort nicht gefunden."
+  "linter.brokenWikiAnchor.tooltip": "Ziel-Datei in '{target}' existiert, aber Heading- oder Block-Anker wurde dort nicht gefunden.",
+  "embed.notFound": "Embed-Datei nicht gefunden: {path}",
+  "embed.depthExceeded": "Embed-Tiefe überschritten"
 }

@@ -1112,6 +1112,40 @@ function registerIpc() {
     return backlinks.resolveWikiTargetByAlias(filePath, basename);
   });
 
+  // 4T-0055 (Epic 3E-0011): Wiki-Embed-Datei lesen. Liest die Ziel-Datei
+  // und extrahiert ggf. Heading-Snippet oder Block-Element gemaess Anker.
+  // Wird vom Renderer fuer Markdown-Embeds aufgerufen (![[Datei]] /
+  // ![[Datei#Heading]] / ![[Datei#^id]]).
+  ipcMain.handle('embed:read', async (_event, params) => {
+    const basePath = params && params.basePath;
+    const embedPath = params && params.embedPath;
+    const anchor = params && params.anchor;
+    if (!basePath || !embedPath) {
+      return { ok: false, error: 'missing params' };
+    }
+    try {
+      const dir = path.dirname(basePath);
+      const abs = path.resolve(dir, decodeURI(embedPath));
+      const content = await fs.readFile(abs, 'utf8');
+      let snippet = content;
+      if (anchor) {
+        snippet = backlinks.extractEmbedSnippet(content, anchor);
+        if (snippet == null) {
+          return { ok: false, error: 'anchor not found', path: abs };
+        }
+      }
+      return {
+        ok: true,
+        path: abs,
+        displayPath: path.basename(abs),
+        content: snippet,
+      };
+    } catch (err) {
+      const msg = err && err.message ? String(err.message) : String(err);
+      return { ok: false, error: msg };
+    }
+  });
+
   // Renderer fordert ein neues Fenster mit initialen Panes/Tabs an.
   // Format von initialPanes: [{ paths, activeIndex, tabSettings }, ...]
   ipcMain.handle('window:openNew', (event, initialPanes) => {

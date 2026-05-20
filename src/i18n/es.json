@@ -269,5 +269,7 @@
   "linter.brokenWikiLink.short": "Destino de enlace wiki no encontrado",
   "linter.brokenWikiLink.tooltip": "Destino «{target}» no encontrado en el ámbito de búsqueda (carpeta del archivo y 2 niveles de subcarpetas).",
   "linter.brokenWikiAnchor.short": "Ancla en el destino del enlace wiki no encontrada",
-  "linter.brokenWikiAnchor.tooltip": "El archivo de destino de «{target}» existe, pero el ancla de título o bloque no se encontró allí."
+  "linter.brokenWikiAnchor.tooltip": "El archivo de destino de «{target}» existe, pero el ancla de título o bloque no se encontró allí.",
+  "embed.notFound": "Archivo embebido no encontrado: {path}",
+  "embed.depthExceeded": "Profundidad de incrustación excedida"
 }

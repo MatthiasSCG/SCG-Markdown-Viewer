@@ -382,6 +382,118 @@ function wikiLinksPlugin(mdInstance) {
 }
 md.use(wikiLinksPlugin);
 
+// 4T-0055 (Epic 3E-0011): Wiki-Embeds `![[Datei]]`.
+// Erweitert die Wiki-Link-Syntax um den `!`-Operator als Embed-Marker.
+// Akzeptierte Formen:
+//   ![[bild.png]]              — Bild-Embed (max-width: 100%)
+//   ![[bild.png|200]]          — Bild-Embed mit fester Breite
+//   ![[bild.png|200px]]        — Bild-Embed mit fester Breite (px-Suffix)
+//   ![[doc.pdf]]               — PDF-Embed (Default-Hoehe 600 px)
+//   ![[doc.pdf|400]]           — PDF-Embed mit fester Breite
+//   ![[notiz.md]]              — Markdown-Embed (rekursiv, Tiefe-Limit 2)
+//   ![[notiz#Abschnitt]]       — Markdown-Embed nur des Abschnitts
+//   ![[notiz#^block-id]]       — Markdown-Embed nur des Block-Elements
+//   ![[file.zip]]              — sonstige Datei: Klick-Link mit Datei-Icon
+//
+// Der Plugin emittiert nur Tokens; die echte Render-Logik fuer
+// PDF/Markdown/Other-Embeds laeuft im Renderer-Postprocessing (siehe
+// applyWikiEmbedsIfPresent in renderer.js). Bild-Embeds werden direkt
+// als <img> ausgegeben, damit resolveImagesForBase sie zu data-URIs
+// konvertieren kann.
+function wikiEmbedsPlugin(mdInstance) {
+  function tokenize(state, silent) {
+    const start = state.pos;
+    if (state.src.charCodeAt(start) !== 0x21 /* ! */) return false;
+    if (state.src.charCodeAt(start + 1) !== 0x5b /* [ */) return false;
+    if (state.src.charCodeAt(start + 2) !== 0x5b /* [ */) return false;
+
+    const end = state.src.indexOf(']]', start + 3);
+    if (end < 0) return false;
+
+    const inner = state.src.slice(start + 3, end);
+    if (inner.length === 0 || inner.includes('\n') || inner.includes('[')) return false;
+
+    // Pipe-Trennung: bei Embeds ist '|<n>' bzw. '|<n>px' eine Groessen-
+    // Angabe (Breite in Pixel). Sonstige Werte werden in dieser Stufe
+    // ignoriert (kein Alt-Text-Support).
+    const pipeIdx = inner.indexOf('|');
+    const targetRaw = (pipeIdx >= 0 ? inner.slice(0, pipeIdx) : inner).trim();
+    const modRaw = (pipeIdx >= 0 ? inner.slice(pipeIdx + 1) : '').trim();
+    if (!targetRaw) return false;
+
+    // Pfad und Anker trennen (analog zu wikiLinksPlugin).
+    let pathPart = targetRaw;
+    let anchorRaw = '';
+    const hashIdx = targetRaw.indexOf('#');
+    if (hashIdx >= 0) {
+      pathPart = targetRaw.slice(0, hashIdx);
+      anchorRaw = targetRaw.slice(hashIdx + 1).trim();
+    }
+    if (!pathPart) return false; // Reine Anker-Embeds nicht unterstuetzt.
+
+    // Groessen-Parser: '<n>', '<n>px', '<n> px'.
+    let width = null;
+    if (modRaw) {
+      const m = modRaw.match(/^(\d+)\s*(?:px)?$/i);
+      if (m) width = parseInt(m[1], 10);
+    }
+
+    // Datei-Typ aus Extension ableiten. Ohne Extension wird '.md' angehaengt
+    // (analog zu Wiki-Links).
+    const extMatch = pathPart.match(/\.([a-z0-9]+)$/i);
+    const ext = extMatch ? extMatch[1].toLowerCase() : '';
+    let kind;
+    let finalPath = pathPart;
+    if (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'bmp', 'ico'].includes(ext)) {
+      kind = 'image';
+    } else if (ext === 'pdf') {
+      kind = 'pdf';
+    } else if (['md', 'markdown', 'mdown', 'mkd'].includes(ext) || !ext) {
+      kind = 'md';
+      if (!ext) finalPath = pathPart + '.md';
+    } else {
+      kind = 'other';
+    }
+
+    if (!silent) {
+      const token = state.push('wikiembed', '', 0);
+      token.attrSet('data-embed-kind', kind);
+      token.attrSet('data-embed-path', finalPath);
+      if (anchorRaw) token.attrSet('data-embed-anchor', anchorRaw);
+      if (width != null) token.attrSet('data-embed-width', String(width));
+    }
+
+    state.pos = end + 2;
+    return true;
+  }
+  mdInstance.inline.ruler.before('link', 'wikiembed', tokenize);
+
+  // Renderer-Regel: Bild-Embeds direkt als <img> ausgeben (damit
+  // resolveImagesForBase zu data-URI konvertiert). PDF/MD/Other werden
+  // als <span class="wiki-embed-*">-Platzhalter ausgegeben; das Renderer-
+  // Postprocessing baut das echte DOM.
+  mdInstance.renderer.rules.wikiembed = function (tokens, idx) {
+    const token = tokens[idx];
+    const kind = token.attrGet('data-embed-kind') || 'other';
+    const embedPath = token.attrGet('data-embed-path') || '';
+    const anchor = token.attrGet('data-embed-anchor') || '';
+    const width = token.attrGet('data-embed-width') || '';
+
+    if (kind === 'image') {
+      const widthStyle = width ? ` style="max-width: ${escapeHtml(width)}px"` : '';
+      return `<img class="wiki-embed wiki-embed-image" src="${escapeHtml(embedPath)}" alt=""${widthStyle}>`;
+    }
+
+    let attrStr = `class="wiki-embed wiki-embed-${escapeHtml(kind)}"`;
+    attrStr += ` data-embed-kind="${escapeHtml(kind)}"`;
+    attrStr += ` data-embed-path="${escapeHtml(embedPath)}"`;
+    if (anchor) attrStr += ` data-embed-anchor="${escapeHtml(anchor)}"`;
+    if (width) attrStr += ` data-embed-width="${escapeHtml(width)}"`;
+    return `<span ${attrStr}></span>`;
+  };
+}
+md.use(wikiEmbedsPlugin);
+
 // 4T-0054 (Epic 3E-0011): Block-Anker-Syntax `^block-id` am Zeilenende.
 // Hängt id-Attribut an das umschließende Block-Open-Token (paragraph_open,
 // blockquote_open, list_item_open, td_open, etc.) und entfernt das Marker-
@@ -457,6 +569,13 @@ mdPortable.use(markdownItKatex, { throwOnError: false, errorColor: '#cc0000' });
 mdPortable.use(wikiLinksPlugin);
 // 4T-0054: Block-Anker auch im portablen Export.
 mdPortable.use(blockAnchorsPlugin);
+// 4T-0055: Wiki-Embeds im portablen Export ebenfalls erkennen. Bilder
+// werden direkt als <img> ausgegeben; PDF/MD/Other-Embeds bleiben als
+// Platzhalter (das Renderer-Postprocessing wird im portablen Output
+// nicht ausgefuehrt, daher zeigen sich solche Embeds extern als leere
+// Span-Elemente). Akzeptable Einschraenkung in Stufe 1 — Bilder sind
+// der haeufigste Embed-Typ und funktionieren vollstaendig portable.
+mdPortable.use(wikiEmbedsPlugin);
 
 // 4T-0034: scg-table — MediaWiki-aehnliche Tabellen-Syntax als Fenced-Code-
 // Block mit Sprach-Tag 'scg-table'. Stufe 1 des Epics 3E-0006: Basis-Tabelle
@@ -1098,6 +1217,11 @@ contextBridge.exposeInMainWorld('api', {
   // Liste und optional den aufloesenden Alias-Text.
   resolveWikiTargetByAlias: (filePath, basename) =>
     ipcRenderer.invoke('wikiLink:resolveByAlias', { filePath, basename }),
+  // 4T-0055: Wiki-Embed-Datei lesen (mit optionaler Anker-Extraktion).
+  // Wird vom Renderer-Postprocessing fuer Markdown-Embeds aufgerufen.
+  // Antwort: { ok, path, displayPath, content } oder { ok: false, error }.
+  readEmbedFile: (basePath, embedPath, anchor) =>
+    ipcRenderer.invoke('embed:read', { basePath, embedPath, anchor }),
   onBacklinksInvalidated: (cb) => ipcRenderer.on('backlinks:invalidated', (_e, payload) => cb(payload)),
 
   // Multi-Window
