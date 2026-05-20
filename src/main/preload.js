@@ -10,6 +10,10 @@ const MarkdownIt = require('markdown-it');
 const taskLists = require('markdown-it-task-lists');
 const markdownItAnchor = require('markdown-it-anchor');
 const markdownItKatex = require('@vscode/markdown-it-katex').default;
+// 4T-0049 (Epic 3E-0010): js-yaml fuer YAML-Frontmatter-Parsing. SAFE_SCHEMA
+// erlaubt nur Standard-YAML-Typen, kein eval/Code-Ausfuehrung. Wir nutzen es
+// hier nur zum Lesen; Round-Trip-Schreiben kommt erst in 4T-0051 hinzu.
+const yaml = require('js-yaml');
 
 // 4T-0023: highlight.js als Core-Bundle plus kuratierte Sprachliste. Damit
 // landet nur das benoetigte Set im Bundle, nicht das gesamte Default-Bundle
@@ -74,6 +78,62 @@ function escapeHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+// 4T-0049 (Epic 3E-0010): YAML-Frontmatter erkennen und vom Render-Pfad
+// ausklammern. Akzeptiert wird nur ein Block, der mit '---' in Zeile 1
+// oeffnet und mit '---' oder '...' in einer spaeteren Zeile schliesst.
+// Ein einzelnes '---' am Datei-Anfang ohne Schluss ist regulaere Markdown-
+// Trennlinie und wird nicht als Frontmatter behandelt. Bei Parse-Fehlern
+// wird data=null und parseError=<message> zurueckgegeben; raw und body
+// bleiben korrekt, damit der Render-Pfad nicht stoeren.
+function extractFrontmatter(text) {
+  const source = String(text || '');
+  if (!source.startsWith('---')) {
+    return { raw: null, data: null, body: source, parseError: null, endOffset: 0 };
+  }
+  // Erste Zeile muss genau '---' (gefolgt von \n oder \r\n oder EOF) sein.
+  const firstLineEnd = source.indexOf('\n');
+  const firstLine = firstLineEnd >= 0 ? source.slice(0, firstLineEnd).trimEnd() : source.trimEnd();
+  if (firstLine !== '---') {
+    return { raw: null, data: null, body: source, parseError: null, endOffset: 0 };
+  }
+  if (firstLineEnd < 0) {
+    // Datei besteht nur aus '---' ohne Newline danach: keine Frontmatter.
+    return { raw: null, data: null, body: source, parseError: null, endOffset: 0 };
+  }
+  // Suche die naechste Schliess-Zeile ('---' oder '...') exakt an Zeilenanfang.
+  const closeRegex = /\r?\n(---|\.\.\.)[ \t]*(\r?\n|$)/;
+  const rest = source.slice(firstLineEnd);
+  const match = rest.match(closeRegex);
+  if (!match) {
+    // Oeffnender '---'-Block ohne Schluss: keine Frontmatter, regulaeres
+    // Dokument. Damit wird ein versehentliches '---' am Datei-Anfang nicht
+    // als halbgeschluckter Block interpretiert.
+    return { raw: null, data: null, body: source, parseError: null, endOffset: 0 };
+  }
+  const blockBodyStart = firstLineEnd + 1; // Position nach erstem \n
+  const blockBodyEnd = firstLineEnd + match.index; // vor dem schliessenden \n
+  const yamlText = source.slice(blockBodyStart, blockBodyEnd);
+  const endOffset = firstLineEnd + match.index + match[0].length;
+  const raw = source.slice(0, endOffset);
+  const body = source.slice(endOffset);
+  let data = null;
+  let parseError = null;
+  try {
+    const parsed = yaml.load(yamlText, { schema: yaml.JSON_SCHEMA });
+    // Nur Objekte akzeptieren (kein Skalar als Frontmatter sinnvoll).
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      data = parsed;
+    } else if (parsed === null || parsed === undefined) {
+      data = {};
+    } else {
+      parseError = 'frontmatter must be a YAML mapping';
+    }
+  } catch (err) {
+    parseError = err && err.message ? String(err.message) : 'YAML parse error';
+  }
+  return { raw, data, body, parseError, endOffset };
 }
 
 // markdown-it mit GFM-naher Konfiguration.
@@ -805,9 +865,17 @@ contextBridge.exposeInMainWorld('api', {
     // (siehe Doku im Hilfe-Tab).
     const isPortable = /^<!--\s*scg-portable\s*-->/.test(String(text || '').trimStart());
     const renderer = isPortable ? mdPortable : md;
-    const html = renderer.render(text || '');
+    // 4T-0049: YAML-Frontmatter wird vor dem Render abgeschnitten. Der
+    // '---'-Block am Datei-Anfang ist Metadaten, keine horizontale Linie.
+    // body ist text wenn kein Frontmatter erkannt wurde.
+    const fm = extractFrontmatter(text);
+    const html = renderer.render(fm.body);
     return resolveImagesForBase(html, basePath);
   },
+  // 4T-0049: Frontmatter-Daten fuer Renderer-Konsumenten. Wird in 4T-0050
+  // (Aliases) und 4T-0051 (Properties-Editor) genutzt. Liefert
+  // { raw, data, body, parseError, endOffset } analog extractFrontmatter.
+  getFrontmatter: (text) => extractFrontmatter(text),
   // 4T-0014: Slug-Berechnung im Renderer-Modul verfuegbar machen,
   // damit das Outline-Panel im Render-Modus den passenden DOM-Anker findet.
   slugifyHeading: (text) => githubLikeSlug(String(text || '')),

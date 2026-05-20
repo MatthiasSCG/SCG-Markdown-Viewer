@@ -86,6 +86,51 @@ const searchHighlightField = StateField.define({
   provide: (f) => EditorView.decorations.from(f),
 });
 
+// 4T-0049 (Epic 3E-0010): Frontmatter-Decoration. Wenn der Doc-Anfang ein
+// YAML-Frontmatter-Block ('---' bis '---' bzw. '...') ist, bekommen alle
+// Zeilen des Blocks (inklusive der beiden Marker-Zeilen) eine Line-
+// Decoration mit dezenter Hintergrundfarbe. Erkennung anhand des Doc-Texts;
+// kein YAML-Parsing noetig, da nur die Zeilen-Grenzen relevant sind. Die
+// Aufloesungs-Heuristik muss identisch zu extractFrontmatter in preload.js
+// bleiben, damit Source-Decoration und Render-Ausschluss synchron sind.
+function detectFrontmatterLines(doc) {
+  const totalLines = doc.lines;
+  if (totalLines < 2) return null;
+  const firstLine = doc.line(1);
+  if (firstLine.text.trimEnd() !== '---') return null;
+  for (let lineNo = 2; lineNo <= totalLines; lineNo++) {
+    const text = doc.line(lineNo).text.trimEnd();
+    if (text === '---' || text === '...') {
+      return { fromLine: 1, toLine: lineNo };
+    }
+  }
+  return null;
+}
+
+const frontmatterLineDecoration = Decoration.line({ class: 'cm-frontmatter-line' });
+
+function buildFrontmatterDecorations(doc) {
+  const range = detectFrontmatterLines(doc);
+  if (!range) return Decoration.none;
+  const ranges = [];
+  for (let lineNo = range.fromLine; lineNo <= range.toLine; lineNo++) {
+    const line = doc.line(lineNo);
+    ranges.push(frontmatterLineDecoration.range(line.from));
+  }
+  return Decoration.set(ranges);
+}
+
+const frontmatterField = StateField.define({
+  create(state) {
+    return buildFrontmatterDecorations(state.doc);
+  },
+  update(deco, tr) {
+    if (!tr.docChanged) return deco;
+    return buildFrontmatterDecorations(tr.state.doc);
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
+
 // 4T-0013: Folding-Struktur-Cache. Wird bei jeder Doc-Aenderung aus dem
 // CodeMirror-syntaxTree neu aufgebaut. Enthaelt:
 // - headings: pro Heading {kind:'heading', level, fromLine, toLine, track}.
@@ -1276,6 +1321,19 @@ function lintIsInLinkContext(state, pos) {
   return false;
 }
 
+// 4T-0049: Pruefung, ob die Position innerhalb des YAML-Frontmatter-Blocks
+// am Datei-Anfang liegt. Frontmatter ist YAML, nicht Markdown — die Linter-
+// Regeln 1-4 duerfen darin nicht greifen. Beispiel: `aliases: [foo]` darf
+// nicht als 'leere Wiki-Link' gemeldet werden, eine URL im 'website:'-Wert
+// darf nicht als bare-url markiert werden.
+function lintIsInFrontmatter(state, pos) {
+  const range = detectFrontmatterLines(state.doc);
+  if (!range) return false;
+  const fromOffset = state.doc.line(range.fromLine).from;
+  const toOffset = state.doc.line(range.toLine).to;
+  return pos >= fromOffset && pos <= toOffset;
+}
+
 // Pro EditorView ein Debounce-Timer, damit Doc-Aenderungen den Lint-Lauf
 // nicht haeufiger als alle LINT_DEBOUNCE_MS triggern.
 const lintTimers = new WeakMap();
@@ -1316,6 +1374,7 @@ async function runLint(view) {
     const to = from + m[0].length;
     if (lintIsInCodeContext(stateAtStart, from)) continue;
     if (lintIsInLinkContext(stateAtStart, from)) continue;
+    if (lintIsInFrontmatter(stateAtStart, from)) continue;
     pushRange(from, to, 'bareUrl');
   }
 
@@ -1324,6 +1383,7 @@ async function runLint(view) {
     const from = m.index;
     const to = from + m[0].length;
     if (lintIsInCodeContext(stateAtStart, from)) continue;
+    if (lintIsInFrontmatter(stateAtStart, from)) continue;
     const isImage = (m[1] === '!') || (m[3] === '!');
     pushRange(from, to, isImage ? 'missingAltText' : 'emptyLinkText');
   }
@@ -1336,6 +1396,7 @@ async function runLint(view) {
     const from = m.index;
     const to = from + m[0].length;
     if (lintIsInCodeContext(stateAtStart, from)) continue;
+    if (lintIsInFrontmatter(stateAtStart, from)) continue;
     const target = (m[1] || '').trim();
     if (!target) continue;
     wikiMatches.push({ from, to, target });
@@ -1458,6 +1519,8 @@ function createEditorState(opts = {}) {
       lintHoverTooltip,
       drawSelection(),
       searchHighlightField,
+      // 4T-0049: YAML-Frontmatter im Source-Pane visuell abgesetzt darstellen.
+      frontmatterField,
       EditorView.updateListener.of((update) => {
         const pIdx = paneEditors.indexOf(update.view);
         if (pIdx < 0) return;
