@@ -60,7 +60,7 @@ Beide Mechanismen teilen sich technisch ein Pattern: ein Trigger-Zeichen im Edit
 
 ### Hotfix-Tasks (nach Auslieferung)
 
-- [x] [4T-0060 — Tag-Parser-Fehlpositive bei Hex-Farbcodes, Zahlen und Markdown-Anker-Links](4T-0060-tag-parser-fehlpositive.md) — erledigt 2026-05-20, ausgeliefert in v0.17.1
+- [x] [4T-0060 — Tag-Parser-Fehlpositive bei Hex-Farbcodes, Zahlen und Markdown-Anker-Links](4T-0060-tag-parser-fehlpositive.md) — erledigt 2026-05-20, Commit `040330f`, Tag `v0.17.1` als Latest auf GitHub
 
 **Schnitt-Entscheidung zum Epic-Start (2026-05-20):** Linter-Erweiterung (Heading- und Block-Anker-Prüfung) wurde mit Task 1 (Wiki-Link-Parser) zusammengelegt, weil beide denselben Parser-Pfad anpassen und der Linter eine kleine Folge-Änderung ist. Damit sechs Tasks statt der ursprünglich vorgesehenen sieben.
 
