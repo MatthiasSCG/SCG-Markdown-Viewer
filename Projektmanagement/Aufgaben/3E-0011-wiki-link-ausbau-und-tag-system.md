@@ -1,6 +1,6 @@
 # 3E-0011 — Wiki-Link-Ausbau und Tag-System
 
-**Status**: Offen
+**Status**: In Umsetzung — seit 2026-05-20
 **Zielversion**: 0.17.0
 **Vorgängerversion**: 0.16.0
 **Reihenfolge im Meta-Plan**: Epic 2 von 6 (B → C → D → E → A → F)
@@ -50,16 +50,14 @@ Beide Mechanismen teilen sich technisch ein Pattern: ein Trigger-Zeichen im Edit
 
 ## Untergeordnete Tasks
 
-Werden zu Beginn der Epic-Umsetzung als 4T-Dateien angelegt. Vorgesehene Tasks:
+- [ ] [4T-0054 — Wiki-Link-Parser für Heading- und Block-Anker (inkl. Linter-Erweiterung)](4T-0054-wiki-link-heading-block-anker.md)
+- [ ] [4T-0055 — Wiki-Embeds `![[…]]`](4T-0055-wiki-embeds.md)
+- [ ] [4T-0056 — Tag-System: Parser, Index und Sidebar](4T-0056-tag-system.md)
+- [ ] [4T-0057 — Autocomplete-Framework für `[[` und `#`](4T-0057-autocomplete-framework.md)
+- [ ] [4T-0058 — Hilfe-Dialog um Wiki-Link-Ausbau und Tag-System erweitern](4T-0058-hilfe-dialog-wiki-link-tag.md)
+- [ ] [4T-0059 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.17.0](4T-0059-changelog-release-0170.md)
 
-1. **Wiki-Link-Parser für Heading- und Block-Anker** — `[[Datei#Heading]]`, `[[Datei#^id]]`, Block-ID-Syntax `^id` am Zeilenende.
-2. **Wiki-Embeds** `![[…]]` — Bilder, Markdown-Notizen, PDFs, andere Datei-Typen.
-3. **Tag-Parser, Tag-Index und Tag-Sidebar** — Inline-`#tag`, Frontmatter-`tags:`, hierarchische Tag-Anzeige.
-4. **Autocomplete-Framework** — Trigger-basierte Dropdowns für `[[` und `#`.
-5. **Linter-Erweiterung** — Heading- und Block-Anker-Prüfung in Wiki-Links.
-6. **Hilfe-Dialog erweitern und Abschluss-Sammeltask** — CHANGELOG, README, Release.
-
-Eventuell wird Task 1 in zwei Tasks gesplittet (Heading- und Block-Anker getrennt), falls der Block-Anker-Teil unabhängig wertvoll ist.
+**Schnitt-Entscheidung zum Epic-Start (2026-05-20):** Linter-Erweiterung (Heading- und Block-Anker-Prüfung) wurde mit Task 1 (Wiki-Link-Parser) zusammengelegt, weil beide denselben Parser-Pfad anpassen und der Linter eine kleine Folge-Änderung ist. Damit sechs Tasks statt der ursprünglich vorgesehenen sieben.
 
 ## Architekturentscheidungen
 
