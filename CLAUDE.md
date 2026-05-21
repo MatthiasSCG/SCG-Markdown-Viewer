@@ -27,24 +27,31 @@ Konventionen:
 - `releases/` ist per `.gitignore` ausgeschlossen, der Build-Output landet nicht im Repo.
 - **Smoke-Test bei Änderungen an Preload, Main oder Build-Konfiguration:** Vor der Test-Aufforderung an den Nutzer selbst per Doppelklick die frisch gebaute Portable-EXE starten und prüfen, ob das Fenster erscheint. Bei reinen Renderer-Änderungen genügt der Build-Erfolg. Hintergrund: in 4T-0017 (0.9.0) startete die App nicht, weil ein `webFrame`-Aufruf zur Modul-Lade-Zeit das Preload-Skript abbrechen ließ. Der Build lief sauber durch, der Renderer kam aber nie hoch und das Fenster blieb unsichtbar.
 
-## Abschluss-Sammeltask am Epic-Ende
+## Tasks zu Epic-Beginn anlegen (inkl. Sammeltask)
 
-Jeder Epic-Versionssprung wird durch einen **Abschluss-Sammeltask** abgeschlossen, der alle nachgelagerten Doku- und Release-Arbeiten bündelt. Er wird nicht zu Epic-Beginn angelegt, sondern erst, wenn alle Umsetzungs-Tasks des Epics auf „Test bestanden" stehen — sonst wandern Detail-Entscheidungen aus den Umsetzungs-Tasks vorzeitig in den Sammeltask. Vorbilder im Repo: [4T-0010](Projektmanagement/Aufgaben/4T-0010-changelog-release-060.md) (für 0.6.0), [4T-0026](Projektmanagement/Aufgaben/4T-0026-changelog-release-080.md) (für 0.8.0).
+Vor dem Start der Umsetzung werden **alle** vorgesehenen Tasks des Epics als 4T-Dateien angelegt: Umsetzungs-Tasks, der Hilfe-Dialog-Task (sofern das Epic User-sichtbare Funktionen enthält) und der Abschluss-Sammeltask für CHANGELOG/Release. Das macht das Epic-Skelett von Anfang an vollständig sichtbar, gibt dem Nutzer eine vollständige Freigabe-Grundlage und vermeidet, dass spät im Epic Tasks „dazu erfunden" werden müssen. Vorbild im Repo: Epic [3E-0011](Projektmanagement/Aufgaben/3E-0011-wiki-link-ausbau-und-tag-system.md) — Tasks 4T-0054 bis 4T-0059 wurden vor Umsetzungsbeginn angelegt.
+
+**Tiefe der Initial-Anlage:**
+
+- **Umsetzungs-Tasks**: vollständig inhaltlich ausgearbeitet (Warum, Lösungsansatz, betroffene Dateien, Test-Plan), so dass der Nutzer pro Task Freigabe geben kann.
+- **Hilfe-Dialog-Task** (eigener Task seit Epic 3E-0011, Vorbild [4T-0058](Projektmanagement/Aufgaben/4T-0058-hilfe-dialog-wiki-link-tag.md)): Skelett mit den voraussichtlich neuen Feature- und Shortcut-Einträgen. Konkrete i18n-Keys und Gruppenzuordnung werden gegen Ende des Epics finalisiert, wenn der reale Funktionsumfang feststeht.
+- **Abschluss-Sammeltask** (Changelog/Release): nur Skelett mit Standard-Checkliste (siehe unten). Konkrete Inhalte (Bullet-Listen im CHANGELOG, Release-Notes-Text, README-Updates) werden erst eingetragen, wenn alle Umsetzungs-Tasks auf „Test bestanden" stehen — sonst wandern Detail-Entscheidungen aus den Umsetzungs-Tasks vorzeitig in den Sammeltask.
+
+Frühe Vorbilder noch ohne separaten Hilfe-Dialog-Task (Hilfe-Dialog war damals Punkt 1 im Sammeltask): [4T-0010](Projektmanagement/Aufgaben/4T-0010-changelog-release-060.md) (für 0.6.0), [4T-0026](Projektmanagement/Aufgaben/4T-0026-changelog-release-080.md) (für 0.8.0). Ab Epic 3E-0011 wird der Hilfe-Dialog als eigener Task geführt.
 
 **Standard-Inhalte** des Sammeltasks (Checkliste, in dieser Reihenfolge):
 
-1. **Hilfe-Dialog erweitern** — neue Funktionen und Shortcuts in `HELP_FEATURE_GROUPS` / `HELP_SHORTCUTS` in [src/renderer/renderer.js](src/renderer/renderer.js), zugehörige i18n-Keys in allen fünf Sprachen. Neue Funktions-Einträge in die passende Gruppe (Datei und Sitzung, Bearbeitung, Ansicht, Navigation, Allgemein) einsortieren. Details im Abschnitt [Hilfe-Dialog bei neuen Funktionen erweitern](#hilfe-dialog-bei-neuen-funktionen-erweitern).
-2. **CHANGELOG.md** — neuer Block `## [X.Y.Z] - JJJJ-MM-TT — <Untertitel>` ganz oben, Verweis auf das Epic im einleitenden Absatz. Subsektionen wie „Neu", „Geändert", „Behoben", „i18n".
-3. **Release-Notes** — `dist/release-notes-X.Y.Z.md` aus `docs/release-notes-template.md` ableiten (gitignored). Auf Deutsch mit Umlauten, sektioniert wie im Template beschrieben.
-4. **README.md aktualisieren** — Status-Sektion (vorletztes Kapitel) auf die neue Version und ein bis zwei Sätze über die Schwerpunkte des Releases umschreiben. Funktionsumfang-Subsektionen (`### Markdown-Umfang`, `### Hilfe-Dialog`, ggf. `### Theme`, `### Statusbar` oder andere thematisch passende Stellen) um neue Features oder geänderte Beschreibungen ergänzen — bei reinen Bugfix-Releases entfallend. Insbesondere `### Hilfe-Dialog` muss die Tab-Struktur und die Funktions-Gruppen widerspiegeln; harte Stückzahlen wie „19 Bullets" oder „17 Zeilen Tastenkürzel" sollten vermieden werden, weil sie schnell veralten. Tastenkürzel-Tabelle um die neuen Bindings ergänzen, sofern welche dazugekommen sind. EXE-Dateinamen im Build-Abschnitt sind über den Platzhalter `<version>` versionsfrei gehalten und brauchen keine Pflege.
-5. **Test-Iteration mit dem Nutzer** — Portable-EXE bauen und Nutzer prüfen lassen, ob Hilfe-Dialog-Inhalte sitzen, die Release-Notes inhaltlich passen und die README-Status-Sektion stimmt. **Erst nach Freigabe** weiter.
-6. **Commit, Tag, GitHub-Release** — siehe Abschnitt [Release-Prozess: Tag + GitHub-Release bei jedem Versionssprung](#release-prozess-tag--github-release-bei-jedem-versionssprung). Der Release-Tag soll auf dem Commit liegen, der den finalen Doku-Stand trägt.
-7. **Status-Updates** — alle Umsetzungs-Tasks des Epics, der Sammeltask selbst und das Epic auf `Erledigt`.
+1. **CHANGELOG.md** — neuer Block `## [X.Y.Z] - JJJJ-MM-TT — <Untertitel>` ganz oben, Verweis auf das Epic im einleitenden Absatz. Subsektionen wie „Neu", „Geändert", „Behoben", „i18n".
+2. **Release-Notes** — `dist/release-notes-X.Y.Z.md` aus `docs/release-notes-template.md` ableiten (gitignored). Auf Deutsch mit Umlauten, sektioniert wie im Template beschrieben.
+3. **README.md aktualisieren** — Status-Sektion (vorletztes Kapitel) auf die neue Version und ein bis zwei Sätze über die Schwerpunkte des Releases umschreiben. Funktionsumfang-Subsektionen (`### Markdown-Umfang`, `### Hilfe-Dialog`, ggf. `### Theme`, `### Statusbar` oder andere thematisch passende Stellen) um neue Features oder geänderte Beschreibungen ergänzen — bei reinen Bugfix-Releases entfallend. Insbesondere `### Hilfe-Dialog` muss die Tab-Struktur und die Funktions-Gruppen widerspiegeln; harte Stückzahlen wie „19 Bullets" oder „17 Zeilen Tastenkürzel" sollten vermieden werden, weil sie schnell veralten. Tastenkürzel-Tabelle um die neuen Bindings ergänzen, sofern welche dazugekommen sind. EXE-Dateinamen im Build-Abschnitt sind über den Platzhalter `<version>` versionsfrei gehalten und brauchen keine Pflege.
+4. **Test-Iteration mit dem Nutzer** — Portable-EXE bauen und Nutzer prüfen lassen, ob die Release-Notes inhaltlich passen und die README-Status-Sektion stimmt. Die Hilfe-Dialog-Inhalte sind zu diesem Zeitpunkt bereits im eigenen Hilfe-Dialog-Task getestet und freigegeben. **Erst nach Freigabe** weiter.
+5. **Commit, Tag, GitHub-Release** — siehe Abschnitt [Release-Prozess: Tag + GitHub-Release bei jedem Versionssprung](#release-prozess-tag--github-release-bei-jedem-versionssprung). Der Release-Tag soll auf dem Commit liegen, der den finalen Doku-Stand trägt.
+6. **Status-Updates** — alle Umsetzungs-Tasks des Epics, der Hilfe-Dialog-Task, der Sammeltask selbst und das Epic auf `Erledigt`.
 
 **Hinweise zur Reihenfolge:**
 
-- Erst Doku-Texte schreiben (Schritte 1–4), dann Test-Iteration (Schritt 5), **erst danach** Commit + Build + Tag + Release (Schritt 6). So bleibt der finale Doku-Stand am Release-Tag verankert; nachträgliche Doku-Korrekturen würden sonst hinter dem Tag stehen und im Release-Asset fehlen.
-- Sammeltask-ID ist die nächste freie 4T-Nummer; sie bezieht sich nicht auf eine fortlaufende Sammeltask-Reihe und ist daher nicht „4T-0010 → 4T-0011" o.ä., sondern folgt einfach der Reihenfolge der angelegten Tasks im Projekt.
+- Innerhalb des Sammeltasks: erst Doku-Texte schreiben (Schritte 1–3), dann Test-Iteration (Schritt 4), **erst danach** Commit + Build + Tag + Release (Schritt 5). So bleibt der finale Doku-Stand am Release-Tag verankert; nachträgliche Doku-Korrekturen würden sonst hinter dem Tag stehen und im Release-Asset fehlen.
+- Task-IDs (sowohl Umsetzungs-, Hilfe-Dialog- als auch Sammeltask) sind die nächsten freien 4T-Nummern und folgen einfach der Reihenfolge der angelegten Tasks im Projekt.
 
 ## Release-Prozess: Tag + GitHub-Release bei jedem Versionssprung
 

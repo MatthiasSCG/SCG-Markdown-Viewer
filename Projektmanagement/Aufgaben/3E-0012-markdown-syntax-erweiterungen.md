@@ -49,15 +49,14 @@ Konzeptionell trivial im Sinne von „drei markdown-it-Plugins plus CSS", aber f
 
 ## Untergeordnete Tasks
 
-Werden zu Beginn der Epic-Umsetzung als 4T-Dateien angelegt. Vorgesehene Tasks:
+- [ ] [4T-0061 — Callouts (Obsidian-Style Block-Hinweisboxen)](4T-0061-callouts.md)
+- [ ] [4T-0062 — Highlight `==Text==`](4T-0062-highlight.md)
+- [ ] [4T-0063 — Footnotes (`[^1]` und inline `^[Text]`)](4T-0063-footnotes.md)
+- [ ] [4T-0064 — Block-Embed-Erweiterung (AST-basiert)](4T-0064-block-embed-ast.md)
+- [ ] [4T-0065 — Hilfe-Dialog um Callouts, Highlight und Footnotes erweitern](4T-0065-hilfe-dialog-syntax-erweiterungen.md)
+- [ ] [4T-0066 — CHANGELOG, Release-Notes, Tag und GitHub-Release für 0.18.0](4T-0066-changelog-release-0180.md)
 
-1. **Callouts** — Parser, Renderer, CSS für die 10 Typen, klappbare Varianten.
-2. **Highlight** `==Text==` — markdown-it-Plugin (Eigenimplementierung oder existierendes Plugin), CSS.
-3. **Footnotes** — `markdown-it-footnote` einbinden, CSS für Fußnoten-Block.
-4. **Block-Embed-Erweiterung** (Nachzieher aus 4T-0055) — `extractEmbedSnippet` in [src/main/backlinks.js](../../src/main/backlinks.js) auf AST-basierte Block-Range-Erkennung umstellen; mehrzeilige Listen-Items, Code-Blöcke, Tabellenzeilen, mehrzeilige Blockquotes vollständig einbetten.
-5. **Hilfe-Dialog erweitern und Abschluss-Sammeltask** — Funktions-Einträge, Hilfe-Markdown-Beispiele, CHANGELOG, README, Release.
-
-Möglicherweise lassen sich Highlight und Footnotes in einem gemeinsamen Task abhandeln, weil beide klein sind. Entscheidung beim Epic-Start.
+**Schnitt-Entscheidung zum Epic-Start (2026-05-21):** Highlight und Footnotes werden als getrennte Tasks geführt (die im Epic-Text erwogene Bündel-Option wird verworfen), weil saubere ID-Trennung und Nachvollziehbarkeit im CHANGELOG schwerer wiegen als der gesparte Test-Zyklus. Punkt 5 aus dem ursprünglichen Konzept (Hilfe-Dialog + Sammeltask) wird gemäß Konvention seit Epic 3E-0011 in zwei getrennte Tasks aufgeteilt: 4T-0065 für den Hilfe-Dialog, 4T-0066 für CHANGELOG/Release.
 
 ## Architekturentscheidungen
 

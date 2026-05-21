@@ -1,6 +1,6 @@
 {
   "name": "scg-markdown",
-  "version": "0.17.1",
+  "version": "0.18.0",
   "description": "Schlanker Markdown-Editor für Windows 11 mit Tabs, Quellcode-/Render-Ansicht, Auto-Reload und Mehrsprachigkeit.",
   "main": "src/main/main.js",
   "scripts": {
